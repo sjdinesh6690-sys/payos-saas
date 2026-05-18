@@ -556,7 +556,7 @@ export default function LandingPage() {
               {
                 icon: '💰',
                 title: 'Starting at ₹499/Month',
-                desc: 'Less than what you pay for a single employee's lunch. greytHR starts at ₹3,000. Keka starts at ₹6,000. We start at ₹499.',
+                desc: "Less than what you pay for a single employee's lunch. greytHR starts at ₹3,000. Keka starts at ₹6,000. We start at ₹499.",
                 color: '#059669',
                 bg: '#ECFDF5',
               },
