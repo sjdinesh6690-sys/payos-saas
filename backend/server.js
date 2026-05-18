@@ -88,6 +88,7 @@ initDB().then(async () => {
   app.use('/api/reports',        require('./routes/reports'));
   app.use('/api/super-admin',    require('./routes/super-admin'));
   app.use('/api/admin-profile',  require('./routes/admin-profile'));
+  app.use('/api/ai',             require('./routes/ai'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));

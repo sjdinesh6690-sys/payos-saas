@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Download, Trash2, Mail, MoreHorizontal,
   FileText, ChevronUp, ChevronDown,
+  Sparkles, AlertTriangle, AlertCircle, Info, X, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -18,17 +19,109 @@ const fmt = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FULL  = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// ── Severity config ──────────────────────────────────────────────────────────
+const SEVERITY = {
+  high:   { label: 'High',   icon: AlertTriangle, color: 'text-red-600',    bg: 'bg-red-50 border-red-200',    badge: 'bg-red-100 text-red-700 border-red-200' },
+  medium: { label: 'Medium', icon: AlertCircle,   color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', badge: 'bg-orange-100 text-orange-700 border-orange-200' },
+  low:    { label: 'Low',    icon: Info,           color: 'text-blue-600',   bg: 'bg-blue-50 border-blue-200',  badge: 'bg-blue-100 text-blue-700 border-blue-200' },
+};
+
+// ── Anomaly Panel ────────────────────────────────────────────────────────────
+function AnomalyPanel({ result, onClose }) {
+  if (!result) return null;
+  const { anomalies = [], scanned, month, year, compared_to } = result;
+  const high   = anomalies.filter(a => a.severity === 'high');
+  const medium = anomalies.filter(a => a.severity === 'medium');
+  const low    = anomalies.filter(a => a.severity === 'low');
+
+  return (
+    <Card className="border-2 border-purple-200 bg-purple-50/30">
+      <CardContent className="pt-5 pb-5">
+        {/* Panel header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-purple-600" />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                AI Anomaly Scan — {MONTH_FULL[month]} {year}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Scanned {scanned} payslips · Compared vs {compared_to}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-purple-100 text-slate-400">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Summary pills */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {high.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+              <AlertTriangle size={11} /> {high.length} High Risk
+            </span>
+          )}
+          {medium.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+              <AlertCircle size={11} /> {medium.length} Medium
+            </span>
+          )}
+          {low.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+              <Info size={11} /> {low.length} Low
+            </span>
+          )}
+          {anomalies.length === 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+              ✅ All Clear — No anomalies found
+            </span>
+          )}
+        </div>
+
+        {/* Anomaly list */}
+        {anomalies.length > 0 && (
+          <div className="space-y-2">
+            {[...high, ...medium, ...low].map((a, i) => {
+              const s   = SEVERITY[a.severity] || SEVERITY.low;
+              const Icon = s.icon;
+              return (
+                <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${s.bg}`}>
+                  <Icon size={15} className={`mt-0.5 flex-shrink-0 ${s.color}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-slate-800">{a.employee_name}</span>
+                      <span className="text-xs text-slate-400 font-mono">{a.employee_id}</span>
+                      <Badge className={`text-[10px] px-1.5 py-0 border ${s.badge}`}>
+                        {s.label}
+                      </Badge>
+                    </div>
+                    <p className="text-xs font-medium text-slate-700 mt-0.5">{a.issue}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{a.detail}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main PayslipsPage ────────────────────────────────────────────────────────
 export default function PayslipsPage() {
   const qc = useQueryClient();
 
   const { data: payslips = [], isLoading } = useQuery({
     queryKey: ['payslips'],
-    queryFn: () => api.get('/payslips').then(r => r.data),
+    queryFn:  () => api.get('/payslips').then(r => r.data),
   });
   const { data: months = [] } = useQuery({
     queryKey: ['payslip-months'],
-    queryFn: () => api.get('/payslips/months').then(r => r.data),
+    queryFn:  () => api.get('/payslips/months').then(r => r.data),
   });
 
   // Selection
@@ -47,6 +140,10 @@ export default function PayslipsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [emailing, setEmailing]         = useState(false);
+
+  // Anomaly detection
+  const [scanLoading, setScanLoading]   = useState(false);
+  const [scanResult, setScanResult]     = useState(null);
 
   const refetch = () => {
     qc.invalidateQueries({ queryKey: ['payslips'] });
@@ -116,7 +213,6 @@ export default function PayslipsPage() {
 
   const handleDownload = async (p) => {
     try {
-      // Use shared api axios instance — handles auth token automatically
       const res  = await api.get(`/payslips/${p.id}/download`, { responseType: 'blob' });
       const blob = res.data;
       const url  = URL.createObjectURL(blob);
@@ -133,8 +229,8 @@ export default function PayslipsPage() {
     }
   };
 
-  const promptDelete     = (p)  => { setDeleteTarget(p); setDeleteOpen(true); };
-  const promptBulkDelete = ()   => { setDeleteTarget(null); setDeleteOpen(true); };
+  const promptDelete     = (p) => { setDeleteTarget(p); setDeleteOpen(true); };
+  const promptBulkDelete = ()  => { setDeleteTarget(null); setDeleteOpen(true); };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -171,9 +267,52 @@ export default function PayslipsPage() {
     }
   };
 
+  // ── Anomaly Scan ────────────────────────────────────────────────────────────
+  const handleAnomalyScan = async () => {
+    // Determine which month/year to scan
+    let scanMonth, scanYear;
+
+    if (filterMonth) {
+      const [y, m] = filterMonth.split('-');
+      scanMonth = parseInt(m);
+      scanYear  = parseInt(y);
+    } else if (months.length > 0) {
+      // Default to latest month
+      const [y, m] = months[0].split('-');
+      scanMonth = parseInt(m);
+      scanYear  = parseInt(y);
+    } else {
+      toast.error('No payslips available to scan. Generate payslips first.');
+      return;
+    }
+
+    setScanLoading(true);
+    setScanResult(null);
+
+    try {
+      const res  = await api.post('/ai/anomaly-scan', { month: scanMonth, year: scanYear });
+      setScanResult(res.data);
+      const count = res.data.anomalies?.length || 0;
+      if (count === 0) {
+        toast.success('Scan complete — No anomalies found! ✅');
+      } else {
+        const high = res.data.anomalies.filter(a => a.severity === 'high').length;
+        if (high > 0) {
+          toast.error(`Found ${count} issue(s) — ${high} high risk! Review below.`);
+        } else {
+          toast.warning(`Found ${count} issue(s) to review.`);
+        }
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || 'AI scan failed. Try again.';
+      toast.error(msg);
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
   // Stats
-  // Use net_salary for "Total Disbursed" — this is actual money paid out, not gross
-  const totalSalary = payslips.reduce((s, p) => s + (Number(p.net_salary || p.salary) || 0), 0);
+  const totalSalary  = payslips.reduce((s, p) => s + (Number(p.net_salary || p.salary) || 0), 0);
   const uniqueMonths = new Set(payslips.map(p => `${p.year}-${p.month}`)).size;
 
   return (
@@ -198,16 +337,29 @@ export default function PayslipsPage() {
               </Button>
             </>
           )}
+
+          {/* AI Anomaly Scan button */}
+          <Button
+            variant="outline"
+            className="h-9 text-purple-700 border-purple-300 hover:bg-purple-50 font-medium"
+            onClick={handleAnomalyScan}
+            disabled={scanLoading || payslips.length === 0}
+          >
+            {scanLoading
+              ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Scanning…</>
+              : <><Sparkles size={14} className="mr-1.5" /> AI Anomaly Scan</>
+            }
+          </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Payslips', value: payslips.length },
-          { label: 'Total Disbursed', value: fmt(totalSalary) },
-          { label: 'Months Processed', value: uniqueMonths },
-          { label: 'Avg Salary', value: payslips.length ? fmt(totalSalary / payslips.length) : '—' },
+          { label: 'Total Payslips',    value: payslips.length },
+          { label: 'Total Disbursed',   value: fmt(totalSalary) },
+          { label: 'Months Processed',  value: uniqueMonths },
+          { label: 'Avg Salary',        value: payslips.length ? fmt(totalSalary / payslips.length) : '—' },
         ].map((s, i) => (
           <Card key={i}>
             <CardContent className="pt-4 pb-4">
@@ -217,6 +369,11 @@ export default function PayslipsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Anomaly Results Panel */}
+      {scanResult && (
+        <AnomalyPanel result={scanResult} onClose={() => setScanResult(null)} />
+      )}
 
       {/* Filters */}
       <DataFilters
