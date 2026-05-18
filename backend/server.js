@@ -61,7 +61,24 @@ app.use('/api/auth/employee-login', authLimiter);
 app.use('/api/super-admin/login',   authLimiter);
 
 // ── Init database & routes ────────────────────────────────────────────────────
-initDB().then(() => {
+initDB().then(async () => {
+  // Auto-seed demo account on first run (if no admins exist)
+  try {
+    const { pool } = require('./database');
+    const bcrypt = require('bcryptjs');
+    const { rows } = await pool.query('SELECT COUNT(*) as cnt FROM admins');
+    if (parseInt(rows[0].cnt) === 0) {
+      const hash = await bcrypt.hash('Demo@1234', 10);
+      await pool.query(
+        `INSERT INTO admins (email, password, company_name, company_address, company_phone, company_email, plan, status, onboarding_completed, trial_start_date, trial_end_date, trial_days)
+         VALUES ($1,$2,$3,$4,$5,$6,'starter','active',TRUE,NOW(),NOW()+INTERVAL '30 days',30)`,
+        ['demo@payos.com', hash, 'TechSolutions India Pvt Ltd', 'Chennai, Tamil Nadu', '+91-9876543210', 'hr@techsolutions.in']
+      );
+      console.log('✅ Demo account created: demo@payos.com / Demo@1234');
+    }
+  } catch (e) {
+    console.error('⚠️  Auto-seed skipped:', e.message);
+  }
   app.use('/api/auth',           require('./routes/auth'));
   app.use('/api/payslips',       require('./routes/payslips'));
   app.use('/api/employees',      require('./routes/employees'));
