@@ -15,18 +15,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// ── CORS — locked to your domain (add localhost for dev) ─────────────────────
+// ── CORS — allow localhost for dev + production Render URL ───────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3001',
+  'https://payos-saas.onrender.com',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile apps, curl, Postman, same-origin)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Also allow any *.onrender.com for preview deploys
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
     callback(new Error('CORS policy: Origin not allowed'));
   },
   credentials: true,
