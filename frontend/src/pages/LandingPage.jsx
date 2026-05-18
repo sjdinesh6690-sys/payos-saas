@@ -56,11 +56,16 @@ const StarIcon = () => (
   </svg>
 );
 
-// ── PayLeef Logo Mark ─────────────────────────────────────────────────────────
-const LeafMark = ({ size = 18, color = 'white' }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={{ width: size, height: size }}>
-    <path d="M12 2C6.5 2 2 9 2 14c0 3.3 2.7 6 6 6 1.8 0 3.4-.8 4.5-2C13.5 20.2 15 21 16.7 21c2.4 0 5.3-2 5.3-7C22 7.5 17.5 2 12 2z" fill={color} opacity="0.9"/>
-    <path d="M12 2 L12 20" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+// ── PayLeef Logo Mark — Rupee Leaf ───────────────────────────────────────────
+const LeafMark = ({ size = 18 }) => (
+  <svg viewBox="0 0 20 24" fill="none" style={{ width: size, height: size }}>
+    {/* White leaf */}
+    <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+    {/* Rupee symbol in green */}
+    <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
   </svg>
 );
 
