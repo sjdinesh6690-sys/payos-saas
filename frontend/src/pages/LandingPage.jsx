@@ -476,10 +476,9 @@ export default function LandingPage() {
               <div className="section-label" style={{ marginBottom: 0 }}>🇮🇳 Built for Indian SMEs</div>
               <div style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 100 }}>✨ Now with AI</div>
             </div>
-            <h1 style={{ fontSize: 'clamp(34px, 4.5vw, 56px)', fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.03em', marginBottom: 20, color: C.text }}>
-              India's Simplest Payroll.<br />
-              <span style={{ color: C.green }}>Zero Errors. 100%</span><br />
-              Government Compliant.
+            <h1 style={{ fontSize: 'clamp(34px, 4.5vw, 58px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: '-0.03em', marginBottom: 20, color: C.text }}>
+              Stop Losing Weekends<br />
+              <span style={{ color: C.green }}>to Payroll Chaos.</span>
             </h1>
             <p style={{ fontSize: 18, color: C.muted, lineHeight: 1.75, marginBottom: 36, maxWidth: 480 }}>
               PayLeef automates salary calculations, PF/ESI/PT compliance, and payslip delivery for your whole team.
@@ -1046,7 +1045,7 @@ export default function LandingPage() {
                 <span style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>PayLeef</span>
               </div>
               <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.75, maxWidth: 240, marginBottom: 16 }}>
-                India's Simplest Payroll. Built for businesses of 5–200 employees. Zero errors. 100% government compliant.
+                Stop losing weekends to payroll chaos. AI-powered payroll built for Indian businesses of 5–200 employees.
               </p>
               <p style={{ fontSize: 12, color: '#475569' }}>🇮🇳 Made in India · Built for India</p>
             </div>
@@ -1071,7 +1070,7 @@ export default function LandingPage() {
           </div>
 
           <div style={{ borderTop: '1px solid #1E293B', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <p style={{ fontSize: 13, color: '#475569' }}>© 2026 PayLeef · India's Simplest Payroll</p>
+            <p style={{ fontSize: 13, color: '#475569' }}>© 2026 PayLeef · Payroll That Actually Works</p>
             <p style={{ fontSize: 13, color: '#475569' }}>Built by DinMind Software Solutions</p>
           </div>
         </div>
