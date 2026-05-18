@@ -428,12 +428,15 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(26,122,74,0.35)' }}>
-              <LeafMark size={20} />
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(26,122,74,0.35)' }}>
+              <LeafMark size={22} />
             </div>
             <div>
-              <span style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>PayLeef</span>
-              <span style={{ display: 'block', fontSize: 10, color: C.muted, lineHeight: 1, marginTop: -1 }}>India's Smartest Payroll</span>
+              <div style={{ lineHeight: 1.1 }}>
+                <span style={{ fontSize: 19, fontWeight: 900, color: C.text, letterSpacing: '-0.04em' }}>Pay</span>
+                <span style={{ fontSize: 19, fontWeight: 900, color: C.green, letterSpacing: '-0.04em' }}>Leef</span>
+              </div>
+              <span style={{ display: 'block', fontSize: 10, color: C.muted, letterSpacing: '0.08em', marginTop: 1 }}>PAYROLL FOR INDIA</span>
             </div>
           </div>
 
@@ -1044,10 +1047,16 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <LeafMark size={19} />
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LeafMark size={20} />
                 </div>
-                <span style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>PayLeef</span>
+                <div>
+                  <div style={{ lineHeight: 1 }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>Pay</span>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: '#4ADE80', letterSpacing: '-0.03em' }}>Leef</span>
+                  </div>
+                  <span style={{ fontSize: 9.5, color: '#475569', letterSpacing: '0.1em' }}>PAYROLL FOR INDIA</span>
+                </div>
               </div>
               <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.75, maxWidth: 240, marginBottom: 16 }}>
                 Stop losing weekends to payroll chaos. AI-powered payroll built for Indian businesses of 5–200 employees.
