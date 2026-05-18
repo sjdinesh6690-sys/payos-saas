@@ -71,20 +71,22 @@ router.post('/upload', async (req, res) => {
     try {
       await client.query('BEGIN');
       for (const row of rows) {
-        const { employee_id, employee_name, email, salary, department, designation, phone, date_of_joining } = row;
+        const { employee_id, employee_name, email, department, designation, phone, date_of_joining } = row;
+        // Accept both 'salary' and 'gross_salary' column names
+        const salary = row.salary || row.gross_salary || row.ctc || 0;
         if (!employee_id || !employee_name || !email) {
           skipped++;
-          skippedReasons.push({ employee_id, reason: 'Missing required fields' });
+          skippedReasons.push({ employee_id: employee_id || '?', reason: 'Missing required fields (employee_id, employee_name, email)' });
           continue;
         }
-        const empId = employee_id.toUpperCase();
+        const empId = employee_id.toString().trim().toUpperCase();
         const exists = await client.query(
           'SELECT id FROM employees WHERE admin_id = $1 AND employee_id = $2',
           [req.admin_id, empId]
         );
         if (exists.rows.length > 0) {
           skipped++;
-          skippedReasons.push({ employee_id: empId, reason: 'Duplicate ID' });
+          skippedReasons.push({ employee_id: empId, reason: 'Already exists — use Employees page to edit' });
           continue;
         }
         const hashedPwd = await bcrypt.hash(empId, 10); // Default password = employee_id
@@ -92,7 +94,7 @@ router.post('/upload', async (req, res) => {
           INSERT INTO employees
             (admin_id, employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-        `, [req.admin_id, empId, employee_name, email, parseFloat(salary)||0, department||'', designation||'', phone||'', date_of_joining||'', hashedPwd]);
+        `, [req.admin_id, empId, employee_name.trim(), email.trim().toLowerCase(), parseFloat(salary)||0, (department||'').trim(), (designation||'').trim(), (phone||'').trim(), (date_of_joining||'').trim(), hashedPwd]);
         inserted++;
       }
       await client.query('COMMIT');

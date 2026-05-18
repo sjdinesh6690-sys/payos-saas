@@ -2,604 +2,106 @@ import { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileText, CheckCircle2, AlertCircle, X, Download,
-  Users, Info, ChevronDown, ChevronUp, Calendar, Loader2,
+  Users, Loader2, ChevronRight, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import api from '@/lib/api';
 
-// ── CSV parser ────────────────────────────────────────────────────────────────
-function parseCsv(text) {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
-    return obj;
-  });
+// ── CSV helpers ───────────────────────────────────────────────────────────────
+function parseCsvLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
 }
 
-// ── CSV builder ───────────────────────────────────────────────────────────────
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { rows: [], headers: [] };
+  const headers = parseCsvLine(lines[0]);
+  const rows = lines.slice(1).map(line => {
+    const vals = parseCsvLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
+    return obj;
+  });
+  return { rows, headers };
+}
+
 function buildCsv(headers, rows) {
-  const escape = (v) => {
-    const s = String(v ?? '');
-    return s.includes(',') ? `"${s}"` : s;
-  };
-  const headerLine = headers.join(',');
-  const dataLines  = rows.map(r => headers.map(h => escape(r[h] ?? '')).join(','));
-  return [headerLine, ...dataLines].join('\n');
+  const esc = v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [headers.join(','), ...rows.map(r => headers.map(h => esc(r[h] ?? '')).join(','))].join('\n');
 }
 
 function downloadCsv(content, filename) {
-  const blob = new Blob([content], { type: 'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-// ── Month/Year picker modal ───────────────────────────────────────────────────
-function MonthPickerModal({ onConfirm, onClose }) {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year,  setYear]  = useState(now.getFullYear());
+// ── Required columns for employees ───────────────────────────────────────────
+const REQUIRED_COLS = ['employee_id', 'employee_name', 'email', 'gross_salary'];
+const ALL_EMP_COLS  = ['employee_id', 'employee_name', 'email', 'gross_salary', 'department', 'designation', 'phone', 'date_of_joining'];
 
-  const years = [];
-  for (let y = now.getFullYear() + 1; y >= 2020; y--) years.push(y);
+const COL_INFO = {
+  employee_id:      { label: 'Employee ID',      eg: 'EMP001',            note: 'Unique ID — must be unique per employee', req: true },
+  employee_name:    { label: 'Full Name',         eg: 'Arjun Sharma',      note: 'Employee full name',                      req: true },
+  email:            { label: 'Email Address',     eg: 'arjun@company.com', note: 'Used for payslip emails and login',        req: true },
+  gross_salary:     { label: 'Gross Salary (₹)',  eg: '45000',             note: 'Total monthly CTC in rupees',              req: true },
+  department:       { label: 'Department',        eg: 'Engineering',       note: 'Optional — e.g. HR, Sales, Accounts' },
+  designation:      { label: 'Designation',       eg: 'Software Engineer', note: 'Optional — job title' },
+  phone:            { label: 'Phone Number',      eg: '9876543210',        note: 'Optional — 10-digit mobile' },
+  date_of_joining:  { label: 'Date of Joining',   eg: '2024-01-15',        note: 'Optional — YYYY-MM-DD format' },
+};
 
+// ── Step indicator ────────────────────────────────────────────────────────────
+function StepBadge({ n, active, done }) {
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+      width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 12, fontWeight: 800, flexShrink: 0,
+      background: done ? '#DCFCE7' : active ? '#1A7A4A' : '#F1F5F9',
+      color: done ? '#166534' : active ? '#fff' : '#94A3B8',
+      border: done ? '2px solid #86EFAC' : active ? 'none' : '2px solid #E2E8F0',
     }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A' }}>Which month's payslips?</div>
-            <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>Template will be pre-filled with all your employees for this month.</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>Month</label>
-            <select
-              value={month}
-              onChange={e => setMonth(Number(e.target.value))}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#0F172A', background: '#fff', cursor: 'pointer', outline: 'none' }}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>{m}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>Year</label>
-            <select
-              value={year}
-              onChange={e => setYear(Number(e.target.value))}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#0F172A', background: '#fff', cursor: 'pointer', outline: 'none' }}
-            >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#475569', marginBottom: 20 }}>
-          📋 Downloading template for <strong>{MONTHS[month - 1]} {year}</strong> — all employees will be pre-filled with their current salary.
-        </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#475569', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(month, year)}
-            style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: '#0F4FBF', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <Download size={14} /> Download Template
-          </button>
-        </div>
-      </div>
+      {done ? '✓' : n}
     </div>
   );
 }
 
-// ── Badge ─────────────────────────────────────────────────────────────────────
-function Badge({ children, color = 'blue' }) {
-  const s = {
-    blue:   { background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
-    green:  { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' },
-    orange: { background: '#FFF7ED', color: '#C2410C', border: '1px solid #FED7AA' },
-    purple: { background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' },
-    gray:   { background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0' },
-  };
-  return <span style={{ ...s[color], fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{children}</span>;
-}
-
-// ── Column group ──────────────────────────────────────────────────────────────
-function ColGroup({ title, cols, badgeColor, badgeLabel }) {
-  return (
-    <div style={{ border: '1px solid #E2E8F0', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
-      <div style={{ background: '#F8FAFC', padding: '9px 14px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid #E2E8F0' }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#1E293B' }}>{title}</span>
-        <Badge color={badgeColor}>{badgeLabel}</Badge>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 0 }}>
-        {cols.map((c, i) => (
-          <div key={c.key} style={{ padding: '9px 13px', borderBottom: '1px solid #F8FAFC', borderRight: '1px solid #F8FAFC' }}>
-            <code style={{ fontSize: 11, fontWeight: 700, color: '#0F4FBF', background: '#EFF6FF', padding: '1px 5px', borderRadius: 3 }}>{c.key}</code>
-            {c.req && <span style={{ color: '#DC2626', marginLeft: 2, fontSize: 11 }}>*</span>}
-            <div style={{ fontSize: 11, color: '#334155', marginTop: 2, fontWeight: 500 }}>{c.label}</div>
-            <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 1 }}>{c.note}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Mode selector card ────────────────────────────────────────────────────────
-function ModeCard({ mode, selected, onSelect, icon, title, subtitle }) {
-  const active = selected === mode;
-  return (
-    <div
-      onClick={() => onSelect(mode)}
-      style={{
-        flex: 1, padding: '14px 18px', borderRadius: 10, cursor: 'pointer', transition: 'all .15s',
-        border: active ? '2px solid #0F4FBF' : '2px solid #E2E8F0',
-        background: active ? '#EFF6FF' : '#FAFAFA',
-      }}
-    >
-      <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: active ? '#0F4FBF' : '#1E293B', marginBottom: 3 }}>{title}</div>
-      <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.5 }}>{subtitle}</div>
-    </div>
-  );
-}
-
-// ── Column definitions ────────────────────────────────────────────────────────
-const EMP_COLS_REQUIRED = [
-  { key: 'employee_id',    label: 'Employee ID',      note: 'Unique ID e.g. EMP001',        req: true },
-  { key: 'employee_name',  label: 'Full Name',         note: 'Employee full name',           req: true },
-  { key: 'email',          label: 'Email',             note: 'Used for employee login',      req: true },
-  { key: 'gross_salary',   label: 'Gross Salary (₹)',  note: 'Total monthly CTC',            req: true },
-];
-const EMP_COLS_OPTIONAL = [
-  { key: 'department',      label: 'Department',       note: 'e.g. Engineering, HR' },
-  { key: 'designation',     label: 'Designation',      note: 'e.g. Manager, Executive' },
-  { key: 'phone',           label: 'Phone',            note: '10-digit mobile number' },
-  { key: 'date_of_joining', label: 'Date of Joining',  note: 'YYYY-MM-DD format' },
-];
-const EMP_COLS_BREAKUP = [
-  { key: 'basic_pay',         label: 'Basic Pay (₹)',         note: 'Usually 40–50% of gross' },
-  { key: 'hra',               label: 'HRA (₹)',               note: 'House Rent Allowance' },
-  { key: 'conveyance',        label: 'Conveyance (₹)',        note: 'Usually ₹1,600' },
-  { key: 'special_allowance', label: 'Special Allowance (₹)', note: 'Balance after above' },
-];
-const PAY_COLS_REQUIRED = [
-  { key: 'employee_id',  label: 'Employee ID',      note: 'Must match existing employee', req: true },
-  { key: 'employee_name',label: 'Employee Name',    note: 'For reference only' },
-  { key: 'month',        label: 'Month',            note: '1 = Jan, 12 = Dec',           req: true },
-  { key: 'year',         label: 'Year',             note: 'e.g. 2026',                   req: true },
-  { key: 'gross_salary', label: 'Gross Salary (₹)', note: 'Leave blank to use employee salary' },
-];
-const PAY_COLS_EARNINGS = [
-  { key: 'basic_pay',          label: 'Basic Pay (₹)',         note: 'Basic salary component' },
-  { key: 'hra',                label: 'HRA (₹)',               note: 'House Rent Allowance' },
-  { key: 'conveyance',         label: 'Conveyance (₹)',        note: 'Travel allowance' },
-  { key: 'special_allowance',  label: 'Special Allowance (₹)', note: 'Balance amount' },
-  { key: 'bonus',              label: 'Bonus (₹)',             note: 'One-time or monthly bonus' },
-  { key: 'overtime_pay',       label: 'Overtime Pay (₹)',      note: 'Extra hours pay' },
-  { key: 'lop_days',           label: 'LOP Days',              note: '0 if full month worked' },
-];
-const PAY_COLS_DEDUCTIONS = [
-  { key: 'pf_deduction',      label: 'PF Deduction (₹)',      note: '12% of basic pay' },
-  { key: 'esi_deduction',     label: 'ESI Deduction (₹)',     note: '0.75% of gross' },
-  { key: 'pt_deduction',      label: 'Prof. Tax (₹)',         note: 'State professional tax' },
-  { key: 'tds_deduction',     label: 'TDS (₹)',               note: 'Income tax at source' },
-  { key: 'other_deductions',  label: 'Other Deductions (₹)',  note: 'Loan, canteen etc.' },
-  { key: 'net_pay',           label: 'Net Pay (₹)',           note: 'Final take-home (auto if blank)' },
-];
-
-// ── Upload panel ──────────────────────────────────────────────────────────────
-function UploadPanel({ type, mode, employees, empLoading }) {
-  const qc      = useQueryClient();
-  const fileRef = useRef(null);
-  const [file, setFile]       = useState(null);
-  const [rows, setRows]       = useState([]);
-  const [error, setError]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState(null);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [dlLoading, setDlLoading] = useState(false);
-
-  const isEmp    = type === 'employees';
-  const endpoint = isEmp ? '/employees/upload' : '/payslips/upload';
-  const queryKeys = isEmp ? ['employees'] : ['payslips', 'payslip-months'];
-
-  // ── Download template with real data pre-filled ──────────────────────────
-  const handleDownloadEmp = () => {
-    if (empLoading) { toast('Loading employee data…'); return; }
-
-    const isDetailed = mode === 'detailed';
-    const headers = isDetailed
-      ? ['employee_id','employee_name','email','department','designation','phone','date_of_joining','gross_salary','basic_pay','hra','conveyance','special_allowance']
-      : ['employee_id','employee_name','email','department','designation','phone','date_of_joining','gross_salary'];
-
-    let rows = [];
-    if (employees && employees.length > 0) {
-      // Pre-fill with real employees
-      rows = employees.map(e => ({
-        employee_id:        e.employee_id,
-        employee_name:      e.employee_name,
-        email:              e.email || '',
-        department:         e.department || '',
-        designation:        e.designation || '',
-        phone:              e.phone || '',
-        date_of_joining:    e.date_of_joining || '',
-        gross_salary:       e.salary || '',
-        basic_pay:          '',
-        hra:                '',
-        conveyance:         '',
-        special_allowance:  '',
-      }));
-    } else {
-      // Fallback: blank example rows
-      rows = [
-        { employee_id: 'EMP001', employee_name: 'John Smith', email: 'john@company.com', department: 'Engineering', designation: 'Engineer', phone: '9876543210', date_of_joining: '2024-01-15', gross_salary: 50000, basic_pay: '', hra: '', conveyance: '', special_allowance: '' },
-        { employee_id: 'EMP002', employee_name: 'Jane Doe',   email: 'jane@company.com', department: 'HR',          designation: 'HR Manager', phone: '9876543211', date_of_joining: '2023-06-01', gross_salary: 60000, basic_pay: '', hra: '', conveyance: '', special_allowance: '' },
-      ];
-    }
-
-    const csv = buildCsv(headers, rows);
-    downloadCsv(csv, isDetailed ? 'employee_master_detailed.csv' : 'employee_master.csv');
-    toast.success(employees?.length > 0
-      ? `Template downloaded with ${employees.length} existing employees pre-filled`
-      : 'Template downloaded with example data');
-  };
-
-  const handleDownloadPayslip = (month, year) => {
-    setShowMonthPicker(false);
-    if (empLoading) { toast('Loading employee data…'); return; }
-
-    const isDetailed = mode === 'detailed';
-    const headers = isDetailed
-      ? ['employee_id','employee_name','month','year','gross_salary','basic_pay','hra','conveyance','special_allowance','bonus','overtime_pay','lop_days','pf_deduction','esi_deduction','pt_deduction','tds_deduction','other_deductions','net_pay']
-      : ['employee_id','employee_name','month','year','gross_salary'];
-
-    let rows = [];
-    if (employees && employees.length > 0) {
-      rows = employees.map(e => ({
-        employee_id:     e.employee_id,
-        employee_name:   e.employee_name,
-        month:           month,
-        year:            year,
-        gross_salary:    e.salary || '',
-        basic_pay:       '',
-        hra:             '',
-        conveyance:      '',
-        special_allowance: '',
-        bonus:           '',
-        overtime_pay:    '',
-        lop_days:        '0',
-        pf_deduction:    '',
-        esi_deduction:   '',
-        pt_deduction:    '',
-        tds_deduction:   '',
-        other_deductions:'',
-        net_pay:         '',
-      }));
-    } else {
-      rows = [
-        { employee_id:'EMP001', employee_name:'John Smith', month, year, gross_salary:50000, basic_pay:'', hra:'', conveyance:'', special_allowance:'', bonus:'', overtime_pay:'', lop_days:'0', pf_deduction:'', esi_deduction:'', pt_deduction:'', tds_deduction:'', other_deductions:'', net_pay:'' },
-        { employee_id:'EMP002', employee_name:'Jane Doe',   month, year, gross_salary:60000, basic_pay:'', hra:'', conveyance:'', special_allowance:'', bonus:'', overtime_pay:'', lop_days:'0', pf_deduction:'', esi_deduction:'', pt_deduction:'', tds_deduction:'', other_deductions:'', net_pay:'' },
-      ];
-    }
-
-    const csv = buildCsv(headers, rows);
-    const monthName = MONTHS[month - 1];
-    downloadCsv(csv, `payslip_${monthName}_${year}${isDetailed ? '_detailed' : ''}.csv`);
-    toast.success(employees?.length > 0
-      ? `Template for ${monthName} ${year} downloaded with ${employees.length} employees pre-filled`
-      : `Template for ${monthName} ${year} downloaded`);
-  };
-
-  const handleDownloadClick = () => {
-    if (isEmp) handleDownloadEmp();
-    else setShowMonthPicker(true);
-  };
-
-  // ── File upload ──────────────────────────────────────────────────────────
-  const handleFile = (f) => {
-    if (!f) return;
-    if (!f.name.endsWith('.csv')) { setError('Only CSV files are supported. Save your Excel as CSV (File → Save As → CSV) first.'); return; }
-    setError(''); setFile(f); setResult(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const parsed = parseCsv(e.target.result);
-      if (!parsed.length) { setError('No data rows found. Check the file has a header row and at least one data row.'); setRows([]); return; }
-      setRows(parsed);
-    };
-    reader.readAsText(f);
-  };
-
-  const handleDrop  = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
-  const reset       = () => { setFile(null); setRows([]); setError(''); setResult(null); if (fileRef.current) fileRef.current.value = ''; };
-
-  const handleUpload = async () => {
-    if (!rows.length) return;
-    setLoading(true);
-    try {
-      const res = await api.post(endpoint, rows);
-      setResult(res.data);
-      toast.success(res.data.message || 'Upload successful');
-      queryKeys.forEach(k => qc.invalidateQueries({ queryKey: [k] }));
-      reset();
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Upload failed. Check your CSV and try again.';
-      toast.error(msg); setError(msg);
-    } finally { setLoading(false); }
-  };
-
-  const previewCols = rows.length ? Object.keys(rows[0]) : [];
-
-  return (
-    <>
-      {showMonthPicker && (
-        <MonthPickerModal onConfirm={handleDownloadPayslip} onClose={() => setShowMonthPicker(false)} />
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-        {/* Step 1 — Download */}
-        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#14532D', marginBottom: 4 }}>
-                Step 1 — Download Template
-              </div>
-              {isEmp ? (
-                <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.6 }}>
-                  {employees?.length > 0
-                    ? <>Template will be pre-filled with your <strong>{employees.length} existing employees</strong>. Update any details and re-upload to make changes.</>
-                    : 'No employees yet — template will download with example rows. Fill in your employee details.'}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.6 }}>
-                  {employees?.length > 0
-                    ? <>Template will be pre-filled with all <strong>{employees.length} employees</strong> for the month you choose.</>
-                    : 'Add employees first, then download the payslip template.'}
-                </div>
-              )}
-            </div>
-            <button
-              onClick={handleDownloadClick}
-              disabled={empLoading}
-              style={{
-                background: '#15803D', color: '#fff', border: 'none',
-                padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                cursor: empLoading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
-                opacity: empLoading ? 0.6 : 1,
-              }}
-            >
-              {empLoading
-                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Loading…</>
-                : <><Download size={13} /> {isEmp ? 'Download Employee Master' : 'Download Payslip Template'}</>
-              }
-            </button>
-          </div>
-
-          {/* Employee summary chips */}
-          {isEmp && employees?.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-              {[...new Set(employees.map(e => e.department).filter(Boolean))].map(d => (
-                <span key={d} style={{ fontSize: 11, fontWeight: 600, background: '#fff', border: '1px solid #BBF7D0', color: '#15803D', padding: '2px 9px', borderRadius: 4 }}>
-                  {d} ({employees.filter(e => e.department === d).length})
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Step 2 — Upload */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>
-            Step 2 — Fill in the template and upload
-          </div>
-          <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10 }}>
-            Open the downloaded CSV in Excel → fill in / update the values → save as CSV → upload below.
-          </div>
-          <div
-            onDrop={handleDrop}
-            onDragOver={e => e.preventDefault()}
-            onClick={() => fileRef.current?.click()}
-            style={{
-              border: `2px dashed ${file ? '#15803D' : '#CBD5E1'}`,
-              borderRadius: 10, padding: '28px 20px', textAlign: 'center',
-              cursor: 'pointer', transition: 'all .15s',
-              background: file ? '#F0FDF4' : '#FAFAFA',
-            }}
-            onMouseEnter={e => { if (!file) e.currentTarget.style.borderColor = '#0F4FBF'; e.currentTarget.style.background = '#F8FAFF'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = file ? '#15803D' : '#CBD5E1'; e.currentTarget.style.background = file ? '#F0FDF4' : '#FAFAFA'; }}
-          >
-            <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
-            {file ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <CheckCircle2 size={20} style={{ color: '#15803D' }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#14532D' }}>{file.name}</span>
-                <span style={{ fontSize: 12, color: '#64748B' }}>— {rows.length} rows ready</span>
-                <button onClick={e => { e.stopPropagation(); reset(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 2 }}>
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <>
-                <Upload size={28} style={{ color: '#CBD5E1', margin: '0 auto 8px' }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Click to choose file or drag & drop</div>
-                <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 3 }}>CSV files only</div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div style={{ display: 'flex', gap: 8, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px' }}>
-            <AlertCircle size={14} style={{ color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 13, color: '#991B1B' }}>{error}</span>
-          </div>
-        )}
-
-        {/* Result */}
-        {result && (
-          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '12px 16px' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: result.skippedReasons?.length ? 8 : 0 }}>
-              <CheckCircle2 size={15} style={{ color: '#15803D', flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 13, color: '#14532D', fontWeight: 600 }}>
-                {result.message} — <strong style={{ color: '#15803D' }}>{result.inserted} added</strong>, {result.skipped} skipped
-              </span>
-            </div>
-            {result.skippedReasons?.length > 0 && (
-              <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#92400E' }}>
-                ⚠ Skipped rows: {result.skippedReasons.slice(0, 5).map(r => `${r.employee_id} (${r.reason})`).join(' · ')}
-                {result.skippedReasons.length > 5 && ` …and ${result.skippedReasons.length - 5} more`}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Preview table */}
-        {rows.length > 0 && (
-          <div style={{ border: '1px solid #E2E8F0', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ background: '#F8FAFC', padding: '10px 14px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>
-                Preview — {rows.length} row{rows.length > 1 ? 's' : ''} ready to upload
-              </span>
-              <span style={{ fontSize: 11, color: '#94A3B8' }}>Showing first 5</span>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#F8FAFC' }}>
-                    {previewCols.map(h => (
-                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.slice(0, 5).map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      {previewCols.map(h => (
-                        <td key={h} style={{ padding: '8px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
-                          {row[h] || <span style={{ color: '#CBD5E1' }}>—</span>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Upload button */}
-        <button
-          onClick={handleUpload}
-          disabled={!rows.length || loading || !!error}
-          style={{
-            width: '100%', padding: '12px', borderRadius: 8, border: 'none',
-            background: !rows.length || !!error ? '#E2E8F0' : '#0F4FBF',
-            color: !rows.length || !!error ? '#94A3B8' : '#fff',
-            fontSize: 14, fontWeight: 700,
-            cursor: !rows.length || !!error ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          {loading
-            ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Uploading…</>
-            : rows.length > 0 ? `Upload ${rows.length} rows` : 'Upload File'
-          }
-        </button>
-      </div>
-    </>
-  );
-}
-
-// ── Column reference panel ────────────────────────────────────────────────────
-function ColReference({ type, mode }) {
-  const [open, setOpen] = useState(false);
-  const isEmp = type === 'employees';
-  const colCount = isEmp
-    ? (mode === 'detailed' ? 12 : 8)
-    : (mode === 'detailed' ? 18 : 5);
-
-  return (
-    <div style={{ border: '1px solid #E2E8F0', borderRadius: 10, overflow: 'hidden' }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{ width: '100%', background: '#F8FAFC', border: 'none', padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: open ? '1px solid #E2E8F0' : 'none' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Info size={13} style={{ color: '#0F4FBF' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>Column Reference</span>
-          <Badge color="gray">{colCount} columns</Badge>
-        </div>
-        {open ? <ChevronUp size={15} style={{ color: '#64748B' }} /> : <ChevronDown size={15} style={{ color: '#64748B' }} />}
-      </button>
-
-      {open && (
-        <div style={{ padding: 14 }}>
-          {isEmp ? (
-            <>
-              <ColGroup title="Required" cols={EMP_COLS_REQUIRED} badgeColor="orange" badgeLabel="Required" />
-              <ColGroup title="Recommended" cols={EMP_COLS_OPTIONAL} badgeColor="blue" badgeLabel="Optional" />
-              {mode === 'detailed' && <ColGroup title="Salary Breakup" cols={EMP_COLS_BREAKUP} badgeColor="purple" badgeLabel="Detailed mode" />}
-            </>
-          ) : (
-            <>
-              <ColGroup title="Core Columns" cols={PAY_COLS_REQUIRED} badgeColor="orange" badgeLabel="Required" />
-              {mode === 'detailed' && (
-                <>
-                  <ColGroup title="Earnings" cols={PAY_COLS_EARNINGS} badgeColor="green" badgeLabel="Detailed mode" />
-                  <ColGroup title="Deductions" cols={PAY_COLS_DEDUCTIONS} badgeColor="purple" badgeLabel="Detailed mode" />
-                </>
-              )}
-            </>
-          )}
-          <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '9px 13px', fontSize: 12, color: '#92400E', display: 'flex', gap: 8, marginTop: 8 }}>
-            <Info size={12} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>
-              {mode === 'detailed'
-                ? 'Values you enter appear exactly on the payslip. Blank columns are auto-calculated.'
-                : 'In auto mode, just provide gross_salary. All components are calculated when you generate payslips.'}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function UploadPage() {
-  const [empMode, setEmpMode] = useState('auto');
-  const [payMode, setPayMode] = useState('auto');
+  const qc = useQueryClient();
+  const fileRef = useRef(null);
+
   const [employees, setEmployees]   = useState([]);
   const [empLoading, setEmpLoading] = useState(true);
+  const [file, setFile]             = useState(null);
+  const [parsedRows, setParsedRows] = useState([]);
+  const [headers, setHeaders]       = useState([]);
+  const [parseError, setParseError] = useState('');
+  const [uploading, setUploading]   = useState(false);
+  const [result, setResult]         = useState(null);
+  const [activeStep, setActiveStep] = useState(1);
 
-  // Fetch employees once on mount — used to pre-fill templates
+  const G = '#1A7A4A';
+
   useEffect(() => {
     api.get('/employees')
       .then(r => setEmployees(r.data || []))
@@ -607,76 +109,396 @@ export default function UploadPage() {
       .finally(() => setEmpLoading(false));
   }, []);
 
+  // ── Download template ─────────────────────────────────────────────────────
+  const handleDownload = () => {
+    const rows = employees.length > 0
+      ? employees.map(e => ({
+          employee_id:     e.employee_id,
+          employee_name:   e.employee_name,
+          email:           e.email || '',
+          gross_salary:    e.salary || '',
+          department:      e.department || '',
+          designation:     e.designation || '',
+          phone:           e.phone || '',
+          date_of_joining: e.date_of_joining || '',
+        }))
+      : [
+          { employee_id: 'EMP001', employee_name: 'Arjun Sharma',  email: 'arjun@company.com',  gross_salary: 45000, department: 'Engineering', designation: 'Software Engineer', phone: '9876543210', date_of_joining: '2024-01-15' },
+          { employee_id: 'EMP002', employee_name: 'Priya Nair',    email: 'priya@company.com',   gross_salary: 52000, department: 'Operations',   designation: 'Manager',          phone: '9876543211', date_of_joining: '2023-06-01' },
+          { employee_id: 'EMP003', employee_name: 'Rohan Mehta',   email: 'rohan@company.com',   gross_salary: 38000, department: 'Accounts',     designation: 'Accountant',       phone: '9876543212', date_of_joining: '2024-03-10' },
+        ];
+
+    const csv = buildCsv(ALL_EMP_COLS, rows);
+    downloadCsv(csv, 'payleef_employee_import.csv');
+
+    toast.success(
+      employees.length > 0
+        ? `Template downloaded with ${employees.length} employees pre-filled`
+        : 'Template downloaded with 3 example rows — replace with your actual data'
+    );
+    setActiveStep(2);
+  };
+
+  // ── File handling ─────────────────────────────────────────────────────────
+  const handleFile = (f) => {
+    if (!f) return;
+    setResult(null);
+    setParseError('');
+
+    if (!f.name.toLowerCase().endsWith('.csv')) {
+      setParseError('Please upload a CSV file. In Excel: File → Save As → CSV (Comma delimited).');
+      return;
+    }
+
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const { rows, headers } = parseCsv(e.target.result);
+
+      if (!rows.length) {
+        setParseError('No data rows found. Make sure the file has a header row and at least one employee row.');
+        setParsedRows([]); setHeaders([]);
+        return;
+      }
+
+      // Check for required columns
+      const fileHeaders = headers.map(h => h.toLowerCase().trim());
+      const missing = REQUIRED_COLS.filter(r => !fileHeaders.includes(r));
+      if (missing.length > 0) {
+        setParseError(`Missing required columns: ${missing.join(', ')}. Download the template to get the correct format.`);
+        setParsedRows([]); setHeaders([]);
+        return;
+      }
+
+      setParsedRows(rows);
+      setHeaders(headers);
+      setActiveStep(3);
+    };
+    reader.readAsText(f);
+  };
+
+  const handleDrop  = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
+  const resetFile   = () => { setFile(null); setParsedRows([]); setHeaders([]); setParseError(''); setResult(null); if (fileRef.current) fileRef.current.value = ''; setActiveStep(2); };
+
+  // ── Upload ────────────────────────────────────────────────────────────────
+  const handleUpload = async () => {
+    if (!parsedRows.length) return;
+    setUploading(true);
+    try {
+      const res = await api.post('/employees/upload', parsedRows);
+      setResult(res.data);
+      if (res.data.inserted > 0) {
+        toast.success(`${res.data.inserted} employee${res.data.inserted > 1 ? 's' : ''} added successfully!`);
+        qc.invalidateQueries({ queryKey: ['employees'] });
+        setActiveStep(1);
+        resetFile();
+      } else {
+        toast.warning(res.data.message || 'No new employees were added.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Upload failed. Please try again.';
+      toast.error(msg);
+      setParseError(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ── Validation summary ────────────────────────────────────────────────────
+  const validRows   = parsedRows.filter(r => r.employee_id && r.employee_name && r.email);
+  const invalidRows = parsedRows.filter(r => !r.employee_id || !r.employee_name || !r.email);
+
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
+    <div style={{ padding: 24, maxWidth: 860, margin: '0 auto' }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>Import Data</h1>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>Import Employees</h1>
         <p style={{ fontSize: 14, color: '#64748B' }}>
-          Download the pre-filled template, update in Excel, and upload the CSV.
-          {employees.length > 0 && <span style={{ color: '#0F4FBF', fontWeight: 600 }}> {employees.length} employees loaded.</span>}
+          Add multiple employees at once using a CSV file. Follow the 3 steps below.
+          {employees.length > 0 && (
+            <span style={{ marginLeft: 6, color: G, fontWeight: 600 }}>
+              You currently have {employees.length} employee{employees.length !== 1 ? 's' : ''}.
+            </span>
+          )}
         </p>
       </div>
 
-      <Tabs defaultValue="employees">
-        <TabsList className="w-fit">
-          <TabsTrigger value="employees"><Users size={13} style={{ marginRight: 6 }} /> Employee Master</TabsTrigger>
-          <TabsTrigger value="payslips"><FileText size={13} style={{ marginRight: 6 }} /> Payslip Data</TabsTrigger>
-        </TabsList>
-
-        {/* ── EMPLOYEES TAB ─────────────────────────────────────────────── */}
-        <TabsContent value="employees" style={{ marginTop: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Mode */}
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>Choose upload mode</div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <ModeCard mode="auto" selected={empMode} onSelect={setEmpMode} icon="⚡"
-                  title="Auto-Calculate (Recommended)"
-                  subtitle="Enter gross salary only. System auto-splits into Basic, HRA, Conveyance etc. using your Payroll Config." />
-                <ModeCard mode="detailed" selected={empMode} onSelect={setEmpMode} icon="📋"
-                  title="Custom Salary Breakup"
-                  subtitle="Define each component yourself — Basic Pay, HRA, Conveyance, Special Allowance." />
-              </div>
+      {/* ── STEP 1 — Download Template ── */}
+      <div style={{ background: '#fff', border: `1px solid ${activeStep === 1 ? '#86EFAC' : '#E2E8F0'}`, borderRadius: 14, padding: 24, marginBottom: 16, boxShadow: activeStep === 1 ? '0 0 0 3px rgba(26,122,74,0.08)' : 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <StepBadge n={1} active={activeStep === 1} done={activeStep > 1} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Download the Template</div>
+            <div style={{ fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 1.6 }}>
+              {employees.length > 0
+                ? <>Your <strong>{employees.length} existing employees</strong> are pre-filled in the template. You can update details or add new rows.</>
+                : 'Get the CSV template with the correct column format. We\'ve added 3 example rows to show you how to fill it in.'}
             </div>
 
-            <ColReference type="employees" mode={empMode} />
-            <UploadPanel type="employees" mode={empMode} employees={employees} empLoading={empLoading} />
+            {/* Column guide */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+              {ALL_EMP_COLS.map(col => {
+                const info = COL_INFO[col];
+                const isReq = REQUIRED_COLS.includes(col);
+                return (
+                  <div key={col} style={{ background: isReq ? '#F0FDF4' : '#F8FAFC', border: `1px solid ${isReq ? '#DCFCE7' : '#E2E8F0'}`, borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <code style={{ fontSize: 11, fontWeight: 700, color: isReq ? G : '#475569', background: isReq ? '#DCFCE7' : '#E2E8F0', padding: '1px 6px', borderRadius: 4 }}>{col}</code>
+                      {isReq && <span style={{ fontSize: 10, fontWeight: 700, color: '#DC2626' }}>REQUIRED</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#475569', fontWeight: 500 }}>{info.label}</div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>e.g. {info.eg}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleDownload}
+              disabled={empLoading}
+              style={{
+                background: G, color: '#fff', border: 'none',
+                padding: '11px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700,
+                cursor: empLoading ? 'not-allowed' : 'pointer', opacity: empLoading ? 0.6 : 1,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              {empLoading
+                ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Loading…</>
+                : <><Download size={14} /> Download Template (CSV)</>
+              }
+            </button>
+            <span style={{ marginLeft: 12, fontSize: 12, color: '#94A3B8' }}>Opens in Excel — fill in your employees and save</span>
           </div>
-        </TabsContent>
+        </div>
+      </div>
 
-        {/* ── PAYSLIPS TAB ──────────────────────────────────────────────── */}
-        <TabsContent value="payslips" style={{ marginTop: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Info */}
-            <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 16px', display: 'flex', gap: 10 }}>
-              <Info size={15} style={{ color: '#1D4ED8', flexShrink: 0, marginTop: 2 }} />
-              <div style={{ fontSize: 13, color: '#1E3A8A', lineHeight: 1.65 }}>
-                <strong>How payslip upload works:</strong> Download the template for a specific month — it's pre-filled with all your employees and their salaries. Fill in any adjustments (bonus, LOP, overtime) and upload. Payslips are generated when you click Generate on the Generate & Send page.
-              </div>
+      {/* ── STEP 2 — Fill & Upload ── */}
+      <div style={{ background: '#fff', border: `1px solid ${activeStep === 2 ? '#86EFAC' : '#E2E8F0'}`, borderRadius: 14, padding: 24, marginBottom: 16, boxShadow: activeStep === 2 ? '0 0 0 3px rgba(26,122,74,0.08)' : 'none', opacity: activeStep < 2 ? 0.5 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <StepBadge n={2} active={activeStep === 2} done={activeStep > 2} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Fill in Excel and Upload the CSV</div>
+            <div style={{ fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 1.6 }}>
+              Open the downloaded file in Excel or Google Sheets. Fill in your employee details.
+              Then <strong>Save As → CSV</strong> and upload it here.
             </div>
 
-            {/* Mode */}
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>Choose upload mode</div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <ModeCard mode="auto" selected={payMode} onSelect={setPayMode} icon="⚡"
-                  title="Auto-Calculate (Recommended)"
-                  subtitle="Upload employee list for a month. System calculates all components automatically when generating payslips." />
-                <ModeCard mode="detailed" selected={payMode} onSelect={setPayMode} icon="🧮"
-                  title="Full Salary Breakup"
-                  subtitle="Upload exact values — Basic, HRA, PF, ESI, TDS, Bonus, LOP, Net Pay. These appear exactly on the payslip." />
-              </div>
+            {/* Tips */}
+            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
+              <strong>Tips:</strong> Don't rename the column headers · Gross salary should be the full monthly CTC in ₹ · Date format: YYYY-MM-DD (e.g. 2024-01-15) · Employee ID must be unique
             </div>
 
-            <ColReference type="payslips" mode={payMode} />
-            <UploadPanel type="payslips" mode={payMode} employees={employees} empLoading={empLoading} />
+            {/* Drop zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={e => e.preventDefault()}
+              onClick={() => activeStep >= 2 && fileRef.current?.click()}
+              style={{
+                border: `2px dashed ${file ? G : parseError ? '#FECACA' : '#CBD5E1'}`,
+                borderRadius: 10, padding: '32px 24px', textAlign: 'center',
+                cursor: activeStep >= 2 ? 'pointer' : 'default',
+                background: file ? '#F0FDF4' : parseError ? '#FEF2F2' : '#FAFAFA',
+                transition: 'all .15s',
+              }}
+            >
+              <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+              {file ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <CheckCircle2 size={20} style={{ color: G }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#14532D' }}>{file.name}</span>
+                  <span style={{ fontSize: 13, color: '#64748B' }}>— {parsedRows.length} rows found</span>
+                  <button onClick={e => { e.stopPropagation(); resetFile(); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 2 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Upload size={32} style={{ color: parseError ? '#FCA5A5' : '#CBD5E1', margin: '0 auto 10px' }} />
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>Click to choose your CSV file</div>
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>or drag and drop it here · CSV files only</div>
+                </>
+              )}
+            </div>
+
+            {/* Parse error */}
+            {parseError && (
+              <div style={{ display: 'flex', gap: 8, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 14px', marginTop: 12 }}>
+                <AlertCircle size={16} style={{ color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 3 }}>Cannot read this file</div>
+                  <div style={{ fontSize: 13, color: '#B91C1C' }}>{parseError}</div>
+                </div>
+              </div>
+            )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
+
+      {/* ── STEP 3 — Review & Confirm ── */}
+      {parsedRows.length > 0 && (
+        <div style={{ background: '#fff', border: `1px solid ${activeStep === 3 ? '#86EFAC' : '#E2E8F0'}`, borderRadius: 14, padding: 24, marginBottom: 16, boxShadow: '0 0 0 3px rgba(26,122,74,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <StepBadge n={3} active={activeStep === 3} done={false} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Review and Confirm</div>
+
+              {/* Summary chips */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: G }}>{validRows.length}</div>
+                  <div style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>Ready to import</div>
+                </div>
+                {invalidRows.length > 0 && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#DC2626' }}>{invalidRows.length}</div>
+                    <div style={{ fontSize: 12, color: '#991B1B', fontWeight: 600 }}>Will be skipped</div>
+                  </div>
+                )}
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{parsedRows.length}</div>
+                  <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>Total rows</div>
+                </div>
+              </div>
+
+              {/* Skipped rows warning */}
+              {invalidRows.length > 0 && (
+                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#92400E' }}>
+                  <strong>⚠ {invalidRows.length} row{invalidRows.length > 1 ? 's' : ''} missing required fields</strong> — these will be skipped:
+                  <ul style={{ margin: '6px 0 0 16px', lineHeight: 1.8 }}>
+                    {invalidRows.slice(0, 5).map((r, i) => (
+                      <li key={i}>Row {parsedRows.indexOf(r) + 2}: {r.employee_name || '(no name)'} — missing {!r.employee_id ? 'employee_id' : !r.employee_name ? 'employee_name' : 'email'}</li>
+                    ))}
+                    {invalidRows.length > 5 && <li>…and {invalidRows.length - 5} more</li>}
+                  </ul>
+                </div>
+              )}
+
+              {/* Preview table */}
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                <div style={{ background: '#F8FAFC', padding: '10px 16px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>Preview</span>
+                  {parsedRows.length > 5 && <span style={{ fontSize: 12, color: '#94A3B8' }}>Showing first 5 of {parsedRows.length}</span>}
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#F8FAFC' }}>
+                        {headers.filter(h => ALL_EMP_COLS.includes(h)).map(h => (
+                          <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0', borderRight: '1px solid #F1F5F9' }}>
+                            {COL_INFO[h]?.label || h}
+                            {REQUIRED_COLS.includes(h) && <span style={{ color: '#DC2626', marginLeft: 3 }}>*</span>}
+                          </th>
+                        ))}
+                        <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: '#475569', borderBottom: '1px solid #E2E8F0' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.slice(0, 5).map((row, i) => {
+                        const ok = row.employee_id && row.employee_name && row.email;
+                        return (
+                          <tr key={i} style={{ background: ok ? '#fff' : '#FEF2F2', borderBottom: '1px solid #F1F5F9' }}>
+                            {headers.filter(h => ALL_EMP_COLS.includes(h)).map(h => (
+                              <td key={h} style={{ padding: '8px 14px', color: '#334155', whiteSpace: 'nowrap', borderRight: '1px solid #F8FAFC' }}>
+                                {row[h] ? (
+                                  h === 'gross_salary' || h === 'salary'
+                                    ? <strong>₹{Number(row[h]).toLocaleString('en-IN')}</strong>
+                                    : row[h]
+                                ) : (
+                                  REQUIRED_COLS.includes(h)
+                                    ? <span style={{ color: '#DC2626', fontWeight: 600 }}>⚠ Missing</span>
+                                    : <span style={{ color: '#CBD5E1' }}>—</span>
+                                )}
+                              </td>
+                            ))}
+                            <td style={{ padding: '8px 14px' }}>
+                              {ok
+                                ? <span style={{ fontSize: 11, fontWeight: 700, color: G, background: '#DCFCE7', padding: '2px 8px', borderRadius: 4 }}>✓ Ready</span>
+                                : <span style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', background: '#FEE2E2', padding: '2px 8px', borderRadius: 4 }}>⚠ Skip</span>
+                              }
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Import button */}
+              <button
+                onClick={handleUpload}
+                disabled={uploading || validRows.length === 0}
+                style={{
+                  width: '100%', padding: '13px', borderRadius: 9, border: 'none',
+                  background: validRows.length === 0 ? '#E2E8F0' : G,
+                  color: validRows.length === 0 ? '#94A3B8' : '#fff',
+                  fontSize: 15, fontWeight: 700,
+                  cursor: validRows.length === 0 || uploading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                }}
+              >
+                {uploading
+                  ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Importing employees…</>
+                  : <><Users size={16} /> Import {validRows.length} Employee{validRows.length !== 1 ? 's' : ''}</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Result ── */}
+      {result && (
+        <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <CheckCircle2 size={22} style={{ color: G, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#14532D', marginBottom: 4 }}>Import Complete!</div>
+              <div style={{ fontSize: 14, color: '#166534' }}>
+                <strong>{result.inserted}</strong> employee{result.inserted !== 1 ? 's' : ''} added.
+                {result.skipped > 0 && <span style={{ color: '#D97706', marginLeft: 8 }}>{result.skipped} skipped.</span>}
+              </div>
+              {result.skippedReasons?.length > 0 && (
+                <div style={{ marginTop: 10, background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#92400E' }}>
+                  <strong>Skipped rows:</strong>
+                  <ul style={{ margin: '4px 0 0 16px', lineHeight: 1.8 }}>
+                    {result.skippedReasons.map((r, i) => (
+                      <li key={i}>{r.employee_id}: {r.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div style={{ marginTop: 12, fontSize: 13, color: G }}>
+                → Go to <strong>Employees</strong> page to review the imported employees.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Help box ── */}
+      <div style={{ marginTop: 24, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Info size={14} style={{ color: '#64748B' }} /> Common Questions
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[
+            { q: 'What is the default password?', a: 'The employee\'s ID (e.g. EMP001). They can change it after logging in.' },
+            { q: 'Can I upload duplicate employees?', a: 'Duplicate Employee IDs are skipped. Use the Employees page to edit existing employees.' },
+            { q: 'What if my salary column is named differently?', a: 'Use "gross_salary" in the header. The template already has the correct column names.' },
+            { q: 'How do I update existing employees?', a: 'CSV import only adds new employees. To edit existing ones, go to the Employees page.' },
+          ].map((item, i) => (
+            <div key={i} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>{item.q}</div>
+              <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>{item.a}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
