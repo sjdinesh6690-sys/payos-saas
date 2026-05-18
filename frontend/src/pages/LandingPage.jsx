@@ -477,12 +477,12 @@ export default function LandingPage() {
               <div style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 100 }}>✨ Now with AI</div>
             </div>
             <h1 style={{ fontSize: 'clamp(34px, 4.5vw, 58px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: '-0.03em', marginBottom: 20, color: C.text }}>
-              Stop Losing Weekends<br />
-              <span style={{ color: C.green }}>to Payroll Chaos.</span>
+              Payroll Done in 2 Minutes.<br />
+              <span style={{ color: C.green }}>Not 2 Days.</span>
             </h1>
             <p style={{ fontSize: 18, color: C.muted, lineHeight: 1.75, marginBottom: 36, maxWidth: 480 }}>
-              PayLeef automates salary calculations, PF/ESI/PT compliance, and payslip delivery for your whole team.
-              AI catches errors before they reach employees. Setup in <strong>10 minutes</strong>.
+              Upload your data, PayLeef handles PF, ESI, TDS and payslips — automatically.
+              No spreadsheets. No manual errors. No stress. Setup in <strong>10 minutes</strong>.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 32 }}>
               <button className="btn-green" style={{ padding: '13px 28px', fontSize: 15 }} onClick={() => navigate('/register')}>
