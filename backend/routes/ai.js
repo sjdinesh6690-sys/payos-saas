@@ -22,7 +22,7 @@ const MONTHS = ['','January','February','March','April','May','June',
 function getGemini() {
   if (!process.env.GEMINI_API_KEY) return null;
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  return genAI.getGenerativeModel({ model: 'gemini-pro' });
 }
 
 // ── Employee Self-Service AI Chat ─────────────────────────────────────────────
