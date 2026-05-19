@@ -194,7 +194,7 @@ function PricingCard({ plan, price, period, features, cta, highlight, navigate }
       <button
         onClick={() => navigate('/register')}
         style={{
-          width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', cursor: 'pointer',
+          width: '100%', padding: '13px 0', borderRadius: 12, cursor: 'pointer',
           background: highlight ? '#1A7A4A' : 'transparent',
           border: highlight ? 'none' : '1.5px solid #1A7A4A',
           color: highlight ? 'white' : '#1A7A4A',

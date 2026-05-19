@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Trash2, Pencil, Upload, MoreHorizontal,
-  Users, Download, ChevronUp, ChevronDown,
+  Users, Download, ChevronUp, ChevronDown, UserX, UserCheck, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -19,11 +19,55 @@ import FileUploadDialog from '@/components/upload/FileUploadDialog';
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ── Exit dialog ─────────────────────────────────────────────────────────── */
+function ExitDialog({ emp, onClose, onConfirm }) {
+  const [exitDate, setExitDate]     = useState(new Date().toISOString().slice(0,10));
+  const [exitReason, setExitReason] = useState('');
+  const [saving, setSaving]         = useState(false);
+  if (!emp) return null;
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ background:'#fff', borderRadius:16, padding:28, width:420, boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+        <div style={{ fontSize:17, fontWeight:700, color:'#0F172A', marginBottom:4 }}>Mark as Left Organisation</div>
+        <div style={{ fontSize:13, color:'#64748B', marginBottom:20 }}>
+          <strong>{emp.employee_name}</strong> will be marked as inactive. All their payslip history stays in the system.
+        </div>
+        <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#475569', marginBottom:6 }}>Last Working Day</label>
+        <input type="date" value={exitDate} onChange={e => setExitDate(e.target.value)}
+          style={{ width:'100%', border:'1px solid #E2E8F0', borderRadius:8, padding:'9px 12px', fontSize:13, marginBottom:14, boxSizing:'border-box' }} />
+        <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#475569', marginBottom:6 }}>Reason (optional)</label>
+        <select value={exitReason} onChange={e => setExitReason(e.target.value)}
+          style={{ width:'100%', border:'1px solid #E2E8F0', borderRadius:8, padding:'9px 12px', fontSize:13, marginBottom:20, boxSizing:'border-box', background:'#fff' }}>
+          <option value="">Select reason…</option>
+          <option>Resigned</option>
+          <option>Terminated</option>
+          <option>Contract ended</option>
+          <option>Retired</option>
+          <option>Other</option>
+        </select>
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <button onClick={onClose} style={{ background:'none', border:'1px solid #E2E8F0', borderRadius:8, padding:'9px 18px', fontSize:13, cursor:'pointer', color:'#64748B' }}>Cancel</button>
+          <button
+            disabled={saving}
+            onClick={async () => { setSaving(true); await onConfirm(exitDate, exitReason); setSaving(false); }}
+            style={{ background:'#DC2626', color:'#fff', border:'none', borderRadius:8, padding:'9px 20px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+            {saving ? 'Saving…' : 'Confirm Exit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeesPage() {
   const qc = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'inactive' | 'all'
+
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => api.get('/employees').then(r => r.data),
+    queryKey: ['employees', statusFilter],
+    queryFn: () => api.get(`/employees${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`).then(r => r.data),
   });
 
   // Selection
@@ -44,8 +88,27 @@ export default function EmployeesPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [uploadOpen, setUploadOpen]     = useState(false);
+  const [exitDialogEmp, setExitDialogEmp] = useState(null);
 
-  const refetch = () => qc.invalidateQueries({ queryKey: ['employees'] });
+  const refetch = () => qc.invalidateQueries({ queryKey: ['employees', statusFilter] });
+
+  /* ── Exit / Reactivate handlers ─────────────────────────────────────────── */
+  const handleMarkLeft = async (exitDate, exitReason) => {
+    try {
+      await api.put(`/employees/${exitDialogEmp.id}/deactivate`, { date_of_exit: exitDate, exit_reason: exitReason });
+      toast.success(`${exitDialogEmp.employee_name} marked as left. All payslip history preserved.`);
+      setExitDialogEmp(null);
+      refetch();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
+  };
+
+  const handleReactivate = async (emp) => {
+    try {
+      await api.put(`/employees/${emp.id}/reactivate`);
+      toast.success(`${emp.employee_name} reactivated successfully.`);
+      refetch();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to reactivate'); }
+  };
 
   // Derived filter options
   const departments = useMemo(() => {
@@ -141,12 +204,14 @@ export default function EmployeesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <ExitDialog emp={exitDialogEmp} onClose={() => setExitDialogEmp(null)} onConfirm={handleMarkLeft} />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Employees</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {employees.length} total · {filtered.length} shown
+            {employees.length} {statusFilter === 'inactive' ? 'former' : statusFilter === 'active' ? 'active' : 'total'} · {filtered.length} shown
             {selected.size > 0 && ` · ${selected.size} selected`}
           </p>
         </div>
@@ -160,7 +225,7 @@ export default function EmployeesPage() {
             <Download size={14} className="mr-1.5" /> Export
           </Button>
           <Button variant="outline" className="h-9" onClick={() => setUploadOpen(true)}>
-            <Upload size={14} className="mr-1.5" /> Import CSV
+            <Upload size={14} className="mr-1.5" /> Import
           </Button>
           <Button className="h-9 bg-orange-600 hover:bg-orange-700 text-white" onClick={openAdd}>
             <Plus size={14} className="mr-1.5" /> Add Employee
@@ -168,13 +233,29 @@ export default function EmployeesPage() {
         </div>
       </div>
 
+      {/* Status tabs */}
+      <div style={{ display:'flex', gap:6, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10, padding:4, width:'fit-content' }}>
+        {[
+          { key:'active',   label:'Active',       color:'#15803D', bg:'#1A7A4A' },
+          { key:'inactive', label:'Left / Exited', color:'#DC2626', bg:'#DC2626' },
+          { key:'all',      label:'All Employees', color:'#475569', bg:'#475569' },
+        ].map(t => (
+          <button key={t.key} onClick={() => { setStatusFilter(t.key); setSelected(new Set()); }}
+            style={{ padding:'7px 16px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight: statusFilter===t.key ? 700 : 500,
+              background: statusFilter===t.key ? t.bg : 'transparent',
+              color: statusFilter===t.key ? '#fff' : '#64748B', transition:'all .15s' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Employees', value: employees.length },
-          { label: 'Total Payroll',   value: fmt(employees.reduce((s, e) => s + (Number(e.salary) || 0), 0)) },
-          { label: 'Departments',     value: departments.length },
-          { label: 'Avg Salary',      value: employees.length ? fmt(employees.reduce((s, e) => s + (Number(e.salary) || 0), 0) / employees.length) : '—' },
+          { label: 'Employees shown',  value: employees.length },
+          { label: 'Total Payroll',    value: fmt(employees.reduce((s, e) => s + (Number(e.salary) || 0), 0)) },
+          { label: 'Departments',      value: departments.length },
+          { label: 'Avg Salary',       value: employees.length ? fmt(employees.reduce((s, e) => s + (Number(e.salary) || 0), 0) / employees.length) : '—' },
         ].map((s, i) => (
           <Card key={i}>
             <CardContent className="pt-4 pb-4">
@@ -209,6 +290,8 @@ export default function EmployeesPage() {
                   { key: 'department',    label: 'Dept / Role' },
                   { key: 'email',         label: 'Email' },
                   { key: 'salary',        label: 'Salary' },
+                  { key: 'last_payslip',  label: 'Last Payslip' },
+                  { key: 'status',        label: 'Status' },
                 ].map(col => (
                   <th
                     key={col.key}
@@ -225,10 +308,10 @@ export default function EmployeesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-10 text-slate-400">Loading…</td></tr>
+                <tr><td colSpan={9} className="text-center py-10 text-slate-400">Loading…</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16">
+                  <td colSpan={9} className="text-center py-16">
                     <Users size={32} className="mx-auto text-slate-200 mb-2" />
                     <p className="text-slate-400 text-sm">No employees found</p>
                     <Button className="mt-3 h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white" onClick={openAdd}>
@@ -236,8 +319,13 @@ export default function EmployeesPage() {
                     </Button>
                   </td>
                 </tr>
-              ) : filtered.map(emp => (
-                <tr key={emp.id} className={`hover:bg-slate-50 transition-colors ${selected.has(emp.id) ? 'bg-orange-50' : ''}`}>
+              ) : filtered.map(emp => {
+                const isInactive = emp.status === 'inactive';
+                const lastPayslipLabel = emp.last_payslip_month
+                  ? `${MONTHS[emp.last_payslip_month - 1]} ${emp.last_payslip_year}`
+                  : null;
+                return (
+                <tr key={emp.id} className={`hover:bg-slate-50 transition-colors ${selected.has(emp.id) ? 'bg-orange-50' : ''} ${isInactive ? 'opacity-70' : ''}`}>
                   <td className="px-4 py-3">
                     <Checkbox checked={selected.has(emp.id)} onCheckedChange={() => toggleOne(emp.id)} />
                   </td>
@@ -252,8 +340,29 @@ export default function EmployeesPage() {
                     )}
                     {emp.designation && <div className="text-xs text-slate-500 mt-0.5">{emp.designation}</div>}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 text-xs">{emp.email}</td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">{emp.email || <span className="text-slate-300">—</span>}</td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{fmt(emp.salary)}</td>
+                  <td className="px-4 py-3">
+                    {lastPayslipLabel ? (
+                      <div>
+                        <div className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                          <FileText size={11} className="text-green-600" /> {lastPayslipLabel}
+                        </div>
+                        <div className="text-xs text-slate-400">{fmt(emp.last_net_salary)}</div>
+                      </div>
+                    ) : <span className="text-xs text-slate-300">No payslips yet</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {isInactive ? (
+                      <div>
+                        <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2', color:'#991B1B', padding:'2px 8px', borderRadius:20 }}>LEFT</span>
+                        {emp.date_of_exit && <div className="text-xs text-slate-400 mt-0.5">Exit: {emp.date_of_exit}</div>}
+                        {emp.exit_reason  && <div className="text-xs text-slate-400">{emp.exit_reason}</div>}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize:10, fontWeight:700, background:'#DCFCE7', color:'#166534', padding:'2px 8px', borderRadius:20 }}>ACTIVE</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <SimpleDropdown
                       align="end"
@@ -263,17 +372,30 @@ export default function EmployeesPage() {
                         </button>
                       }
                     >
-                      <DropdownMenuItem onClick={() => openEdit(emp)}>
-                        <Pencil size={14} /> Edit
-                      </DropdownMenuItem>
+                      {!isInactive && (
+                        <DropdownMenuItem onClick={() => openEdit(emp)}>
+                          <Pencil size={14} /> Edit
+                        </DropdownMenuItem>
+                      )}
+                      {!isInactive && (
+                        <DropdownMenuItem className="text-orange-600" onClick={() => setExitDialogEmp(emp)}>
+                          <UserX size={14} /> Mark as Left
+                        </DropdownMenuItem>
+                      )}
+                      {isInactive && (
+                        <DropdownMenuItem className="text-green-600" onClick={() => handleReactivate(emp)}>
+                          <UserCheck size={14} /> Reactivate
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => promptDelete(emp)}>
-                        <Trash2 size={14} /> Delete
+                        <Trash2 size={14} /> Delete Permanently
                       </DropdownMenuItem>
                     </SimpleDropdown>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

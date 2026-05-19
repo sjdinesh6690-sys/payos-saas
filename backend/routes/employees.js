@@ -6,13 +6,32 @@ const authCheck  = require('../middleware/auth');
 
 router.use(authCheck);
 
-// ── GET all employees ─────────────────────────────────────────────────────────
+// ── GET all employees (with last payslip info) ────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM employees WHERE admin_id = $1 ORDER BY employee_name ASC',
-      [req.admin_id]
-    );
+    const statusFilter = req.query.status; // 'active' | 'inactive' | omit for all
+    let whereClause = 'e.admin_id = $1';
+    const params = [req.admin_id];
+    if (statusFilter === 'active')   { whereClause += ` AND (e.status = 'active' OR e.status IS NULL)`; }
+    if (statusFilter === 'inactive') { whereClause += ` AND e.status = 'inactive'`; }
+
+    const result = await pool.query(`
+      SELECT e.*,
+        p.month        AS last_payslip_month,
+        p.year         AS last_payslip_year,
+        p.net_salary   AS last_net_salary,
+        p.created_at   AS last_payslip_date
+      FROM employees e
+      LEFT JOIN LATERAL (
+        SELECT month, year, net_salary, created_at
+        FROM payslips
+        WHERE admin_id = e.admin_id AND employee_id = e.employee_id
+        ORDER BY year DESC, month DESC
+        LIMIT 1
+      ) p ON TRUE
+      WHERE ${whereClause}
+      ORDER BY e.employee_name ASC
+    `, params);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -147,6 +166,34 @@ router.put('/:id', async (req, res) => {
 
     await auditLog(req.admin_id, 'employee_updated', 'employees', id, { fields: fields.map(f => f.split(' ')[0]) }, req.ip);
     res.json({ message: 'Employee updated!' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PUT mark employee as left (inactive) ─────────────────────────────────────
+router.put('/:id/deactivate', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { date_of_exit, exit_reason } = req.body;
+    const check = await pool.query('SELECT id, employee_id FROM employees WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    await pool.query(
+      `UPDATE employees SET status = 'inactive', date_of_exit = $1, exit_reason = $2 WHERE id = $3`,
+      [date_of_exit || new Date().toISOString().slice(0,10), exit_reason || '', id]
+    );
+    await auditLog(req.admin_id, 'employee_deactivated', 'employees', id, { employee_id: check.rows[0].employee_id, date_of_exit }, req.ip);
+    res.json({ message: 'Employee marked as left. All their payslip history is preserved.' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PUT reactivate employee ───────────────────────────────────────────────────
+router.put('/:id/reactivate', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const check = await pool.query('SELECT id, employee_id FROM employees WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    await pool.query(`UPDATE employees SET status = 'active', date_of_exit = NULL, exit_reason = NULL WHERE id = $1`, [id]);
+    await auditLog(req.admin_id, 'employee_reactivated', 'employees', id, { employee_id: check.rows[0].employee_id }, req.ip);
+    res.json({ message: 'Employee reactivated successfully.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -44,7 +44,7 @@ router.get('/months', async (req, res) => {
 // ── POST generate payslips ────────────────────────────────────────────────────
 router.post('/generate', async (req, res) => {
   try {
-    const { month, year, adjustments = {}, working_days } = req.body;
+    const { month, year, adjustments = {}, working_days, employee_ids } = req.body;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
     // Block future month generation (more than 1 month ahead)
@@ -54,10 +54,16 @@ router.post('/generate', async (req, res) => {
     if (genDate > maxFuture)
       return res.status(400).json({ error: 'Cannot generate payslips for future months' });
 
-    const empResult = await pool.query(
-      'SELECT * FROM employees WHERE admin_id = $1 ORDER BY employee_name ASC',
-      [req.admin_id]
-    );
+    // Build employee query — only active, optionally filtered by selected IDs
+    let empQuery = `SELECT * FROM employees WHERE admin_id = $1 AND (status = 'active' OR status IS NULL)`;
+    const empParams = [req.admin_id];
+    if (Array.isArray(employee_ids) && employee_ids.length > 0) {
+      empQuery += ` AND employee_id = ANY($2::text[])`;
+      empParams.push(employee_ids);
+    }
+    empQuery += ' ORDER BY employee_name ASC';
+
+    const empResult = await pool.query(empQuery, empParams);
     if (!empResult.rows.length)
       return res.status(404).json({ error: 'No employees found. Add employees first.' });
 
@@ -72,11 +78,18 @@ router.post('/generate', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Delete existing payslips for this month/year (with audit)
-      await client.query(
-        'DELETE FROM payslips WHERE admin_id = $1 AND month = $2 AND year = $3',
-        [req.admin_id, parseInt(month), parseInt(year)]
-      );
+      // Delete existing payslips for the selected employees this month/year
+      if (Array.isArray(employee_ids) && employee_ids.length > 0) {
+        await client.query(
+          'DELETE FROM payslips WHERE admin_id = $1 AND month = $2 AND year = $3 AND employee_id = ANY($4::text[])',
+          [req.admin_id, parseInt(month), parseInt(year), employee_ids]
+        );
+      } else {
+        await client.query(
+          'DELETE FROM payslips WHERE admin_id = $1 AND month = $2 AND year = $3',
+          [req.admin_id, parseInt(month), parseInt(year)]
+        );
+      }
 
       // Generate one payslip per employee
       for (const emp of empResult.rows) {

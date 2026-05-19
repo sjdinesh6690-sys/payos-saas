@@ -100,6 +100,11 @@ async function initDB() {
       ALTER TABLE payslips ADD COLUMN IF NOT EXISTS emailed_at TIMESTAMPTZ
     `);
 
+    // Add employee exit tracking columns (safe to run on existing DB)
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_exit VARCHAR(50)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS exit_reason VARCHAR(255)`);
+
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (

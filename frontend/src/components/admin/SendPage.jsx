@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2, AlertCircle, Send, FileText, Users, Mail,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings2,
+  Square, CheckSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,11 +35,34 @@ export default function SendPage() {
   const [showAdj,      setShowAdj]      = useState(false);
   const [genLoading,   setGenLoading]   = useState(false);
   const [sendLoading,  setSendLoading]  = useState(false);
+  const [selectedIds,  setSelectedIds]  = useState(new Set()); // selected employee IDs for generation
+  const [selectionInit, setSelectionInit] = useState(false);
 
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => api.get('/employees').then(r => r.data),
+    queryKey: ['employees', 'active'],
+    queryFn: () => api.get('/employees?status=active').then(r => r.data),
   });
+
+  // Auto-select all employees when list loads
+  useEffect(() => {
+    if (employees.length > 0 && !selectionInit) {
+      setSelectedIds(new Set(employees.map(e => e.employee_id)));
+      setSelectionInit(true);
+    }
+  }, [employees, selectionInit]);
+
+  const allSelected   = employees.length > 0 && selectedIds.size === employees.length;
+  const noneSelected  = selectedIds.size === 0;
+
+  const toggleEmployee = (empId) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(empId) ? next.delete(empId) : next.add(empId);
+      return next;
+    });
+  };
+  const selectAll   = () => setSelectedIds(new Set(employees.map(e => e.employee_id)));
+  const deselectAll = () => setSelectedIds(new Set());
   const { data: allPayslips = [] } = useQuery({
     queryKey: ['payslips'],
     queryFn: () => api.get('/payslips').then(r => r.data),
@@ -84,10 +108,11 @@ export default function SendPage() {
     }));
 
   const generate = async () => {
+    if (noneSelected) { toast.error('Select at least one employee'); return; }
     // Confirmation before overwriting existing payslips
     if (thisMonthSlips.length > 0) {
       const ok = window.confirm(
-        `This will overwrite all ${thisMonthSlips.length} existing payslip(s) for ${MONTHS[month]} ${year}.\n\nContinue?`
+        `This will overwrite existing payslip(s) for ${MONTHS[month]} ${year}.\n\nContinue?`
       );
       if (!ok) return;
     }
@@ -98,8 +123,9 @@ export default function SendPage() {
         year,
         working_days: workingDays,
         adjustments,
+        employee_ids: [...selectedIds],
       });
-      toast.success(`Payslips generated for ${MONTHS[month]} ${year}`);
+      toast.success(`Payslips generated for ${selectedIds.size} employee(s) — ${MONTHS[month]} ${year}`);
       qc.invalidateQueries({ queryKey: ['payslips'] });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Generation failed');
@@ -151,8 +177,8 @@ export default function SendPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Employees',    value: employees.length,        icon: Users },
-          { label: 'Payslips Generated', value: thisMonthSlips.length,   icon: FileText },
+          { label: 'Active Employees',   value: employees.length,        icon: Users },
+          { label: 'Selected',           value: selectedIds.size,        icon: CheckSquare },
           { label: 'Emails Sent',        value: emailedCount,            icon: Mail },
           { label: 'Total Net Payroll',  value: fmt(totalPayroll),       icon: Send },
         ].map(s => (
@@ -173,9 +199,9 @@ export default function SendPage() {
             <div className="flex-1">
               <p className="font-semibold text-slate-900">Generate Payslips</p>
               <p className="text-sm text-slate-500 mt-0.5">
-                Calculates all earnings and deductions for all {employees.length} employees using your
-                {' '}<strong>Payroll Config</strong> (PF, ESI, LOP, allowances, etc.).
-                {thisMonthSlips.length > 0 && <span className="text-amber-600 ml-1">({thisMonthSlips.length} already exist — regenerating will overwrite.)</span>}
+                Select the employees below, then generate payslips using your{' '}
+                <strong>Payroll Config</strong> (PF, ESI, LOP, allowances, etc.).
+                {thisMonthSlips.length > 0 && <span className="text-amber-600 ml-1">({thisMonthSlips.length} already generated — regenerating will overwrite.)</span>}
               </p>
             </div>
             {thisMonthSlips.length > 0 && <Badge className="bg-green-100 text-green-700 border-green-200 shrink-0">Done</Badge>}
@@ -229,7 +255,7 @@ export default function SendPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {employees.map(emp => (
+                      {employees.filter(e => selectedIds.has(e.employee_id)).map(emp => (
                         <tr key={emp.id} className="hover:bg-slate-50">
                           <td className="px-3 py-2 sticky left-0 bg-white">
                             <p className="font-medium text-slate-800">{emp.employee_name}</p>
@@ -259,13 +285,60 @@ export default function SendPage() {
             </div>
           )}
 
+          {/* Employee selection checklist */}
+          {employees.length > 0 && (
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
+                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  Select Employees ({selectedIds.size} of {employees.length})
+                </span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={selectAll}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <CheckSquare size={12} /> All
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button type="button" onClick={deselectAll}
+                    className="text-xs text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1">
+                    <Square size={12} /> None
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-52 overflow-y-auto divide-y divide-slate-50">
+                {employees.map(emp => {
+                  const checked = selectedIds.has(emp.employee_id);
+                  return (
+                    <label key={emp.id}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}>
+                      <input type="checkbox" checked={checked}
+                        onChange={() => toggleEmployee(emp.employee_id)}
+                        className="accent-blue-600 w-4 h-4 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{emp.employee_name}</p>
+                        <p className="text-xs text-slate-400">{emp.employee_id}{emp.department ? ` · ${emp.department}` : ''}</p>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 shrink-0">
+                        ₹{Number(emp.salary || 0).toLocaleString('en-IN')}
+                      </p>
+                    </label>
+                  );
+                })}
+              </div>
+              {noneSelected && (
+                <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                  Select at least one employee to generate payslips.
+                </div>
+              )}
+            </div>
+          )}
+
           <Button
             onClick={generate}
-            disabled={genLoading || employees.length === 0}
+            disabled={genLoading || employees.length === 0 || noneSelected}
             className="w-full text-white h-10" style={{ background: '#E85C2F' }}
           >
             <FileText size={15} className="mr-2" />
-            {genLoading ? 'Generating…' : `Generate Payslips for ${MONTHS[month]} ${year}`}
+            {genLoading ? 'Generating…' : `Generate Payslips for ${selectedIds.size} Employee${selectedIds.size !== 1 ? 's' : ''} — ${MONTHS[month]} ${year}`}
           </Button>
         </CardContent>
       </Card>

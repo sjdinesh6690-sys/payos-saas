@@ -1,9 +1,43 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, FileText, CheckCircle2, AlertCircle, X, Download, Loader2, Plus, Trash2, TableIcon } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, X, Download, Loader2, Plus, Trash2, TableIcon, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import api from '@/lib/api';
+
+/* ── Client-side payroll calculator (mirrors backend engine) ─────────────── */
+function calcBreakdown(grossSalary, config) {
+  if (!config || !grossSalary) return {};
+  const gross = parseFloat(grossSalary) || 0;
+  if (gross === 0) return {};
+  const earnings = {};
+  const deductions = {};
+
+  const sortedE = [...(config.earnings || [])].filter(c => c.enabled).sort((a,b) => (a.order||0)-(b.order||0));
+  for (const c of sortedE) {
+    const basic = earnings['basic'] || 0;
+    let amt = 0;
+    if (c.type === 'pct_of_gross')  amt = (gross * c.value) / 100;
+    else if (c.type === 'pct_of_basic') amt = (basic * c.value) / 100;
+    else if (c.type === 'fixed')    amt = c.value;
+    else if (c.type === 'remainder') {
+      const used = Object.values(earnings).reduce((s,v) => s+v, 0);
+      amt = Math.max(0, gross - used);
+    }
+    earnings[c.key] = Math.round(amt);
+  }
+
+  const sortedD = [...(config.deductions || [])].filter(c => c.enabled).sort((a,b) => (a.order||0)-(b.order||0));
+  const basic = earnings['basic'] || 0;
+  for (const c of sortedD) {
+    let amt = 0;
+    if (c.type === 'pct_of_basic') { amt = (basic * c.value) / 100; if (c.cap) amt = Math.min(amt, c.cap); }
+    else if (c.type === 'pct_of_gross') { amt = (gross * c.value) / 100; if (c.cap) amt = Math.min(amt, c.cap); }
+    else if (c.type === 'fixed') amt = c.value;
+    deductions[c.key] = Math.round(amt);
+  }
+  return { earnings, deductions };
+}
 
 const G = '#1A7A4A';
 
@@ -121,25 +155,82 @@ function parseFile(file) {
   });
 }
 
-/* ── Download CSV template ──────────────────────────────────────────────── */
-function downloadTemplate(employees) {
-  const header = COL_KEYS;
-  const sampleRows = employees.length > 0
-    ? employees.map(e => COL_KEYS.map(k => {
-        if (k === 'gross_salary') return e.salary || '';
-        return e[k] || '';
-      }))
+/* ── Download template with full salary breakdown ───────────────────────── */
+function downloadTemplate(employees, config) {
+  // Build header: core fields + breakdown columns
+  const coreHeaders = ['employee_id', 'employee_name', 'gross_salary', 'email', 'department', 'designation', 'phone', 'date_of_joining'];
+
+  // Determine breakdown columns from config
+  const earningCols   = config ? (config.earnings   || []).filter(c => c.enabled).sort((a,b) => a.order-b.order) : [];
+  const deductionCols = config ? (config.deductions  || []).filter(c => c.enabled).sort((a,b) => a.order-b.order) : [];
+  const breakdownHeaders = [
+    ...earningCols.map(c => `[Earning] ${c.label}`),
+    'Total Earnings',
+    ...deductionCols.map(c => `[Deduction] ${c.label}`),
+    'Total Deductions',
+    'Net Salary',
+  ];
+
+  const allHeaders = [...coreHeaders, ...(config ? breakdownHeaders : [])];
+
+  // Build rows
+  const sampleSalaries = employees.length > 0
+    ? employees.map(e => ({ ...e, gross_salary: e.salary }))
     : [
-        ['EMP001', 'Arjun Sharma',  '45000', 'arjun@company.com',  'Engineering', 'Software Engineer', '9876543210', '2024-01-15'],
-        ['EMP002', 'Priya Nair',    '52000', 'priya@company.com',   'Operations',  'Manager',           '9876543211', '2023-06-01'],
-        ['EMP003', 'Rohan Mehta',   '38000', '',                    'Accounts',    'Accountant',        '9876543212', '2024-03-10'],
+        { employee_id:'EMP001', employee_name:'Arjun Sharma',  gross_salary:45000, email:'arjun@company.com',  department:'Engineering', designation:'Software Engineer', phone:'9876543210', date_of_joining:'2024-01-15' },
+        { employee_id:'EMP002', employee_name:'Priya Nair',    gross_salary:52000, email:'priya@company.com',   department:'Operations',  designation:'Manager',           phone:'9876543211', date_of_joining:'2023-06-01' },
+        { employee_id:'EMP003', employee_name:'Rohan Mehta',   gross_salary:38000, email:'',                   department:'Accounts',    designation:'Accountant',        phone:'9876543212', date_of_joining:'2024-03-10' },
       ];
 
-  const ws = XLSX.utils.aoa_to_sheet([header, ...sampleRows]);
+  const dataRows = sampleSalaries.map(e => {
+    const core = coreHeaders.map(k => e[k] || '');
+    if (!config) return core;
+    const { earnings = {}, deductions = {} } = calcBreakdown(e.gross_salary, config);
+    const totalE = Object.values(earnings).reduce((s,v) => s+v, 0);
+    const totalD = Object.values(deductions).reduce((s,v) => s+v, 0);
+    const breakdown = [
+      ...earningCols.map(c => earnings[c.key] || 0),
+      totalE,
+      ...deductionCols.map(c => deductions[c.key] || 0),
+      totalD,
+      totalE - totalD,
+    ];
+    return [...core, ...breakdown];
+  });
+
+  // Style the sheet
+  const ws = XLSX.utils.aoa_to_sheet([allHeaders, ...dataRows]);
+
   // Column widths
-  ws['!cols'] = [12,22,16,28,16,22,14,16].map(w => ({ wch: w }));
+  const widths = coreHeaders.map((h, i) => [12,22,16,28,16,22,14,16][i] || 14);
+  const bwidths = breakdownHeaders.map(() => 18);
+  ws['!cols'] = [...widths, ...bwidths].map(w => ({ wch: w }));
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+
+  if (config) {
+    // Add a legend sheet explaining each column
+    const legend = [
+      ['Column', 'Description', 'Required?'],
+      ['employee_id', 'Unique employee ID (e.g. EMP001)', 'YES'],
+      ['employee_name', 'Full name', 'YES'],
+      ['gross_salary', 'Total monthly CTC in ₹', 'YES'],
+      ['email', 'Email for sending payslips', 'Optional'],
+      ['department', 'Department name', 'Optional'],
+      ['designation', 'Job title', 'Optional'],
+      ['phone', '10-digit mobile number', 'Optional'],
+      ['date_of_joining', 'YYYY-MM-DD format', 'Optional'],
+      ['', '', ''],
+      ['NOTE', 'Breakdown columns (Earnings, Deductions, Net) are auto-calculated', ''],
+      ['NOTE', 'When importing, only fill: employee_id, employee_name, gross_salary', ''],
+      ['NOTE', 'The system will auto-calculate HRA, PF etc. from your Payroll Config', ''],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(legend);
+    ws2['!cols'] = [{ wch: 24 }, { wch: 60 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'How to use');
+  }
+
   XLSX.writeFile(wb, 'PayLeef_Employee_Template.xlsx');
 }
 
@@ -187,9 +278,11 @@ function GridEditor({ rows, onChange }) {
                 {COLS.map(c => (
                   <td key={c.key} style={{ padding: '3px 4px', borderRight: '1px solid #F1F5F9' }}>
                     <input
+                      type={c.key === 'date_of_joining' ? 'date' : c.key === 'gross_salary' ? 'number' : 'text'}
                       value={row[c.key] || ''}
                       onChange={e => handleCell(ri, c.key, e.target.value)}
-                      placeholder={c.eg}
+                      placeholder={c.key === 'date_of_joining' ? '' : c.eg}
+                      min={c.key === 'gross_salary' ? '0' : undefined}
                       style={inputStyle(c.req, row[c.key])}
                       onFocus={e => { e.target.style.background = '#EFF6FF'; e.target.style.borderColor = '#93C5FD'; }}
                       onBlur={e => { e.target.style.background = 'transparent'; e.target.style.borderColor = c.req && !e.target.value ? '#FCA5A5' : 'transparent'; }}
@@ -248,6 +341,7 @@ export default function UploadPage() {
 
   const [tab, setTab] = useState('grid'); // 'grid' | 'file'
   const [employees, setEmployees] = useState([]);
+  const [payrollConfig, setPayrollConfig] = useState(null);
 
   // Grid editor state
   const [gridRows, setGridRows] = useState(() => Array.from({ length: 5 }, emptyRow));
@@ -264,7 +358,8 @@ export default function UploadPage() {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    api.get('/employees').then(r => setEmployees(r.data || [])).catch(() => {});
+    api.get('/employees?status=active').then(r => setEmployees(r.data || [])).catch(() => {});
+    api.get('/payroll-config').then(r => setPayrollConfig(r.data?.config || null)).catch(() => {});
   }, []);
 
   /* ── File handling ──────────────────────────────────────────────────── */
@@ -364,8 +459,8 @@ export default function UploadPage() {
                 {' '}Or upload your own file — we'll figure out the columns automatically.
               </div>
             </div>
-            <button onClick={() => downloadTemplate(employees)} style={{ background: G, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-              <Download size={14} /> Download Template
+            <button onClick={() => downloadTemplate(employees, payrollConfig)} style={{ background: G, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
+              <Download size={14} /> Download Template (with Salary Breakdown)
             </button>
           </div>
 
