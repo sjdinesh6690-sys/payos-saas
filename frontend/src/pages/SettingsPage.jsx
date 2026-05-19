@@ -164,18 +164,52 @@ const PROVIDERS = [
 
 const MONTH_VARS = ['{month}', '{company}', '{employee}', '{employee_id}', '{net_salary}'];
 
-const DEFAULT_BODY = `<p>Dear {employee},</p>
+// ── Pre-built email templates (plain language, converted to HTML) ──────────
+const EMAIL_TEMPLATES = [
+  {
+    id: 'friendly',
+    name: '😊 Friendly',
+    desc: 'Warm, personal tone',
+    subject: 'Your Payslip for {month} is Ready!',
+    preview: 'Hi {employee}, your {month} payslip is attached. Net salary: {net_salary}.',
+    body: `<p>Hi {employee},</p><p>Your payslip for <strong>{month}</strong> is ready. Please find it attached to this email.</p><p>Employee ID: <strong>{employee_id}</strong><br/>Net Salary: <strong>{net_salary}</strong></p><p>If you have any questions, please reach out to your HR team.</p><p>Best regards,<br/>{company} HR Team</p>`,
+  },
+  {
+    id: 'professional',
+    name: '💼 Professional',
+    desc: 'Formal business tone',
+    subject: 'Payslip for {month} — {company}',
+    preview: 'Dear {employee}, please find your salary statement for {month} attached.',
+    body: `<p>Dear {employee},</p><p>Please find attached your salary statement for <strong>{month}</strong>.</p><p>Employee ID: <strong>{employee_id}</strong><br/>Net Salary: <strong>{net_salary}</strong></p><p>For any queries related to your payslip, please contact the HR department.</p><p>Regards,<br/>{company} Payroll Team</p>`,
+  },
+  {
+    id: 'simple',
+    name: '✉️ Short & Simple',
+    desc: 'Quick, no extra words',
+    subject: '{month} Payslip — {company}',
+    preview: 'Hi {employee}, your payslip for {month} is attached.',
+    body: `<p>Hi {employee},</p><p>Your payslip for <strong>{month}</strong> is attached.</p><p>Net Salary: <strong>{net_salary}</strong></p><p>– {company} HR</p>`,
+  },
+  {
+    id: 'custom',
+    name: '✏️ Write My Own',
+    desc: 'Type your own message',
+    subject: 'Your Payslip for {month} — {company}',
+    preview: 'Write your own custom message in plain English.',
+    body: null, // uses form.email_body
+  },
+];
 
-<p>Please find attached your payslip for <strong>{month}</strong>.</p>
+const DEFAULT_BODY = `<p>Dear {employee},</p><p>Please find attached your payslip for <strong>{month}</strong>.</p><p>Employee ID: <strong>{employee_id}</strong><br/>Net Salary: <strong>{net_salary}</strong></p><p>For any questions, please contact your HR department.</p><p>Regards,<br/>{company} Payroll Team</p>`;
 
-<p>
-  Employee ID: <strong>{employee_id}</strong><br/>
-  Net Salary: <strong>{net_salary}</strong>
-</p>
-
-<p>For any questions, please contact your HR department.</p>
-
-<p>Regards,<br/>{company} Payroll Team</p>`;
+// Convert plain text to simple HTML (for custom mode)
+function plainToHtml(text) {
+  return text.split('\n').map(l => l.trim() ? `<p>${l}</p>` : '').join('');
+}
+// Strip HTML tags for display in plain text area
+function htmlToPlain(html) {
+  return (html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+}
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
 export default function SettingsPage() {
@@ -187,6 +221,8 @@ export default function SettingsPage() {
   const [selectedProvider, setProvider] = useState(null);
   const [showAdvanced, setAdvanced]     = useState(false);
   const [smtpSaved, setSmtpSaved]       = useState(false);
+  const [selectedTpl, setSelectedTpl]   = useState('professional'); // active email template
+  const [customNote, setCustomNote]     = useState('');             // plain-text custom message
 
   const [form, setForm] = useState({
     company_name: '', company_email: '', company_phone: '', company_address: '',
@@ -553,50 +589,99 @@ export default function SettingsPage() {
           <div className="space-y-5">
             <div>
               <h2 className="font-semibold text-gray-900">Email Message</h2>
-              <p className="text-sm text-gray-500 mt-1">This is the email your employees will receive when you send their payslip.</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Choose how your email will sound. Click a style to select it.
+              </p>
             </div>
 
+            {/* Subject line */}
             <Field label="Email Subject Line">
               <input value={form.email_subject} onChange={e => set('email_subject', e.target.value)}
                 placeholder="Your Payslip for {month} — {company}" className={inp} />
               <p className="text-xs text-gray-400 mt-1">
-                You can use these magic words that get replaced automatically:&nbsp;
-                {MONTH_VARS.map(v => <code key={v} className="mx-0.5 bg-gray-100 px-1 rounded text-xs">{v}</code>)}
+                <strong>{'{month}'}</strong> becomes "May 2026", <strong>{'{company}'}</strong> becomes your company name, <strong>{'{employee}'}</strong> becomes the employee's name.
               </p>
             </Field>
 
+            {/* Template picker cards */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Body</label>
-              <div className="flex flex-wrap gap-1 mb-2">
-                <span className="text-xs text-gray-400 self-center mr-1">Insert:</span>
-                {MONTH_VARS.map(v => (
-                  <button key={v} onClick={() => insertVar(v)}
-                    className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs hover:bg-blue-100">
-                    {v}
+              <p className="text-sm font-medium text-gray-700 mb-3">Choose a message style:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {EMAIL_TEMPLATES.map(tpl => (
+                  <button key={tpl.id} type="button"
+                    onClick={() => {
+                      setSelectedTpl(tpl.id);
+                      if (tpl.body) {
+                        set('email_body', tpl.body);
+                        set('email_subject', tpl.subject);
+                      }
+                    }}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      selectedTpl === tpl.id
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}>
+                    <p className="font-semibold text-sm text-gray-900">{tpl.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{tpl.desc}</p>
+                    <p className="text-xs text-gray-600 mt-2 leading-relaxed italic">
+                      "{tpl.preview.replace(/{employee}/g,'Ravi').replace(/{month}/g,'May 2026').replace(/{net_salary}/g,'₹42,500')}"
+                    </p>
                   </button>
                 ))}
               </div>
-              <textarea value={form.email_body} onChange={e => set('email_body', e.target.value)}
-                rows={12} className={`${inp} font-mono text-xs resize-y`}
-                placeholder="Write your email message here…" />
             </div>
 
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-500 border-b">
-                📧 Preview — Subject: <span className="font-medium text-gray-700">
-                  {form.email_subject.replace('{month}','May 2026').replace('{company}','Your Company').replace('{employee}','Rajesh Kumar')}
-                </span>
+            {/* Custom message area — only shown for "Write My Own" */}
+            {selectedTpl === 'custom' && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Write your message in plain English:</p>
+                <textarea
+                  value={customNote || htmlToPlain(form.email_body)}
+                  onChange={e => {
+                    setCustomNote(e.target.value);
+                    set('email_body', plainToHtml(e.target.value));
+                  }}
+                  rows={7}
+                  placeholder={`Hi {employee},\n\nYour payslip for {month} is attached. Your net salary is {net_salary}.\n\nFor questions, contact HR.\n\nRegards,\n{company} HR Team`}
+                  className={`${inp} resize-y text-sm`}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Just type normally. Use <strong>{'{employee}'}</strong>, <strong>{'{month}'}</strong>, <strong>{'{net_salary}'}</strong>, <strong>{'{company}'}</strong> where you want them auto-filled.
+                </p>
               </div>
-              <div className="p-5 text-sm" dangerouslySetInnerHTML={{ __html:
-                (form.email_body||'')
-                  .replace(/{month}/g,'May 2026').replace(/{company}/g,'Your Company')
-                  .replace(/{employee}/g,'Rajesh Kumar').replace(/{employee_id}/g,'EMP001')
-                  .replace(/{net_salary}/g,'₹52,400')
-              }} />
+            )}
+
+            {/* Live preview */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2.5 text-xs text-gray-600 border-b flex items-center gap-2">
+                <span>📧</span>
+                <div>
+                  <span className="text-gray-400">Subject: </span>
+                  <span className="font-medium text-gray-800">
+                    {(form.email_subject || '')
+                      .replace('{month}','May 2026')
+                      .replace('{company}', form.company_name || 'Your Company')
+                      .replace('{employee}','Ravi Kumar')}
+                  </span>
+                </div>
+              </div>
+              <div className="p-5 text-sm text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html:
+                  (form.email_body || '')
+                    .replace(/{month}/g, 'May 2026')
+                    .replace(/{company}/g, form.company_name || 'Your Company')
+                    .replace(/{employee}/g, 'Ravi Kumar')
+                    .replace(/{employee_id}/g, 'EMP001')
+                    .replace(/{net_salary}/g, '₹42,500')
+                }} />
+              <div className="bg-gray-50 border-t border-dashed border-gray-200 px-5 py-3 text-xs text-gray-400">
+                📎 Payslip_Ravi_Kumar_May_2026.pdf (attached automatically)
+              </div>
             </div>
-            <button onClick={() => set('email_body', DEFAULT_BODY)} className="text-xs text-gray-400 hover:text-gray-600 underline">
-              Reset to default
-            </button>
+
+            <p className="text-xs text-gray-400 text-center">
+              The payslip PDF is always attached automatically. You don't need to mention it unless you want to.
+            </p>
           </div>
         )}
 

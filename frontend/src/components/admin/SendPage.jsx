@@ -228,66 +228,10 @@ export default function SendPage() {
             <p className="text-xs text-slate-400">Used to calculate daily rate for LOP deductions.</p>
           </div>
 
-          {/* Per-employee adjustments toggle */}
-          {employees.length > 0 && adjCols.length > 0 && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowAdj(v => !v)}
-                className="flex items-center gap-2 text-sm font-medium hover:opacity-80" style={{ color: '#E85C2F' }}
-              >
-                <Settings2 size={15} />
-                Per-Employee Adjustments (LOP, Overtime, Incentive, Bonus, TDS…)
-                {showAdj ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-
-              {showAdj && (
-                <div className="mt-3 rounded-lg border border-slate-200 overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-3 py-2.5 text-left font-semibold text-slate-600 sticky left-0 bg-slate-50 min-w-[140px]">Employee</th>
-                        {adjCols.map(col => (
-                          <th key={col.key} className="px-3 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap min-w-[100px]">
-                            {col.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {employees.filter(e => selectedIds.has(e.employee_id)).map(emp => (
-                        <tr key={emp.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2 sticky left-0 bg-white">
-                            <p className="font-medium text-slate-800">{emp.employee_name}</p>
-                            <p className="text-slate-400">{emp.employee_id}</p>
-                          </td>
-                          {adjCols.map(col => (
-                            <td key={col.key} className="px-3 py-2">
-                              <Input
-                                type="number"
-                                placeholder={String(col.placeholder)}
-                                value={(adjustments[emp.employee_id] || {})[col.key] || ''}
-                                onChange={e => setAdj(emp.employee_id, col.key, e.target.value)}
-                                className="h-7 text-xs w-24"
-                                min={0}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 text-xs text-blue-700">
-                    Leave blank to use defaults. Present Days defaults to {workingDays} (full month).
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Employee selection checklist */}
+          {/* Employee selection table — with LOP and extras inline */}
           {employees.length > 0 && (
             <div className="rounded-lg border border-slate-200 overflow-hidden">
+              {/* Header row */}
               <div className="bg-slate-50 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
                 <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
                   Select Employees ({selectedIds.size} of {employees.length})
@@ -304,31 +248,160 @@ export default function SendPage() {
                   </button>
                 </div>
               </div>
-              <div className="max-h-52 overflow-y-auto divide-y divide-slate-50">
+
+              {/* Column labels */}
+              <div className="grid text-xs font-semibold text-slate-500 bg-slate-50 border-b border-slate-200 px-4 py-2"
+                style={{ gridTemplateColumns: `2rem 1fr auto ${hasLop ? '9rem' : ''} ${adjCols.filter(c => c.key !== 'present_days').length > 0 ? '9rem' : ''}` }}>
+                <span />
+                <span>Employee</span>
+                <span className="text-right pr-3">Salary</span>
+                {hasLop && <span className="text-center">LOP Days <span className="text-slate-400 font-normal">(absent)</span></span>}
+                {adjCols.filter(c => c.key !== 'present_days').length > 0 && (
+                  <span className="text-center text-orange-600">Extras</span>
+                )}
+              </div>
+
+              {/* Employee rows */}
+              <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
                 {employees.map(emp => {
-                  const checked = selectedIds.has(emp.employee_id);
+                  const checked    = selectedIds.has(emp.employee_id);
+                  const lopVal     = (adjustments[emp.employee_id] || {}).present_days;
+                  const lopDays    = lopVal !== undefined && lopVal !== ''
+                    ? Math.max(0, workingDays - Number(lopVal)) : 0;
+                  const hasExtras  = adjCols.filter(c => c.key !== 'present_days').length > 0;
+                  const extrasSet  = adjCols.filter(c => c.key !== 'present_days')
+                    .some(c => (adjustments[emp.employee_id] || {})[c.key]);
+
                   return (
-                    <label key={emp.id}
-                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}>
+                    <div key={emp.id}
+                      className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${checked ? 'bg-blue-50' : 'hover:bg-slate-50'} ${!checked ? 'opacity-60' : ''}`}>
+                      {/* Checkbox */}
                       <input type="checkbox" checked={checked}
                         onChange={() => toggleEmployee(emp.employee_id)}
-                        className="accent-blue-600 w-4 h-4 shrink-0" />
-                      <div className="flex-1 min-w-0">
+                        className="accent-blue-600 w-4 h-4 shrink-0 cursor-pointer" />
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleEmployee(emp.employee_id)}>
                         <p className="text-sm font-medium text-slate-800 truncate">{emp.employee_name}</p>
                         <p className="text-xs text-slate-400">{emp.employee_id}{emp.department ? ` · ${emp.department}` : ''}</p>
                       </div>
-                      <p className="text-xs font-medium text-slate-600 shrink-0">
+
+                      {/* Salary */}
+                      <p className="text-xs font-medium text-slate-600 shrink-0 w-24 text-right">
                         ₹{Number(emp.salary || 0).toLocaleString('en-IN')}
                       </p>
-                    </label>
+
+                      {/* LOP Days — always visible if LOP is enabled */}
+                      {hasLop && (() => {
+                        // lopInput = absent days shown to user
+                        const presentDays = (adjustments[emp.employee_id] || {}).present_days;
+                        const lopInput = presentDays !== undefined && presentDays !== ''
+                          ? Math.max(0, workingDays - Number(presentDays))
+                          : '';
+                        return (
+                          <div className="shrink-0 w-28 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                            <div className="flex-1">
+                              <Input
+                                type="number"
+                                disabled={!checked}
+                                placeholder="0"
+                                value={lopInput}
+                                onChange={e => {
+                                  const absent = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                                  const present = absent === '' ? '' : Math.max(0, workingDays - absent);
+                                  setAdj(emp.employee_id, 'present_days', present);
+                                }}
+                                className={`h-7 text-xs text-center ${lopInput > 0 ? 'border-red-300 bg-red-50 text-red-700 font-semibold' : ''}`}
+                                min={0} max={workingDays}
+                              />
+                            </div>
+                            {lopInput > 0 && (
+                              <span className="text-xs text-red-500 shrink-0">LOP</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Other adjustments (overtime, bonus, etc.) */}
+                      {hasExtras && (
+                        <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                          <button type="button"
+                            disabled={!checked}
+                            onClick={() => setShowAdj(v => !v)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${extrasSet ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-slate-200 text-slate-400 hover:border-orange-300 hover:text-orange-600'}`}>
+                            <Settings2 size={11} className="inline mr-1" />
+                            Extras
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+
+              {/* LOP legend */}
+              {hasLop && (
+                <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                  Enter the number of days an employee was absent (LOP). Leave blank if fully present.
+                  Working days this month: <strong>{workingDays}</strong>
+                </div>
+              )}
+
               {noneSelected && (
                 <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
                   Select at least one employee to generate payslips.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Other adjustments table (bonus, overtime, TDS etc.) — shown when toggled */}
+          {employees.length > 0 && adjCols.filter(c => c.key !== 'present_days').length > 0 && showAdj && (
+            <div className="rounded-lg border border-orange-200 overflow-x-auto bg-orange-50">
+              <div className="px-4 py-2.5 border-b border-orange-200 flex items-center justify-between">
+                <span className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                  <Settings2 size={13} /> Extra Adjustments (Bonus, Overtime, TDS…)
+                </span>
+                <button type="button" onClick={() => setShowAdj(false)} className="text-xs text-orange-500 hover:text-orange-700">Close ✕</button>
+              </div>
+              <table className="w-full text-xs">
+                <thead className="border-b border-orange-200">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-orange-700 min-w-[140px]">Employee</th>
+                    {adjCols.filter(c => c.key !== 'present_days').map(col => (
+                      <th key={col.key} className="px-3 py-2 text-left font-semibold text-orange-700 whitespace-nowrap min-w-[110px]">
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-orange-100">
+                  {employees.filter(e => selectedIds.has(e.employee_id)).map(emp => (
+                    <tr key={emp.id} className="hover:bg-orange-100/40">
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-slate-800">{emp.employee_name}</p>
+                        <p className="text-slate-400">{emp.employee_id}</p>
+                      </td>
+                      {adjCols.filter(c => c.key !== 'present_days').map(col => (
+                        <td key={col.key} className="px-3 py-2">
+                          <Input
+                            type="number"
+                            placeholder={String(col.placeholder)}
+                            value={(adjustments[emp.employee_id] || {})[col.key] || ''}
+                            onChange={e => setAdj(emp.employee_id, col.key, e.target.value)}
+                            className="h-7 text-xs w-24"
+                            min={0}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-4 py-2 text-xs text-orange-600">
+                Leave blank to skip. These amounts are added/deducted from the calculated payslip.
+              </div>
             </div>
           )}
 
