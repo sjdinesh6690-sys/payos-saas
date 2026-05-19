@@ -69,6 +69,286 @@ const LeafMark = ({ size = 18 }) => (
   </svg>
 );
 
+// ── Animated Product Demo ─────────────────────────────────────────────────────
+function ProductDemo() {
+  const [playing, setPlaying] = useState(false);
+  const [scene, setScene] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const G = '#1A7A4A';
+
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => {
+      setProgress(p => {
+        if (p >= 100) { setScene(s => (s + 1) % 4); return 0; }
+        return p + 2.5;
+      });
+    }, 100);
+    return () => clearInterval(t);
+  }, [playing]);
+
+  const NavLink2 = ({ label, active }) => (
+    <span style={{ fontSize: 12, color: active ? '#fff' : 'rgba(255,255,255,0.55)', fontWeight: active ? 700 : 400, cursor: 'pointer' }}>{label}</span>
+  );
+
+  const AppBar = ({ activeIdx }) => (
+    <div style={{ background: G, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 20 24" fill="none" style={{ width: 14, height: 14 }}>
+              <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+              <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+              <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+              <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+              <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <span style={{ fontWeight: 900, fontSize: 14 }}><span style={{ color: '#fff' }}>Pay</span><span style={{ color: '#4ADE80' }}>Leef</span></span>
+        </div>
+        {['Dashboard','Employees','Payslips','Reports'].map((l, i) => <NavLink2 key={l} label={l} active={i === activeIdx} />)}
+      </div>
+      <div style={{ display: 'flex', gap: 7 }}>
+        <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 9px', fontSize: 10, color: '#fff', fontWeight: 600 }}>🤖 AI</div>
+        <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700 }}>A</div>
+      </div>
+    </div>
+  );
+
+  const fade = { opacity: progress < 8 ? progress / 8 : progress > 92 ? (100 - progress) / 8 : 1, transition: 'opacity 0.3s' };
+
+  const scenes = [
+    {
+      label: 'Dashboard Overview', icon: '📊', navIdx: 0,
+      url: 'app.payleef.in/dashboard',
+      body: (
+        <div style={{ padding: 14, background: '#F8FAFC', minHeight: 290 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9, marginBottom: 11 }}>
+            {[
+              { l: 'Total Employees', v: '47', s: '+2 this month', c: G },
+              { l: 'Monthly Payroll', v: '₹28.4L', s: '✓ Compliance OK', c: '#059669' },
+              { l: 'AI Anomalies', v: '0', s: 'All payslips clean', c: '#7C3AED' },
+            ].map(st => (
+              <div key={st.l} style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 9, color: '#64748B', marginBottom: 3 }}>{st.l}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: '#0F172A' }}>{st.v}</div>
+                <div style={{ fontSize: 9, color: st.c, fontWeight: 600, marginTop: 2 }}>{st.s}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: '#fff', borderRadius: 8, padding: '11px 13px', border: '1px solid #E2E8F0', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>Monthly Payroll Trend</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 48 }}>
+              {[22,30,26,36,38,33,42,40,46,50,53,70].map((h, i) => (
+                <div key={i} style={{ flex: 1, height: `${h}%`, background: i === 11 ? G : `rgba(26,122,74,${0.1+i*0.05})`, borderRadius: '3px 3px 0 0' }} />
+              ))}
+            </div>
+          </div>
+          {[
+            { n:'Arjun Sharma', d:'Engineering', a:'₹70,200', s:'Sent', i:'A', ic:G, ib:'#DCFCE7', sc:'#16A34A', sb:'#DCFCE7' },
+            { n:'Priya Nair',   d:'Operations',  a:'₹52,800', s:'Sent', i:'P', ic:'#059669', ib:'#D1FAE5', sc:'#16A34A', sb:'#DCFCE7' },
+            { n:'Rohan Mehta',  d:'Accounts',    a:'₹41,500', s:'Pending', i:'R', ic:'#7C3AED', ib:'#EDE9FE', sc:'#B45309', sb:'#FEF3C7' },
+          ].map(e => (
+            <div key={e.n} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 10px', background:'#fff', borderRadius:7, border:'1px solid #E2E8F0', marginBottom:5 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ width:24, height:24, borderRadius:'50%', background:e.ib, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:e.ic }}>{e.i}</div>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:600, color:'#0F172A' }}>{e.n}</div>
+                  <div style={{ fontSize:9, color:'#94A3B8' }}>{e.d}</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'#0F172A' }}>{e.a}</span>
+                <span style={{ fontSize:9, fontWeight:600, color:e.sc, background:e.sb, padding:'2px 7px', borderRadius:5 }}>{e.s}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      label: 'Importing Employees', icon: '📁', navIdx: 1,
+      url: 'app.payleef.in/import',
+      body: (
+        <div style={{ padding: 14, background: '#F8FAFC', minHeight: 290 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 13 }}>Import Employee Data</div>
+          <div style={{ border: '2px dashed ' + G, borderRadius: 12, padding: '20px 16px', textAlign: 'center', background: '#F0FDF4', marginBottom: 12 }}>
+            <div style={{ fontSize: 26, marginBottom: 6 }}>📄</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: G }}>employees_may2026.csv</div>
+            <div style={{ fontSize: 10, color: '#64748B', marginTop: 3 }}>47 rows detected</div>
+            <div style={{ marginTop: 10, height: 5, background: '#DCFCE7', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: G, borderRadius: 3, width: progress < 20 ? '0%' : `${Math.min((progress - 20) * 2, 100)}%`, transition: 'width 0.2s' }} />
+            </div>
+            <div style={{ fontSize: 10, color: G, marginTop: 5, fontWeight: 600 }}>
+              {progress < 30 ? 'Uploading file...' : progress < 65 ? 'Validating 47 rows...' : '✓ 47 employees imported successfully!'}
+            </div>
+          </div>
+          {[
+            { t: 'EMP001  ·  Arjun Sharma  ·  Engineering  ·  ₹70,200', delay: 45 },
+            { t: 'EMP002  ·  Priya Nair  ·  Operations  ·  ₹52,800', delay: 60 },
+            { t: 'EMP003  ·  Rohan Mehta  ·  Accounts  ·  ₹41,500', delay: 75 },
+          ].map((r, i) => progress > r.delay && (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', background:'#fff', borderRadius:7, border:'1px solid #DCFCE7', marginBottom:5, fontSize:10, color:'#334155' }}>
+              <span style={{ color:G, fontWeight:700 }}>✓</span>{r.t}
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      label: 'AI Generates Payslips', icon: '🤖', navIdx: 2,
+      url: 'app.payleef.in/generate',
+      body: (
+        <div style={{ padding: 14, background: '#F8FAFC', minHeight: 290 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Generate Payslips — May 2026</div>
+          <div style={{ fontSize: 10, color: '#64748B', marginBottom: 12 }}>AI calculates PF, ESI, TDS for all 47 employees</div>
+          <div style={{ background: 'linear-gradient(135deg,#1A7A4A,#16A34A)', borderRadius: 10, padding: '11px 14px', marginBottom: 11, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 20 }}>🤖</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>AI Anomaly Scan</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+                {progress < 45 ? 'Scanning 47 payslips for errors...' : '✓ 0 anomalies found — all payslips clean'}
+              </div>
+            </div>
+            {progress < 45
+              ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+              : <span style={{ fontSize: 14, flexShrink: 0 }}>✅</span>}
+          </div>
+          {[
+            { n:'Arjun Sharma', g:'₹82,000', ded:'₹11,800', net:'₹70,200', delay: 15 },
+            { n:'Priya Nair',   g:'₹61,200', ded:'₹8,400',  net:'₹52,800', delay: 35 },
+            { n:'Rohan Mehta',  g:'₹48,500', ded:'₹7,000',  net:'₹41,500', delay: 55 },
+          ].map((e, i) => progress > e.delay && (
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 11px', background:'#fff', borderRadius:7, border:'1px solid #E2E8F0', marginBottom:6 }}>
+              <span style={{ fontSize:11, fontWeight:600, color:'#0F172A' }}>{e.n}</span>
+              <div style={{ display:'flex', gap:10, fontSize:10 }}>
+                <span style={{ color:'#64748B' }}>Gross {e.g}</span>
+                <span style={{ color:'#DC2626' }}>−{e.ded}</span>
+                <span style={{ color:G, fontWeight:700 }}>Net {e.net}</span>
+              </div>
+              <span style={{ fontSize:14 }}>📄</span>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      label: 'Payslips Sent!', icon: '✅', navIdx: 3,
+      url: 'app.payleef.in/send',
+      body: (
+        <div style={{ padding: 14, background: '#F8FAFC', minHeight: 290 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 12 }}>Send Payslips</div>
+          {progress > 45 && (
+            <div style={{ background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)', border: '1px solid #86EFAC', borderRadius: 12, padding: '16px', textAlign: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 32, marginBottom: 6 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: G }}>All 47 payslips sent!</div>
+              <div style={{ fontSize: 10, color: '#166534', marginTop: 3 }}>Every employee received their PDF payslip by email</div>
+            </div>
+          )}
+          {progress <= 45 && (
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ width: 22, height: 22, border: '2px solid #E2E8F0', borderTop: '2px solid ' + G, borderRadius: '50%', animation: 'spin 0.9s linear infinite', margin: '0 auto 8px' }} />
+              <div style={{ fontSize: 11, color: '#64748B' }}>Sending emails to 47 employees...</div>
+            </div>
+          )}
+          {[
+            { n:'Arjun Sharma', e:'arjun@company.com', delay: 10 },
+            { n:'Priya Nair',   e:'priya@company.com', delay: 28 },
+            { n:'Rohan Mehta',  e:'rohan@company.com', delay: 46 },
+          ].map((e, i) => progress > e.delay && (
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 11px', background:'#fff', borderRadius:7, border:'1px solid #E2E8F0', marginBottom:5 }}>
+              <div>
+                <div style={{ fontSize:11, fontWeight:600, color:'#0F172A' }}>{e.n}</div>
+                <div style={{ fontSize:9, color:'#94A3B8' }}>{e.e}</div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:10, color:G, fontWeight:600 }}>📧 Sent</span>
+                <span style={{ fontSize:13 }}>✅</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  const cur = scenes[scene];
+  const overallPct = ((scene * 100 + progress) / 4).toFixed(1);
+
+  return (
+    <div style={{ maxWidth: 780, margin: '0 auto' }}>
+      <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 40px 100px rgba(26,122,74,0.15), 0 0 0 1px rgba(26,122,74,0.08)', overflow: 'hidden' }}>
+        {/* Browser chrome */}
+        <div style={{ background: '#F1F5F9', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {['#FF5F57','#FFBD2E','#28C840'].map(c => <div key={c} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />)}
+          </div>
+          <div style={{ flex: 1, background: '#fff', borderRadius: 5, padding: '3px 10px', fontSize: 10, color: '#94A3B8', border: '1px solid #E2E8F0' }}>{cur.url}</div>
+          <div style={{ fontSize: 9, background: '#DCFCE7', color: '#166534', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>● LIVE DEMO</div>
+        </div>
+
+        {/* App nav */}
+        <AppBar activeIdx={cur.navIdx} />
+
+        {/* Scene body */}
+        <div style={fade}>{cur.body}</div>
+
+        {/* Video-style controls */}
+        <div style={{ background: '#0F172A', padding: '10px 16px' }}>
+          <div
+            style={{ height: 4, background: 'rgba(255,255,255,0.12)', borderRadius: 2, marginBottom: 10, cursor: 'pointer', position: 'relative' }}
+            onClick={e => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const pct = (e.clientX - rect.left) / rect.width * 100;
+              const newScene = Math.floor(pct / 25);
+              setScene(Math.min(newScene, 3));
+              setProgress((pct % 25) * 4);
+            }}
+          >
+            <div style={{ height: '100%', background: 'linear-gradient(90deg,#1A7A4A,#4ADE80)', borderRadius: 2, width: overallPct + '%', transition: 'width 0.1s linear' }} />
+            <div style={{ position: 'absolute', top: -3, left: overallPct + '%', width: 10, height: 10, borderRadius: '50%', background: '#4ADE80', transform: 'translateX(-50%)', boxShadow: '0 0 6px #4ADE80' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={() => setPlaying(p => !p)}
+                style={{ width: 34, height: 34, borderRadius: '50%', background: G, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}
+              >
+                {playing ? '⏸' : '▶️'}
+              </button>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap' }}>{cur.icon} {cur.label}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {scenes.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setScene(i); setProgress(0); setPlaying(true); }}
+                  style={{ width: i === scene ? 22 : 7, height: 7, borderRadius: 4, background: i === scene ? '#4ADE80' : 'rgba(255,255,255,0.25)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }}
+                  title={scenes[i].label}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Step labels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginTop: 28 }}>
+        {scenes.map((s, i) => (
+          <div
+            key={i}
+            onClick={() => { setScene(i); setProgress(0); setPlaying(true); }}
+            style={{ textAlign: 'center', padding: '14px 10px', borderRadius: 12, background: i === scene ? '#F0FDF4' : '#fff', border: i === scene ? '1.5px solid #BBF7D0' : '1px solid #E2E8F0', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            <div style={{ fontSize: 18, marginBottom: 5 }}>{s.icon}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: i === scene ? G : '#0F172A' }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard Mockup ──────────────────────────────────────────────────────────
 function DashboardMockup() {
   const G = '#1A7A4A';
@@ -415,6 +695,8 @@ export default function LandingPage() {
         .compare-no { color: #94A3B8; }
         .ai-badge { background: linear-gradient(135deg, #7C3AED, #5B21B6); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px; display: inline-block; margin-left: 6px; vertical-align: middle; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
       {/* ── NAVBAR ────────────────────────────────────────────────────────── */}
@@ -587,9 +869,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRODUCT DEMO SECTION ──────────────────────────────────────────── */}
-      <section style={{ padding: '80px 24px', background: 'linear-gradient(180deg, #fff 0%, #F0FDF4 100%)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          {/* Section label */}
+      <section style={{ padding: '80px 24px 60px', background: 'linear-gradient(180deg, #fff 0%, #F0FDF4 100%)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#DCFCE7', borderRadius: 100, padding: '6px 16px', marginBottom: 16 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A', display: 'inline-block', animation: 'pulse 2s infinite' }} />
@@ -598,120 +879,15 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', marginBottom: 12 }}>
               See PayLeef in Action
             </h2>
-            <p style={{ fontSize: 16, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
-              Upload → Generate → Send. Your entire payroll done in 3 steps.
+            <p style={{ fontSize: 15, color: '#64748B', maxWidth: 440, margin: '0 auto' }}>
+              Click ▶️ to watch the full payroll workflow — upload, generate, send.
             </p>
           </div>
-
-          {/* Browser mockup */}
-          <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 40px 100px rgba(26,122,74,0.15), 0 0 0 1px rgba(26,122,74,0.08)', overflow: 'hidden', maxWidth: 860, margin: '0 auto' }}>
-            {/* Browser bar */}
-            <div style={{ background: '#F1F5F9', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {['#FF5F57','#FFBD2E','#28C840'].map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c }} />)}
-              </div>
-              <div style={{ flex: 1, background: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94A3B8', border: '1px solid #E2E8F0' }}>
-                app.payleef.in/dashboard
-              </div>
-            </div>
-            {/* App header */}
-            <div style={{ background: '#1A7A4A', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg viewBox="0 0 20 24" fill="none" style={{ width: 16, height: 16 }}>
-                    <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
-                    <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
-                    <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
-                    <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
-                    <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
-                  </svg>
-                </div>
-                <div style={{ display: 'flex', gap: 24 }}>
-                  {['Dashboard','Employees','Payslips','Reports'].map((t,i) => (
-                    <span key={t} style={{ fontSize: 13, color: i === 0 ? '#fff' : 'rgba(255,255,255,0.65)', fontWeight: i === 0 ? 700 : 400, cursor: 'pointer' }}>{t}</span>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 10px', fontSize: 11, color: '#fff', fontWeight: 600 }}>🤖 AI</div>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>A</div>
-              </div>
-            </div>
-            {/* Dashboard content */}
-            <div style={{ padding: '20px', background: '#F8FAFC' }}>
-              {/* Stats row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-                {[
-                  { label: 'Total Employees', value: '47', sub: '+2 this month', subColor: '#16A34A' },
-                  { label: 'Monthly Payroll', value: '₹28.4L', sub: '✓ Compliance OK', subColor: '#16A34A' },
-                  { label: 'AI Anomalies', value: '0', sub: 'All payslips clean', subColor: '#7C3AED' },
-                ].map(s => (
-                  <div key={s.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0' }}>
-                    <div style={{ fontSize: 11, color: '#64748B', marginBottom: 6 }}>{s.label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: s.subColor, fontWeight: 500 }}>{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Chart area */}
-              <div style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0', marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Monthly Payroll Trend</span>
-                  <span style={{ fontSize: 10, color: '#94A3B8', background: '#F1F5F9', padding: '3px 8px', borderRadius: 6 }}>2025–26</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 60 }}>
-                  {[30,38,35,42,45,40,50,48,55,58,60,80].map((h,i) => (
-                    <div key={i} style={{ flex: 1, height: `${h}%`, background: i === 11 ? '#1A7A4A' : `rgba(26,122,74,${0.15 + i*0.05})`, borderRadius: '4px 4px 0 0', transition: 'height 0.5s' }} />
-                  ))}
-                </div>
-              </div>
-              {/* Recent payslips */}
-              <div style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Recent Payslips</span>
-                  <span style={{ fontSize: 11, color: '#1A7A4A', fontWeight: 600, cursor: 'pointer' }}>View all →</span>
-                </div>
-                {[
-                  { name: 'Arjun Sharma', dept: 'Engineering', amount: '₹70,200', status: 'Sent', color: '#16A34A', bg: '#DCFCE7', init: 'A', ic: '#1A7A4A', ib: '#DCFCE7' },
-                  { name: 'Priya Nair', dept: 'Operations', amount: '₹52,800', status: 'Sent', color: '#16A34A', bg: '#DCFCE7', init: 'P', ic: '#1A7A4A', ib: '#D1FAE5' },
-                  { name: 'Rohan Mehta', dept: 'Accounts', amount: '₹41,500', status: 'Pending', color: '#B45309', bg: '#FEF3C7', init: 'R', ic: '#7C3AED', ib: '#EDE9FE' },
-                ].map(e => (
-                  <div key={e.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F1F5F9' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: e.ib, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: e.ic }}>{e.init}</div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{e.name}</div>
-                        <div style={{ fontSize: 10, color: '#94A3B8' }}>{e.dept}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{e.amount}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: e.color, background: e.bg, padding: '3px 8px', borderRadius: 6 }}>{e.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* 3 steps below the mockup */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginTop: 40, maxWidth: 860, margin: '40px auto 0' }}>
-            {[
-              { step: '01', title: 'Upload Employee Data', desc: 'Import your team via CSV. PayLeef validates every row instantly.' },
-              { step: '02', title: 'AI Generates Payslips', desc: 'PF, ESI, TDS calculated automatically. AI flags any anomalies.' },
-              { step: '03', title: 'Send in One Click', desc: 'Every employee gets a personalised PDF payslip by email.' },
-            ].map(s => (
-              <div key={s.step} style={{ textAlign: 'center', padding: '24px 20px' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: '#1A7A4A', color: '#fff', fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>{s.step}</div>
-                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>{s.title}</h4>
-                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
+          <ProductDemo />
         </div>
       </section>
 
-      {/* ── FEATURES ──────────────────────────────────────────────────────── */}
+            {/* ── FEATURES ──────────────────────────────────────────────────────── */}
       <section id="features" style={{ padding: '96px 24px', background: C.bg, borderTop: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
