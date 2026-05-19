@@ -29,7 +29,7 @@ const startPDF = (res, title, subtitle, filename) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   doc.pipe(res);
 
-  doc.rect(0, 0, doc.page.width, 80).fill('#1B4F8A');
+  doc.rect(0, 0, doc.page.width, 80).fill('#1A7A4A');
   doc.fillColor('white').fontSize(18).text(title, 50, 20, { width: doc.page.width - 100, align: 'center' });
   doc.fontSize(10).text(subtitle, 50, 48, { width: doc.page.width - 100, align: 'center' });
   doc.fillColor('#333').moveDown(2);
@@ -78,7 +78,7 @@ router.get('/salary-cost-analysis', async (req, res) => {
     const fmt       = (n) => `₹${n.toLocaleString('en-IN')}`;
     const monthName = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
-    doc.fontSize(12).fillColor('#1B4F8A').text(`Period: ${monthName}    Employees: ${records.length}`).moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${monthName}    Employees: ${records.length}`).moveDown(0.5);
     line(doc);
 
     doc.fontSize(11).fillColor('#333').text('EMPLOYEE SALARY', { underline: true }).moveDown(0.3);
@@ -94,7 +94,7 @@ router.get('/salary-cost-analysis', async (req, res) => {
     row(doc, 'Employer ESI (3.25%)', fmt(totESIEmp));
     line(doc);
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('TOTAL COST TO COMPANY (CTC)', { underline: true }).moveDown(0.3);
+    doc.fontSize(12).fillColor('#1A7A4A').text('TOTAL COST TO COMPANY (CTC)', { underline: true }).moveDown(0.3);
     row(doc, 'Gross Salaries', fmt(totGross));
     row(doc, '+ Employer PF', fmt(totPFEmp));
     row(doc, '+ Employer ESI', fmt(totESIEmp));
@@ -129,11 +129,11 @@ router.get('/department-performance', async (req, res) => {
 
     const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('DEPARTMENT BREAKDOWN').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('DEPARTMENT BREAKDOWN').moveDown(0.5);
 
     Object.entries(depts).sort((a, b) => b[1].totalGross - a[1].totalGross).forEach(([dept, data]) => {
       line(doc);
-      doc.fontSize(11).fillColor('#1B4F8A').text(dept, { underline: true }).fillColor('#333');
+      doc.fontSize(11).fillColor('#1A7A4A').text(dept, { underline: true }).fillColor('#333');
       row(doc, 'Employees', String(data.count));
       row(doc, 'Total Gross Salary', fmt(data.totalGross));
       row(doc, 'Total CTC (with benefits)', fmt(data.totalCTC));
@@ -158,7 +158,7 @@ router.get('/top-earners', async (req, res) => {
     const totTop  = sorted.reduce((s, p)  => s + (p.salary || 0), 0);
     const fmt     = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(9).fillColor('#1B4F8A');
+    doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('RANK', 55, doc.y, { width: 35, continued: true });
     doc.text('EMPLOYEE ID', { width: 90, continued: true });
     doc.text('NAME', { width: 180, continued: true });
@@ -202,7 +202,7 @@ router.get('/deduction-analytics', async (req, res) => {
     const fmt    = (n) => `₹${n.toLocaleString('en-IN')}`;
     const pct    = (n) => `${((n / totGross) * 100).toFixed(1)}% of gross`;
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('DEDUCTION SUMMARY').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('DEDUCTION SUMMARY').moveDown(0.5);
     line(doc);
     row(doc, 'Total Gross Salary', fmt(totGross));
     doc.moveDown(0.3);
@@ -247,7 +247,7 @@ router.get('/cash-flow-forecast', async (req, res) => {
     const nextMonthName = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
       .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
-    doc.fontSize(12).fillColor('#1B4F8A').text(`Payments Due — ${nextMonthName}`).moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Payments Due — ${nextMonthName}`).moveDown(0.5);
     line(doc);
 
     const schedule = [
@@ -302,7 +302,7 @@ router.get('/tax-planning', async (req, res) => {
     const totTax = totPF + totPFEmp + totESI + totESIEmp + totPT + totTDS;
     const fmt    = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('MONTHLY TAX LIABILITY').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('MONTHLY TAX LIABILITY').moveDown(0.5);
     line(doc);
     doc.fillColor('#333').fontSize(11);
     row(doc, 'PF (Employee 12%)', fmt(totPF));
@@ -325,7 +325,7 @@ router.get('/tax-planning', async (req, res) => {
       ['TDS / Form 16', 'Deduct TDS accurately and issue Form 16 by June 15 each year. Late issuance attracts penalty.'],
     ];
     recs.forEach(([title, text]) => {
-      doc.fontSize(10).fillColor('#1B4F8A').text(`▸ ${title}:`, { continued: false });
+      doc.fontSize(10).fillColor('#1A7A4A').text(`▸ ${title}:`, { continued: false });
       doc.fillColor('#333').text(`  ${text}`).moveDown(0.4);
     });
 
@@ -351,7 +351,7 @@ router.get('/salary-distribution', async (req, res) => {
     ];
     const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('SALARY DISTRIBUTION BREAKDOWN').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('SALARY DISTRIBUTION BREAKDOWN').moveDown(0.5);
     line(doc);
     doc.fillColor('#333').fontSize(10);
 
@@ -392,7 +392,7 @@ router.get('/employee-turnover', async (req, res) => {
 
     if (!rows.length) { doc.text('No payslip history found.'); doc.end(); return; }
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('HEADCOUNT TREND (Last 6 Months)').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('HEADCOUNT TREND (Last 6 Months)').moveDown(0.5);
     line(doc);
 
     let prev = 0;
@@ -411,7 +411,7 @@ router.get('/employee-turnover', async (req, res) => {
     const netChange  = lastCount - firstCount;
 
     line(doc);
-    doc.fontSize(11).fillColor('#1B4F8A');
+    doc.fontSize(11).fillColor('#1A7A4A');
     row(doc, 'Net headcount change (period)', `${netChange >= 0 ? '+' : ''}${netChange}`);
     doc.fillColor('#333');
     row(doc, 'Retention indicator', netChange >= 0 ? '✅ Growing / Stable' : '⚠️ Declining headcount');
@@ -441,10 +441,10 @@ router.get('/departmental-comparison', async (req, res) => {
     const totGross = Object.values(depts).reduce((s, d) => s + d.totalGross, 0);
     const fmt      = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1B4F8A').text('DEPARTMENT COMPARISON TABLE').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text('DEPARTMENT COMPARISON TABLE').moveDown(0.5);
     line(doc);
 
-    doc.fontSize(9).fillColor('#1B4F8A');
+    doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('DEPARTMENT', 55, doc.y, { width: 130, continued: true });
     doc.text('EMP',          { width: 40,  continued: true, align: 'right' });
     doc.text('TOTAL SALARY', { width: 130, continued: true, align: 'right' });
@@ -501,7 +501,7 @@ router.get('/month-comparison', async (req, res) => {
     doc.text(`${lastName.padEnd(30)} →  ${thisName}`, 55, doc.y, { align: 'center' }).moveDown(0.5);
     line(doc);
 
-    doc.fontSize(9).fillColor('#1B4F8A');
+    doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
     doc.text(lastName, { width: 130, continued: true, align: 'right' });
     doc.text(thisName, { width: 130, continued: true, align: 'right' });
@@ -558,7 +558,7 @@ router.get('/quarter-comparison', async (req, res) => {
     const fmt  = (n) => `₹${n.toLocaleString('en-IN')}`;
     const pct  = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
 
-    doc.fontSize(9).fillColor('#1B4F8A');
+    doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
     doc.text(`Q${pq} ${py}`,  { width: 130, continued: true, align: 'right' });
     doc.text(`Q${qNow} ${cy}`,{ width: 130, continued: true, align: 'right' });
@@ -609,7 +609,7 @@ router.get('/year-comparison', async (req, res) => {
     const fmt  = (n) => `₹${n.toLocaleString('en-IN')}`;
     const pct  = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
 
-    doc.fontSize(9).fillColor('#1B4F8A');
+    doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
     doc.text(String(py), { width: 130, continued: true, align: 'right' });
     doc.text(String(cy), { width: 130, continued: true, align: 'right' });

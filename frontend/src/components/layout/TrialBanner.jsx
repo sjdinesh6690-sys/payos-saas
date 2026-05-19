@@ -24,7 +24,7 @@ export default function TrialBanner() {
           </p>
         </div>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayOS Plan"
+          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
           className="shrink-0 text-xs font-bold text-white px-4 py-2 rounded-xl transition-opacity hover:opacity-90"
           style={{ background: '#E85C2F' }}
         >
@@ -53,7 +53,7 @@ export default function TrialBanner() {
           </p>
         </div>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayOS Plan"
+          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
           className="shrink-0 text-xs font-bold text-white px-4 py-2 rounded-xl transition-opacity hover:opacity-90"
           style={{ background: '#E85C2F' }}
         >
@@ -78,7 +78,7 @@ export default function TrialBanner() {
           &nbsp;·&nbsp; After that, you can still view your data while you decide.
         </p>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayOS Plan"
+          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
           className="shrink-0 text-xs font-semibold hover:underline"
           style={{ color: '#E85C2F' }}
         >

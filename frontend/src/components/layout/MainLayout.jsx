@@ -9,7 +9,7 @@ import api from '@/lib/api';
 
 // ── Theme color system ────────────────────────────────────────────────────────
 const PRESET_COLORS = [
-  { hex: '#1B4FBF', label: 'Professional Blue' },
+  { hex: '#1A7A4A', label: 'Professional Blue' },
   { hex: '#059669', label: 'Emerald'           },
   { hex: '#7C3AED', label: 'Violet'            },
   { hex: '#0891B2', label: 'Cyan'              },
@@ -131,7 +131,7 @@ function applyTheme(hex) {
 const saved = localStorage.getItem('payos_brand_color');
 const migratedOrange = saved === '#E85C2F';
 if (saved && !migratedOrange) applyTheme(saved);
-else { localStorage.removeItem('payos_brand_color'); applyTheme('#1B4FBF'); }
+else { localStorage.removeItem('payos_brand_color'); applyTheme('#1A7A4A'); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export default function MainLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [themeOpen,   setThemeOpen]   = useState(false);
   const [helpOpen,    setHelpOpen]    = useState(false);
-  const [brandColor,  setBrandColor]  = useState(localStorage.getItem('payos_brand_color') || '#1B4FBF');
+  const [brandColor,  setBrandColor]  = useState(localStorage.getItem('payos_brand_color') || '#1A7A4A');
 
   const profileRef = useRef(null);
   const themeRef   = useRef(null);

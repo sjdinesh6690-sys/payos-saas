@@ -2,9 +2,18 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Upload,
   Send, BarChart3, TrendingUp, LogOut, Settings2,
-  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const RupeeLeaf = ({ size = 20 }) => (
+  <svg viewBox="0 0 20 24" fill="none" style={{ width: size, height: size }}>
+    <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+    <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+  </svg>
+);
 
 const NAV_GROUPS = [
   {
@@ -61,20 +70,16 @@ export default function Sidebar() {
     >
       {/* ── Brand ──────────────────────────────────────────── */}
       <div className="px-5 pt-6 pb-5" style={{ borderBottom: '1px solid var(--border-light)' }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%)' }}
-          >
-            <FileText size={16} className="text-white" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: '#1A7A4A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(26,122,74,0.3)' }}>
+            <RupeeLeaf size={22} />
           </div>
           <div>
-            <p className="text-[15px] font-800 leading-tight" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-              PayOS
-            </p>
-            <p className="text-[11px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-              Smart Payroll OS
-            </p>
+            <div style={{ lineHeight: 1.1 }}>
+              <span style={{ fontSize: 17, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.04em' }}>Pay</span>
+              <span style={{ fontSize: 17, fontWeight: 900, color: '#1A7A4A', letterSpacing: '-0.04em' }}>Leef</span>
+            </div>
+            <span style={{ display: 'block', fontSize: 9.5, color: '#94A3B8', letterSpacing: '0.1em' }}>PAYROLL FOR INDIA</span>
           </div>
         </div>
       </div>

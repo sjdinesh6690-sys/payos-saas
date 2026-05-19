@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 
 const MONTHS    = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const COLORS    = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
+const COLORS    = ['#1A7A4A','#22C55E','#4ADE80','#16A34A','#15803D','#86EFAC','#BBF7D0','#052e16'];
 const fmtShort  = (n) => { if (n >= 100000) return `₹${(n/100000).toFixed(1)}L`; if (n >= 1000) return `₹${(n/1000).toFixed(0)}K`; return `₹${n}`; };
 const fmt       = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
@@ -43,6 +43,10 @@ const Section = ({ title, subtitle, children, action }) => (
 export default function AnalyticsPage() {
   const now   = new Date();
   const [year, setYear] = useState(now.getFullYear());
+  const [fromMonth, setFromMonth] = useState(1);
+  const [fromYear, setFromYear]   = useState(now.getFullYear());
+  const [toMonth, setToMonth]     = useState(now.getMonth() + 1);
+  const [toYear, setToYear]       = useState(now.getFullYear());
   const [downloadLoading, setDownloadLoading] = useState({});
 
   const { data: employees = [] } = useQuery({
@@ -53,6 +57,16 @@ export default function AnalyticsPage() {
     queryKey: ['payslips'],
     queryFn: () => api.get('/payslips').then(r => r.data),
   });
+
+  // ── Filtered payslips by date range ────────────────────────────────────────
+  const filteredPayslips = useMemo(() => {
+    return payslips.filter(p => {
+      const py = Number(p.year), pm = Number(p.month);
+      const afterFrom = py > fromYear || (py === fromYear && pm >= fromMonth);
+      const beforeTo  = py < toYear  || (py === toYear  && pm <= toMonth);
+      return afterFrom && beforeTo;
+    });
+  }, [payslips, fromMonth, fromYear, toMonth, toYear]);
 
   // ── Department payroll ──────────────────────────────────────────────────────
   const deptPayroll = useMemo(() => {
@@ -86,14 +100,14 @@ export default function AnalyticsPage() {
   const monthlyTrend = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const m  = i + 1;
-      const ps = payslips.filter(p => p.month === m && p.year === year);
+      const ps = filteredPayslips.filter(p => Number(p.month) === m && Number(p.year) === year);
       return {
         name:    MONTHS[m],
         payroll: ps.reduce((s, p) => s + (Number(p.net_salary || p.salary) || 0), 0),
         count:   ps.length,
       };
     });
-  }, [payslips, year]);
+  }, [filteredPayslips, year]);
 
   // ── Top/bottom earners ──────────────────────────────────────────────────────
   const sorted      = useMemo(() => [...employees].sort((a, b) => (Number(b.salary) || 0) - (Number(a.salary) || 0)), [employees]);
@@ -138,6 +152,28 @@ export default function AnalyticsPage() {
         >
           {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+      </div>
+
+      {/* Date range filter bar */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24, padding:'14px 18px', background:'#F0FDF4', borderRadius:12, border:'1px solid #BBF7D0', flexWrap:'wrap' }}>
+        <span style={{ fontSize:13, fontWeight:600, color:'#166534' }}>Date Range:</span>
+        {/* From */}
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:12, color:'#64748B' }}>From</span>
+          <select value={fromMonth} onChange={e => setFromMonth(Number(e.target.value))} style={{ fontSize:12, padding:'5px 8px', borderRadius:6, border:'1px solid #D1FAE5' }}>
+            {MONTHS.slice(1).map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+          <input type="number" value={fromYear} onChange={e => setFromYear(Number(e.target.value))} min={2020} max={2030} style={{ width:72, fontSize:12, padding:'5px 8px', borderRadius:6, border:'1px solid #D1FAE5' }} />
+        </div>
+        {/* To */}
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:12, color:'#64748B' }}>To</span>
+          <select value={toMonth} onChange={e => setToMonth(Number(e.target.value))} style={{ fontSize:12, padding:'5px 8px', borderRadius:6, border:'1px solid #D1FAE5' }}>
+            {MONTHS.slice(1).map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+          <input type="number" value={toYear} onChange={e => setToYear(Number(e.target.value))} min={2020} max={2030} style={{ width:72, fontSize:12, padding:'5px 8px', borderRadius:6, border:'1px solid #D1FAE5' }} />
+        </div>
+        <span style={{ fontSize:11, color:'#94A3B8' }}>Showing data for selected period</span>
       </div>
 
       {isEmpty && (

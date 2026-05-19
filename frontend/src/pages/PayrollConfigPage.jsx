@@ -475,7 +475,7 @@ export default function PayrollConfigPage() {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'PayOS_Sample_Payslip.pdf';
+      a.download = 'PayLeef_Sample_Payslip.pdf';
       document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(url);

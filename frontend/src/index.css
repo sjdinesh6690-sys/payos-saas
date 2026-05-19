@@ -6,9 +6,9 @@
 
 /* ── CSS Variables ──────────────────────────────────────────── */
 :root {
-  --brand:         #1B4FBF;
-  --brand-light:   #EEF3FF;
-  --brand-hover:   #1540A0;
+  --brand:         #1A7A4A;
+  --brand-light:   #F0FDF4;
+  --brand-hover:   #155C38;
   --bg-warm:       #F7F6F3;
   --sidebar-bg:    #FFFFFF;
   --card-bg:       #FFFFFF;
@@ -77,3 +77,14 @@ h1, h2, h3, h4, h5, h6 {
 .bg-orange-50                       { background-color: var(--brand-light) !important; }
 .text-orange-800                    { color: color-mix(in srgb, var(--brand) 70%, black) !important; }
 .border-orange-200                  { border-color: color-mix(in srgb, var(--brand) 30%, white) !important; }
+
+/* ── PayLeef green — blue class overrides ── */
+.bg-blue-600                        { background-color: var(--brand) !important; }
+.bg-blue-500                        { background-color: var(--brand) !important; }
+.hover\:bg-blue-700:hover           { background-color: var(--brand-hover) !important; }
+.hover\:bg-blue-600:hover           { background-color: var(--brand) !important; }
+.text-blue-600                      { color: var(--brand) !important; }
+.text-blue-500                      { color: var(--brand) !important; }
+.border-blue-500                    { border-color: var(--brand) !important; }
+.bg-blue-50                         { background-color: var(--brand-light) !important; }
+.text-blue-800                      { color: color-mix(in srgb, var(--brand) 70%, black) !important; }

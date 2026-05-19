@@ -80,7 +80,7 @@ function AIChatPanel({ onClose }) {
             <Sparkles size={14} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">PayOS AI Assistant</p>
+            <p className="text-sm font-semibold text-white">PayLeef AI Assistant</p>
             <p className="text-xs text-purple-200">Ask about your salary</p>
           </div>
         </div>

@@ -44,7 +44,7 @@ export default function SuperDashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Platform Overview</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Live metrics across all PayOS client companies</p>
+        <p className="text-sm text-slate-500 mt-0.5">Live metrics across all PayLeef client companies</p>
       </div>
 
       {/* Stat cards */}

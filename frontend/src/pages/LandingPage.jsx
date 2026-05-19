@@ -414,6 +414,7 @@ export default function LandingPage() {
         .compare-yes { color: #166534; font-weight: 700; }
         .compare-no { color: #94A3B8; }
         .ai-badge { background: linear-gradient(135deg, #7C3AED, #5B21B6); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px; display: inline-block; margin-left: 6px; vertical-align: middle; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
 
       {/* ── NAVBAR ────────────────────────────────────────────────────────── */}
@@ -579,6 +580,131 @@ export default function LandingPage() {
                 <div style={{ fontSize: 32, marginBottom: 14 }}>{item.icon}</div>
                 <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, color: C.text }}>{item.title}</h3>
                 <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRODUCT DEMO SECTION ──────────────────────────────────────────── */}
+      <section style={{ padding: '80px 24px', background: 'linear-gradient(180deg, #fff 0%, #F0FDF4 100%)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          {/* Section label */}
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#DCFCE7', borderRadius: 100, padding: '6px 16px', marginBottom: 16 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#166534', letterSpacing: 1 }}>LIVE PRODUCT TOUR</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', marginBottom: 12 }}>
+              See PayLeef in Action
+            </h2>
+            <p style={{ fontSize: 16, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
+              Upload → Generate → Send. Your entire payroll done in 3 steps.
+            </p>
+          </div>
+
+          {/* Browser mockup */}
+          <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 40px 100px rgba(26,122,74,0.15), 0 0 0 1px rgba(26,122,74,0.08)', overflow: 'hidden', maxWidth: 860, margin: '0 auto' }}>
+            {/* Browser bar */}
+            <div style={{ background: '#F1F5F9', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['#FF5F57','#FFBD2E','#28C840'].map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c }} />)}
+              </div>
+              <div style={{ flex: 1, background: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#94A3B8', border: '1px solid #E2E8F0' }}>
+                app.payleef.in/dashboard
+              </div>
+            </div>
+            {/* App header */}
+            <div style={{ background: '#1A7A4A', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg viewBox="0 0 20 24" fill="none" style={{ width: 16, height: 16 }}>
+                    <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+                    <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+                    <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+                    <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+                    <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div style={{ display: 'flex', gap: 24 }}>
+                  {['Dashboard','Employees','Payslips','Reports'].map((t,i) => (
+                    <span key={t} style={{ fontSize: 13, color: i === 0 ? '#fff' : 'rgba(255,255,255,0.65)', fontWeight: i === 0 ? 700 : 400, cursor: 'pointer' }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 10px', fontSize: 11, color: '#fff', fontWeight: 600 }}>🤖 AI</div>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>A</div>
+              </div>
+            </div>
+            {/* Dashboard content */}
+            <div style={{ padding: '20px', background: '#F8FAFC' }}>
+              {/* Stats row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: 'Total Employees', value: '47', sub: '+2 this month', subColor: '#16A34A' },
+                  { label: 'Monthly Payroll', value: '₹28.4L', sub: '✓ Compliance OK', subColor: '#16A34A' },
+                  { label: 'AI Anomalies', value: '0', sub: 'All payslips clean', subColor: '#7C3AED' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: 11, color: '#64748B', marginBottom: 6 }}>{s.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>{s.value}</div>
+                    <div style={{ fontSize: 11, color: s.subColor, fontWeight: 500 }}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Chart area */}
+              <div style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Monthly Payroll Trend</span>
+                  <span style={{ fontSize: 10, color: '#94A3B8', background: '#F1F5F9', padding: '3px 8px', borderRadius: 6 }}>2025–26</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 60 }}>
+                  {[30,38,35,42,45,40,50,48,55,58,60,80].map((h,i) => (
+                    <div key={i} style={{ flex: 1, height: `${h}%`, background: i === 11 ? '#1A7A4A' : `rgba(26,122,74,${0.15 + i*0.05})`, borderRadius: '4px 4px 0 0', transition: 'height 0.5s' }} />
+                  ))}
+                </div>
+              </div>
+              {/* Recent payslips */}
+              <div style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>Recent Payslips</span>
+                  <span style={{ fontSize: 11, color: '#1A7A4A', fontWeight: 600, cursor: 'pointer' }}>View all →</span>
+                </div>
+                {[
+                  { name: 'Arjun Sharma', dept: 'Engineering', amount: '₹70,200', status: 'Sent', color: '#16A34A', bg: '#DCFCE7', init: 'A', ic: '#1A7A4A', ib: '#DCFCE7' },
+                  { name: 'Priya Nair', dept: 'Operations', amount: '₹52,800', status: 'Sent', color: '#16A34A', bg: '#DCFCE7', init: 'P', ic: '#1A7A4A', ib: '#D1FAE5' },
+                  { name: 'Rohan Mehta', dept: 'Accounts', amount: '₹41,500', status: 'Pending', color: '#B45309', bg: '#FEF3C7', init: 'R', ic: '#7C3AED', ib: '#EDE9FE' },
+                ].map(e => (
+                  <div key={e.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F1F5F9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: e.ib, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: e.ic }}>{e.init}</div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{e.name}</div>
+                        <div style={{ fontSize: 10, color: '#94A3B8' }}>{e.dept}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{e.amount}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: e.color, background: e.bg, padding: '3px 8px', borderRadius: 6 }}>{e.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3 steps below the mockup */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginTop: 40, maxWidth: 860, margin: '40px auto 0' }}>
+            {[
+              { step: '01', title: 'Upload Employee Data', desc: 'Import your team via CSV. PayLeef validates every row instantly.' },
+              { step: '02', title: 'AI Generates Payslips', desc: 'PF, ESI, TDS calculated automatically. AI flags any anomalies.' },
+              { step: '03', title: 'Send in One Click', desc: 'Every employee gets a personalised PDF payslip by email.' },
+            ].map(s => (
+              <div key={s.step} style={{ textAlign: 'center', padding: '24px 20px' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: '#1A7A4A', color: '#fff', fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>{s.step}</div>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>{s.title}</h4>
+                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>{s.desc}</p>
               </div>
             ))}
           </div>

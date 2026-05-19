@@ -4,17 +4,27 @@ import { toast } from 'sonner';
 import {
   Building2, Users, Settings, CheckCircle2, ChevronRight,
   ChevronLeft, Upload, SkipForward, Sparkles, MapPin,
-  Phone, Mail, Globe, Hash, Briefcase,
+  Phone, Mail, Globe, Hash,
 } from 'lucide-react';
 import api from '@/lib/api';
 
+const RupeeLeaf = ({ size = 20 }) => (
+  <svg viewBox="0 0 20 24" fill="none" style={{ width: size, height: size }}>
+    <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+    <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+    <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" strokeWidth="1.7" strokeLinecap="round"/>
+  </svg>
+);
+
 // ── Step definitions ──────────────────────────────────────────────────────
 const STEPS = [
-  { id: 1, icon: Sparkles,   title: 'Welcome to PayOS',       subtitle: 'Let\'s set up your payroll in 4 quick steps' },
+  { id: 1, icon: Sparkles,   title: 'Welcome to PayLeef',      subtitle: 'Let\'s set up your payroll in 4 quick steps' },
   { id: 2, icon: Building2,  title: 'Company Information',    subtitle: 'Tell us about your company' },
   { id: 3, icon: Settings,   title: 'Payroll Preferences',    subtitle: 'Configure how payroll runs' },
   { id: 4, icon: Users,      title: 'Add Your First Employee', subtitle: 'Import or add employees to get started' },
-  { id: 5, icon: CheckCircle2, title: 'All Done!',            subtitle: 'Your PayOS is ready to use' },
+  { id: 5, icon: CheckCircle2, title: 'All Done!',            subtitle: 'Your PayLeef is ready to use' },
 ];
 
 const INDUSTRIES = [
@@ -36,14 +46,17 @@ function StepBar({ current, total }) {
         return (
           <div key={n} className="flex items-center gap-2 flex-1">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-              done   ? 'bg-orange-500 text-white' :
-              active ? 'bg-white border-2 border-orange-500 text-orange-600' :
+              done   ? 'text-white' :
+              active ? 'bg-white border-2 text-green-600' :
                        'bg-slate-100 text-slate-400'
-            }`}>
+            }`} style={
+              done ? { background: '#1A7A4A' } :
+              active ? { borderColor: '#1A7A4A', color: '#1A7A4A' } : {}
+            }>
               {done ? <CheckCircle2 size={14} /> : n}
             </div>
             {n < total && (
-              <div className={`h-0.5 flex-1 rounded transition-all ${done ? 'bg-orange-400' : 'bg-slate-200'}`} />
+              <div className={`h-0.5 flex-1 rounded transition-all`} style={{ background: done ? '#1A7A4A' : '#E2E8F0' }} />
             )}
           </div>
         );
@@ -93,7 +106,7 @@ export default function OnboardingPage() {
     setSaving(true);
     try {
       await api.put('/admin-profile/onboarding/complete');
-      toast.success('Setup complete! Welcome to PayOS 🎉');
+      toast.success('Setup complete! Welcome to PayLeef 🎉');
       navigate('/admin/dashboard');
     } catch {
       toast.error('Could not save. Please try again.');
@@ -106,16 +119,21 @@ export default function OnboardingPage() {
   const Icon = currentStep.icon;
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #1B1B2F 0%, #16213E 60%, #0F3460 100%)' }}>
+    <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #0A1F13 0%, #0D2B1A 60%, #0F3D25 100%)' }}>
 
       {/* ── Left panel ─────────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-2/5 flex-col justify-between p-12 text-white">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg" style={{ background: '#E85C2F' }}>P</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 13, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RupeeLeaf size={24} />
+          </div>
           <div>
-            <p className="font-bold text-lg leading-tight">PayOS</p>
-            <p className="text-xs text-white/50">Smart Payroll OS</p>
+            <div style={{ lineHeight: 1.1 }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em' }}>Pay</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#4ADE80', letterSpacing: '-0.04em' }}>Leef</span>
+            </div>
+            <span style={{ display: 'block', fontSize: 9.5, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>PAYROLL FOR INDIA</span>
           </div>
         </div>
 
@@ -128,9 +146,8 @@ export default function OnboardingPage() {
             const active = step === s.id;
             return (
               <div key={s.id} className={`flex items-start gap-4 transition-all ${active ? 'opacity-100' : done ? 'opacity-60' : 'opacity-30'}`}>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                  done ? 'bg-orange-500' : active ? 'bg-white/20 border border-white/40' : 'bg-white/10'
-                }`}>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0`}
+                  style={done ? { background: '#1A7A4A' } : active ? { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' } : { background: 'rgba(255,255,255,0.08)' }}>
                   {done ? <CheckCircle2 size={16} className="text-white" /> : <SIcon size={16} className="text-white/80" />}
                 </div>
                 <div className="pt-1">
@@ -145,9 +162,9 @@ export default function OnboardingPage() {
         {/* Bottom quote */}
         <div className="rounded-2xl p-5 border border-white/10" style={{ background: 'rgba(255,255,255,0.05)' }}>
           <p className="text-sm text-white/70 italic leading-relaxed">
-            "PayOS helped us cut payroll processing time by 80% and eliminated calculation errors completely."
+            "PayLeef helped us cut payroll processing time by 80% and eliminated calculation errors completely."
           </p>
-          <p className="text-xs text-orange-400 mt-3 font-semibold">— Priya S., HR Manager, TechFlow Solutions</p>
+          <p className="text-xs mt-3 font-semibold" style={{ color: '#4ADE80' }}>— Priya S., HR Manager, TechFlow Solutions</p>
         </div>
       </div>
 
@@ -158,8 +175,8 @@ export default function OnboardingPage() {
 
             {/* Step header */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#FFF4F0' }}>
-                <Icon size={22} style={{ color: '#E85C2F' }} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#F0FDF4' }}>
+                <Icon size={22} style={{ color: '#1A7A4A' }} />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">{currentStep.title}</h2>
@@ -175,9 +192,9 @@ export default function OnboardingPage() {
             {/* Step 1 — Welcome */}
             {step === 1 && (
               <div className="space-y-5">
-                <div className="rounded-2xl p-5 border border-orange-100" style={{ background: '#FFF8F5' }}>
+                <div className="rounded-2xl p-5 border border-green-100" style={{ background: '#F0FDF4' }}>
                   <p className="text-sm text-slate-700 leading-relaxed">
-                    👋 Welcome! We'll help you set up PayOS in just a few minutes. You can skip any step and come back later from <strong>Settings → Company Profile</strong>.
+                    👋 Welcome! We'll help you set up PayLeef in just a few minutes. You can skip any step and come back later from <strong>Settings → Company Profile</strong>.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -205,7 +222,8 @@ export default function OnboardingPage() {
                     <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input value={company.company_name} onChange={e => upd('company_name', e.target.value)}
                       placeholder="TechFlow Solutions Pvt Ltd"
-                      className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
+                      className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': '#1A7A4A' }} />
                   </div>
                 </div>
 
@@ -213,7 +231,7 @@ export default function OnboardingPage() {
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Industry</label>
                     <select value={company.company_industry} onChange={e => upd('company_industry', e.target.value)}
-                      className="w-full h-10 px-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                      className="w-full h-10 px-3 text-sm rounded-xl border border-slate-200 focus:outline-none bg-white">
                       <option value="">Select industry</option>
                       {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
@@ -221,7 +239,7 @@ export default function OnboardingPage() {
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Company Size</label>
                     <select value={company.company_size} onChange={e => upd('company_size', e.target.value)}
-                      className="w-full h-10 px-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                      className="w-full h-10 px-3 text-sm rounded-xl border border-slate-200 focus:outline-none bg-white">
                       <option value="">Select size</option>
                       {COMPANY_SIZES.map(s => <option key={s} value={s}>{s} employees</option>)}
                     </select>
@@ -235,7 +253,7 @@ export default function OnboardingPage() {
                     <textarea value={company.company_address} onChange={e => upd('company_address', e.target.value)}
                       placeholder="123 MG Road, Bangalore - 560001"
                       rows={2}
-                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none resize-none" />
                   </div>
                 </div>
 
@@ -246,7 +264,7 @@ export default function OnboardingPage() {
                       <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={company.company_phone} onChange={e => upd('company_phone', e.target.value)}
                         placeholder="+91 98765 43210" type="tel"
-                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none" />
                     </div>
                   </div>
                   <div>
@@ -255,7 +273,7 @@ export default function OnboardingPage() {
                       <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={company.company_email} onChange={e => upd('company_email', e.target.value)}
                         placeholder="hr@company.com" type="email"
-                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none" />
                     </div>
                   </div>
                 </div>
@@ -267,7 +285,7 @@ export default function OnboardingPage() {
                       <Globe size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={company.company_website} onChange={e => upd('company_website', e.target.value)}
                         placeholder="www.company.com"
-                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none" />
                     </div>
                   </div>
                   <div>
@@ -276,7 +294,7 @@ export default function OnboardingPage() {
                       <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={company.company_gstin} onChange={e => upd('company_gstin', e.target.value)}
                         placeholder="29ABCDE1234F1Z5"
-                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 focus:outline-none" />
                     </div>
                   </div>
                 </div>
@@ -286,13 +304,13 @@ export default function OnboardingPage() {
             {/* Step 3 — Payroll Preferences */}
             {step === 3 && (
               <div className="space-y-5">
-                <div className="rounded-2xl p-5 border border-blue-100 bg-blue-50">
+                <div className="rounded-2xl p-5 border border-green-100 bg-green-50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Settings size={16} className="text-blue-600" />
-                    <p className="text-sm font-semibold text-blue-800">Default settings applied</p>
+                    <Settings size={16} style={{ color: '#1A7A4A' }} />
+                    <p className="text-sm font-semibold" style={{ color: '#155C38' }}>Default settings applied</p>
                   </div>
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    PayOS uses industry-standard settings: monthly payroll, 26 working days, and automatic PF/ESI/PT calculations. You can customise every component from <strong>Payroll Config</strong> any time.
+                  <p className="text-xs leading-relaxed" style={{ color: '#1A7A4A' }}>
+                    PayLeef uses industry-standard settings: monthly payroll, 26 working days, and automatic PF/ESI/PT calculations. You can customise every component from <strong>Payroll Config</strong> any time.
                   </p>
                 </div>
 
@@ -324,16 +342,19 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-1 gap-3">
                   <button
                     onClick={() => { finish(); navigate('/admin/upload'); }}
-                    className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-50 transition-all text-left group"
+                    className="flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left group"
+                    style={{ borderColor: '#86EFAC' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#1A7A4A'; e.currentTarget.style.background = '#F0FDF4'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#86EFAC'; e.currentTarget.style.background = ''; }}
                   >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#FFF4F0' }}>
-                      <Upload size={22} style={{ color: '#E85C2F' }} />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#F0FDF4' }}>
+                      <Upload size={22} style={{ color: '#1A7A4A' }} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-900 group-hover:text-orange-700">Import via CSV</p>
+                      <p className="text-sm font-bold text-slate-900">Import via CSV</p>
                       <p className="text-xs text-slate-500 mt-0.5">Upload a spreadsheet with all employees at once. Fastest option.</p>
                     </div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-orange-500 ml-auto shrink-0" />
+                    <ChevronRight size={16} className="text-slate-300 ml-auto shrink-0" />
                   </button>
 
                   <button
@@ -369,12 +390,12 @@ export default function OnboardingPage() {
             {/* Step 5 — Done */}
             {step === 5 && (
               <div className="text-center space-y-6">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: '#FFF4F0' }}>
-                  <CheckCircle2 size={40} style={{ color: '#E85C2F' }} />
+                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: '#F0FDF4' }}>
+                  <CheckCircle2 size={40} style={{ color: '#1A7A4A' }} />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">You're all set!</h3>
-                  <p className="text-sm text-slate-500 mt-2">PayOS is configured and ready. Here's what you can do next:</p>
+                  <p className="text-sm text-slate-500 mt-2">PayLeef is configured and ready. Here's what you can do next:</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 text-left">
                   {[
@@ -384,7 +405,9 @@ export default function OnboardingPage() {
                     { icon: '📊', label: 'View Analytics', path: '/admin/analytics', desc: 'Track salary trends' },
                   ].map((item, i) => (
                     <button key={i} onClick={() => navigate(item.path)}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition-all text-left">
+                      className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all text-left"
+                      onMouseEnter={e => { e.currentTarget.style.background = '#F0FDF4'; e.currentTarget.style.borderColor = '#86EFAC'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.borderColor = ''; }}>
                       <span className="text-lg">{item.icon}</span>
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{item.label}</p>
@@ -416,7 +439,7 @@ export default function OnboardingPage() {
               {step === 1 && (
                 <button onClick={next} disabled={saving}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: '#E85C2F' }}>
+                  style={{ background: '#1A7A4A' }}>
                   Get Started <ChevronRight size={15} />
                 </button>
               )}
@@ -424,7 +447,7 @@ export default function OnboardingPage() {
               {step === 2 && (
                 <button onClick={next} disabled={saving || !company.company_name.trim()}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-                  style={{ background: '#E85C2F' }}>
+                  style={{ background: '#1A7A4A' }}>
                   {saving ? 'Saving…' : 'Save & Continue'} <ChevronRight size={15} />
                 </button>
               )}
@@ -432,7 +455,7 @@ export default function OnboardingPage() {
               {step === 3 && (
                 <button onClick={next} disabled={saving}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: '#E85C2F' }}>
+                  style={{ background: '#1A7A4A' }}>
                   {saving ? 'Saving…' : 'Looks Good!'} <ChevronRight size={15} />
                 </button>
               )}
@@ -440,7 +463,7 @@ export default function OnboardingPage() {
               {step === 5 && (
                 <button onClick={finish} disabled={saving}
                   className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: '#E85C2F' }}>
+                  style={{ background: '#1A7A4A' }}>
                   {saving ? 'Loading…' : 'Go to Dashboard'} <ChevronRight size={15} />
                 </button>
               )}
@@ -450,7 +473,7 @@ export default function OnboardingPage() {
 
           {/* Footer */}
           <p className="text-center text-white/30 text-xs mt-6">
-            PayOS © {new Date().getFullYear()} · Smart Payroll OS · Made in India 🇮🇳
+            PayLeef © {new Date().getFullYear()} · Payroll for India · Made in India 🇮🇳
           </p>
         </div>
       </div>

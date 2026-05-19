@@ -21,19 +21,36 @@ function startDoc(res, filename) {
   return doc;
 }
 
-const ACCENT = '#E85C2F';
+const ACCENT = '#1A7A4A';
 const DARK   = '#1E293B';
 const LGRY   = '#F8FAFC';
 const MGRY   = '#E2E8F0';
 
-function drawHeader(doc, title, subtitle) {
-  const W = doc.page.width - 80;
-  doc.rect(0, 0, doc.page.width, 70).fill(ACCENT);
-  doc.fillColor('white').fontSize(16).font('Helvetica-Bold')
-     .text(title, 40, 18, { width: W });
-  doc.fontSize(9).font('Helvetica')
-     .text(subtitle, 40, 42, { width: W });
-  return 90; // starting y after header
+function drawHeader(doc, title, subtitle, dateRange) {
+  const PW = doc.page.width;
+  const W  = PW - 80;
+  // Green header band
+  doc.rect(0, 0, PW, 80).fill(ACCENT);
+  // Left: PayLeef brand
+  doc.fillColor('rgba(255,255,255,0.55)').fontSize(9).font('Helvetica')
+     .text('PayLeef · Payroll for India', 40, 14, { width: 200 });
+  // Title
+  doc.fillColor('white').fontSize(18).font('Helvetica-Bold')
+     .text(title, 40, 28, { width: W - 120 });
+  // Right: date range box
+  if (dateRange) {
+    doc.rect(PW - 160, 14, 120, 52).fillAndStroke('rgba(0,0,0,0.15)', 'rgba(255,255,255,0.2)');
+    doc.fillColor('rgba(255,255,255,0.75)').fontSize(7).font('Helvetica')
+       .text('PERIOD', PW - 148, 20, { width: 96, align: 'center' });
+    doc.fillColor('white').fontSize(10).font('Helvetica-Bold')
+       .text(dateRange, PW - 148, 30, { width: 96, align: 'center' });
+  }
+  // Sub-line
+  doc.fillColor('rgba(255,255,255,0.8)').fontSize(8.5).font('Helvetica')
+     .text(subtitle, 40, 56, { width: W - 120 });
+  // Thin accent stripe at bottom of header
+  doc.rect(0, 80, PW, 3).fill('#155C38');
+  return 100; // starting y after header
 }
 
 function drawTableHeader(doc, y, cols, rowH = 20) {
@@ -73,7 +90,7 @@ function drawFooter(doc) {
   const W = doc.page.width - 80;
   const y = doc.page.height - 40;
   doc.fillColor('#94A3B8').fontSize(7).font('Helvetica')
-     .text(`Generated on ${new Date().toLocaleString('en-IN')} · Confidential`, 40, y,
+     .text(`PayLeef · Generated on ${new Date().toLocaleString('en-IN')} · Confidential`, 40, y,
        { width: W, align: 'center' });
 }
 
@@ -183,7 +200,7 @@ router.get('/:reportId', async (req, res) => {
 // ── Report builders ───────────────────────────────────────────────────────────
 
 function buildMonthlyPayrollSummary(doc, slips, adminName, periodLabel, month, year) {
-  let y = drawHeader(doc, `Monthly Payroll Summary — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Monthly Payroll Summary', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -258,7 +275,7 @@ function buildMonthlyPayrollSummary(doc, slips, adminName, periodLabel, month, y
 }
 
 function buildSalaryRegister(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Salary Register — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Salary Register', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -304,7 +321,7 @@ function buildSalaryRegister(doc, slips, adminName, periodLabel) {
 }
 
 function buildPFReport(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `PF Contribution Report — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'PF Contribution Report', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -352,7 +369,7 @@ function buildPFReport(doc, slips, adminName, periodLabel) {
 }
 
 function buildESIReport(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `ESI Contribution Report — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'ESI Contribution Report', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -405,7 +422,7 @@ function buildESIReport(doc, slips, adminName, periodLabel) {
 }
 
 function buildPTReport(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Professional Tax Report — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Professional Tax Report', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -448,7 +465,7 @@ function buildPTReport(doc, slips, adminName, periodLabel) {
 }
 
 function buildTDSReport(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `TDS Report — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'TDS Report', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -496,7 +513,7 @@ function buildTDSReport(doc, slips, adminName, periodLabel) {
 }
 
 function buildBankAdvice(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Bank Advice — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Bank Advice', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -542,7 +559,7 @@ function buildBankAdvice(doc, slips, adminName, periodLabel) {
 }
 
 function buildHeadcount(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Employee Headcount Report — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Employee Headcount Report', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -596,7 +613,7 @@ function buildHeadcount(doc, slips, adminName, periodLabel) {
 }
 
 function buildCTC(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Cost to Company (CTC) — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Cost to Company (CTC)', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -643,7 +660,7 @@ function buildCTC(doc, slips, adminName, periodLabel) {
 }
 
 function buildAuditTrail(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, `Payslip Audit Trail — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Payslip Audit Trail', adminName, periodLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -689,7 +706,7 @@ function buildQuarterlySummary(doc, slips, adminName, year, currentMonth) {
   const qMonths = [qStart, qStart + 1, qStart + 2].filter(m => m <= 12);
   const qLabel = `Q${Math.ceil(currentMonth / 3)} ${year}`;
 
-  let y = drawHeader(doc, `Quarterly Payroll Summary — ${qLabel}`, adminName);
+  let y = drawHeader(doc, 'Quarterly Payroll Summary', adminName, qLabel);
 
   if (!slips.length) {
     drawNoData(doc, y, qLabel);
@@ -735,7 +752,7 @@ function buildQuarterlySummary(doc, slips, adminName, year, currentMonth) {
 }
 
 function buildAnnualSummary(doc, slips, adminName, year) {
-  let y = drawHeader(doc, `Annual Payroll Summary — ${year}`, adminName);
+  let y = drawHeader(doc, 'Annual Payroll Summary', adminName, String(year));
 
   if (!slips.length) {
     drawNoData(doc, y, String(year));
@@ -782,7 +799,7 @@ function buildAnnualSummary(doc, slips, adminName, year) {
 }
 
 function buildStatutoryCompliance(doc, slips, adminName, periodLabel, month, year) {
-  let y = drawHeader(doc, `Statutory Compliance Checklist — ${periodLabel}`, adminName);
+  let y = drawHeader(doc, 'Statutory Compliance Checklist', adminName, periodLabel);
 
   const W = doc.page.width - 80;
 
