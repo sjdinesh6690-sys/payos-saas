@@ -21,8 +21,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password } = req.body;
-    if (!employee_id || !employee_name || !email)
-      return res.status(400).json({ error: 'employee_id, name and email are required' });
+    if (!employee_id || !employee_name)
+      return res.status(400).json({ error: 'employee_id and employee_name are required' });
 
     if (isNaN(parseFloat(salary)) || parseFloat(salary) < 0)
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
@@ -74,9 +74,9 @@ router.post('/upload', async (req, res) => {
         const { employee_id, employee_name, email, department, designation, phone, date_of_joining } = row;
         // Accept both 'salary' and 'gross_salary' column names
         const salary = row.salary || row.gross_salary || row.ctc || 0;
-        if (!employee_id || !employee_name || !email) {
+        if (!employee_id || !employee_name) {
           skipped++;
-          skippedReasons.push({ employee_id: employee_id || '?', reason: 'Missing required fields (employee_id, employee_name, email)' });
+          skippedReasons.push({ employee_id: employee_id || '?', reason: 'Missing required fields (employee_id, employee_name)' });
           continue;
         }
         const empId = employee_id.toString().trim().toUpperCase();
@@ -90,11 +90,12 @@ router.post('/upload', async (req, res) => {
           continue;
         }
         const hashedPwd = await bcrypt.hash(empId, 10); // Default password = employee_id
+        const emailVal = email ? email.toString().trim().toLowerCase() : '';
         await client.query(`
           INSERT INTO employees
             (admin_id, employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-        `, [req.admin_id, empId, employee_name.trim(), email.trim().toLowerCase(), parseFloat(salary)||0, (department||'').trim(), (designation||'').trim(), (phone||'').trim(), (date_of_joining||'').trim(), hashedPwd]);
+        `, [req.admin_id, empId, employee_name.trim(), emailVal, parseFloat(salary)||0, (department||'').trim(), (designation||'').trim(), (phone||'').trim(), (date_of_joining||'').trim(), hashedPwd]);
         inserted++;
       }
       await client.query('COMMIT');
