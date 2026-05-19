@@ -9,6 +9,7 @@ import RegisterPage           from '@/pages/RegisterPage';
 import OnboardingPage         from '@/pages/OnboardingPage';
 import EmployeePayslipsPage   from '@/pages/EmployeePayslipsPage';
 import PayrollConfigPage      from '@/pages/PayrollConfigPage';
+import SettingsPage           from '@/pages/SettingsPage';
 import MainLayout             from '@/components/layout/MainLayout';
 import DashboardPage          from '@/components/admin/DashboardPage';
 import EmployeesPage          from '@/components/admin/EmployeesPage';
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="reports"        element={<ReportsPage />} />
             <Route path="analytics"      element={<AnalyticsPage />} />
             <Route path="payroll-config" element={<PayrollConfigPage />} />
+            <Route path="settings"       element={<SettingsPage />} />
           </Route>
 
           {/* ── Super Admin panel ─────────────────────────────────── */}

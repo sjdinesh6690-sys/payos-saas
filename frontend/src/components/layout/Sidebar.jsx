@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Upload,
-  Send, BarChart3, TrendingUp, LogOut, Settings2,
+  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +42,7 @@ const NAV_GROUPS = [
     label: 'Settings',
     items: [
       { to: '/admin/payroll-config', label: 'Payroll Config', icon: Settings2 },
+      { to: '/admin/settings',       label: 'Settings',       icon: Settings },
     ],
   },
 ];
