@@ -86,8 +86,13 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Salary (₹)</label>
-                <Input type="number" value={form.salary} onChange={set('salary')} placeholder="50000" />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Gross Salary / CTC (₹) *
+                </label>
+                <Input type="number" value={form.salary} onChange={set('salary')} placeholder="e.g. 50000" required />
+                <p className="text-xs text-slate-400 mt-1">
+                  Enter the total gross pay (before deductions like PF, ESI, TDS)
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone</label>

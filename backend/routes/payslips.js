@@ -44,7 +44,7 @@ router.get('/months', async (req, res) => {
 // ── POST generate payslips ────────────────────────────────────────────────────
 router.post('/generate', async (req, res) => {
   try {
-    const { month, year, adjustments = {}, working_days, employee_ids } = req.body;
+    const { month, year, adjustments = {}, working_days, employee_ids, salary_overrides = {} } = req.body;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
     // Block future month generation (more than 1 month ahead)
@@ -93,11 +93,15 @@ router.post('/generate', async (req, res) => {
 
       // Generate one payslip per employee
       for (const emp of empResult.rows) {
+        // Use salary override if provided (for retroactive payslips with different pay)
+        const overrideSalary = salary_overrides[emp.employee_id];
+        const empData = overrideSalary ? { ...emp, salary: Number(overrideSalary) } : emp;
+
         const empAdj = {
           working_days: working_days || 26,
           ...(adjustments[emp.employee_id] || {}),
         };
-        const calc = calculatePayslip(emp, config, empAdj);
+        const calc = calculatePayslip(empData, config, empAdj);
 
         await client.query(`
           INSERT INTO payslips
@@ -113,7 +117,7 @@ router.post('/generate', async (req, res) => {
           emp.employee_name,
           emp.department || '',
           emp.designation || '',
-          emp.salary,
+          overrideSalary ? Number(overrideSalary) : emp.salary,
           calc.gross_salary,
           calc.net_salary,
           parseInt(month),
@@ -208,6 +212,42 @@ router.get('/:id/download', async (req, res) => {
     renderPayslipPDF(doc, p, branding, admin);
     doc.end();
   } catch (err) { if (!res.headersSent) res.status(500).json({ error: err.message }); }
+});
+
+// ── PUT edit payslip earnings/deductions ─────────────────────────────────────
+router.put('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { earnings, deductions } = req.body;
+
+    if (!earnings || typeof earnings !== 'object')
+      return res.status(400).json({ error: 'earnings object required' });
+
+    const totalEarnings   = Object.values(earnings).reduce((s, v) => s + (Number(v) || 0), 0);
+    const totalDeductions = deductions ? Object.values(deductions).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
+    const netSalary       = totalEarnings - totalDeductions;
+
+    const result = await pool.query(`
+      UPDATE payslips
+      SET earnings = $1, deductions = $2,
+          total_earnings = $3, total_deductions = $4,
+          net_salary = $5, gross_salary = $3
+      WHERE id = $6 AND admin_id = $7
+      RETURNING id
+    `, [
+      JSON.stringify(earnings),
+      JSON.stringify(deductions || {}),
+      totalEarnings,
+      totalDeductions,
+      netSalary,
+      id,
+      req.admin_id,
+    ]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
+    await auditLog(req.admin_id, 'payslip_edited', 'payslips', id, { totalEarnings, totalDeductions, netSalary }, req.ip);
+    res.json({ message: 'Payslip updated', net_salary: netSalary });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── DELETE single payslip ─────────────────────────────────────────────────────

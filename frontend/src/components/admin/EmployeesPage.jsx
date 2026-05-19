@@ -289,7 +289,7 @@ export default function EmployeesPage() {
                   { key: 'employee_name', label: 'Name' },
                   { key: 'department',    label: 'Dept / Role' },
                   { key: 'email',         label: 'Email' },
-                  { key: 'salary',        label: 'Salary' },
+                  { key: 'salary',        label: 'Gross Salary' },
                   { key: 'last_payslip',  label: 'Last Payslip' },
                   { key: 'status',        label: 'Status' },
                 ].map(col => (

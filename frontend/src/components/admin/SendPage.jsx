@@ -94,9 +94,10 @@ export default function SendPage() {
   const [sendLoading, setSendLoading] = useState(false);
 
   // Exceptions — only these are stored; everyone else is normal
-  const [lopList,     setLopList]     = useState([]);   // [{ emp, absentDays }]
-  const [excludeList, setExcludeList] = useState([]);   // [emp]
-  const [extrasList,  setExtrasList]  = useState([]);   // [{ emp, ...values }]
+  const [lopList,          setLopList]          = useState([]);   // [{ emp, absentDays }]
+  const [excludeList,      setExcludeList]      = useState([]);   // [emp]
+  const [extrasList,       setExtrasList]       = useState([]);   // [{ emp, ...values }]
+  const [salaryOverrides,  setSalaryOverrides]  = useState([]);   // [{ emp, salary }]
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', 'active'],
@@ -165,6 +166,25 @@ export default function SendPage() {
     return adj;
   };
 
+  // Build salary overrides object for API
+  const buildSalaryOverrides = () => {
+    const overrides = {};
+    salaryOverrides.forEach(({ emp, salary }) => {
+      if (salary) overrides[emp.employee_id] = Number(salary);
+    });
+    return overrides;
+  };
+
+  // Salary override helpers
+  const overrideIds   = new Set(salaryOverrides.map(e => e.emp.employee_id));
+  const addOverride   = (emp) => {
+    if (overrideIds.has(emp.employee_id)) return;
+    setSalaryOverrides(prev => [...prev, { emp, salary: emp.salary || '' }]);
+  };
+  const removeOverride   = (empId) => setSalaryOverrides(prev => prev.filter(e => e.emp.employee_id !== empId));
+  const setOverrideSalary = (empId, val) =>
+    setSalaryOverrides(prev => prev.map(e => e.emp.employee_id === empId ? { ...e, salary: val } : e));
+
   const generate = async () => {
     if (selectedCount === 0) { toast.error('No employees selected'); return; }
     if (thisMonthSlips.length > 0) {
@@ -184,6 +204,7 @@ export default function SendPage() {
         working_days: workingDays,
         adjustments: buildAdjustments(),
         employee_ids: selectedIds,
+        salary_overrides: buildSalaryOverrides(),
       });
       toast.success(`Payslips generated for ${selectedIds.length} employees — ${MONTHS[month]} ${year}`);
       qc.invalidateQueries({ queryKey: ['payslips'] });
@@ -477,6 +498,63 @@ export default function SendPage() {
                   </div>
                 </div>
               )}
+
+              {/* SECTION D — Salary Override (for retroactive / different pay months) */}
+              <div className="rounded-xl border border-purple-100 overflow-hidden">
+                <div className="bg-purple-50 px-4 py-3 border-b border-purple-100">
+                  <p className="text-sm font-semibold text-purple-800">💰 Different Salary This Month?</p>
+                  <p className="text-xs text-purple-600 mt-0.5">
+                    Use this for past months where an employee was paid less than their current salary.
+                    Leave blank for everyone unless their salary was different this month.
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  <EmpSearch
+                    employees={employees}
+                    exclude={[...overrideIds, ...excludedIds]}
+                    placeholder="Search employee to enter a different salary for this month…"
+                    onSelect={addOverride}
+                  />
+                  {salaryOverrides.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-2">
+                      No overrides — all employees use their current master salary
+                    </p>
+                  )}
+                  {salaryOverrides.length > 0 && (
+                    <div className="space-y-2">
+                      {salaryOverrides.map(({ emp, salary }) => (
+                        <div key={emp.employee_id}
+                          className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{emp.employee_name}</p>
+                            <p className="text-xs text-slate-500">
+                              {emp.employee_id} · Current master salary: ₹{Number(emp.salary||0).toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <label className="text-xs text-slate-500 block mb-1">Gross Salary for this month (₹)</label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                              <Input
+                                type="number"
+                                value={salary}
+                                onChange={e => setOverrideSalary(emp.employee_id, e.target.value)}
+                                className="h-8 w-36 text-sm pl-6 text-right border-purple-300 bg-white"
+                                placeholder="e.g. 25000"
+                                min={0}
+                              />
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => removeOverride(emp.employee_id)}
+                            className="p-1.5 rounded-lg hover:bg-purple-200 text-purple-400 hover:text-purple-600 transition-colors">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Summary before generate */}
               <div className="rounded-xl border-2 border-slate-800 bg-slate-900 text-white p-4">

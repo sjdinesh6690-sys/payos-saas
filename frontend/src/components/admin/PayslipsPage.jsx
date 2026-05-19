@@ -4,6 +4,7 @@ import {
   Download, Trash2, Mail, MoreHorizontal,
   FileText, ChevronUp, ChevronDown,
   Sparkles, AlertTriangle, AlertCircle, Info, X, Loader2,
+  Pencil, Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -111,6 +112,145 @@ function AnomalyPanel({ result, onClose }) {
   );
 }
 
+// ── Edit Payslip Modal ───────────────────────────────────────────────────────
+function EditPayslipModal({ payslip, onClose, onSaved }) {
+  const parseObj = (v) => {
+    try { return typeof v === 'string' ? JSON.parse(v) : (v || {}); } catch { return {}; }
+  };
+  const toRows = (obj) =>
+    Object.entries(parseObj(obj)).map(([label, amount]) => ({ label, amount: String(amount) }));
+
+  const [earningRows,   setEarningRows]   = useState(() => toRows(payslip.earnings));
+  const [deductionRows, setDeductionRows] = useState(() => toRows(payslip.deductions));
+  const [saving, setSaving] = useState(false);
+
+  const totalE = earningRows.reduce((s, r)   => s + (parseFloat(r.amount) || 0), 0);
+  const totalD = deductionRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  const net    = totalE - totalD;
+
+  const updateRow  = (setter, idx, field, val) =>
+    setter(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+  const addRow     = (setter) => setter(prev => [...prev, { label: '', amount: '' }]);
+  const removeRow  = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const earnings   = {};
+      earningRows.forEach(r => { if (r.label.trim()) earnings[r.label.trim()] = parseFloat(r.amount) || 0; });
+      const deductions = {};
+      deductionRows.forEach(r => { if (r.label.trim()) deductions[r.label.trim()] = parseFloat(r.amount) || 0; });
+      await api.put(`/payslips/${payslip.id}`, { earnings, deductions });
+      toast.success('Payslip updated');
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const RowTable = ({ label, rows, setter, colorClass }) => (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className={`text-sm font-semibold ${colorClass}`}>{label}</p>
+        <button type="button" onClick={() => addRow(setter)}
+          className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium">
+          <Plus size={12} /> Add row
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={r.label}
+              onChange={e => updateRow(setter, i, 'label', e.target.value)}
+              placeholder="Component name"
+              className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+            <div className="relative w-32 shrink-0">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+              <input
+                type="number"
+                value={r.amount}
+                onChange={e => updateRow(setter, i, 'amount', e.target.value)}
+                className="w-full pl-6 pr-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 text-right"
+                min={0}
+              />
+            </div>
+            <button type="button" onClick={() => removeRow(setter, i)}
+              className="p-1.5 text-slate-300 hover:text-red-400 transition-colors shrink-0">
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <p className="text-xs text-slate-400 text-center py-2">No entries — click Add row</p>
+        )}
+        {rows.length > 0 && (
+          <div className="flex justify-end pt-1.5 border-t border-slate-100">
+            <span className={`text-sm font-semibold ${colorClass}`}>
+              {label === 'Earnings' ? fmt(totalE) : `−${fmt(totalD)}`}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div>
+            <p className="font-bold text-slate-900">Edit Payslip</p>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {payslip.employee_name} · {MONTH_FULL[payslip.month]} {payslip.year}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto p-6 space-y-5">
+          <RowTable label="Earnings"   rows={earningRows}   setter={setEarningRows}   colorClass="text-green-700" />
+          <RowTable label="Deductions" rows={deductionRows} setter={setDeductionRows} colorClass="text-red-600" />
+
+          {/* Net salary */}
+          <div className="rounded-xl bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400">Net Salary (Take Home)</p>
+              <p className="text-xs text-slate-500 mt-0.5">{fmt(totalE)} − {fmt(totalD)}</p>
+            </div>
+            <p className="text-2xl font-bold text-green-400">{fmt(net)}</p>
+          </div>
+
+          <p className="text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+            💡 Changes update the PDF immediately. The employee will see the new amounts next time they download.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button type="button" onClick={onClose}
+            className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={save} disabled={saving}
+            className="flex-1 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main PayslipsPage ────────────────────────────────────────────────────────
 export default function PayslipsPage() {
   const qc = useQueryClient();
@@ -141,9 +281,13 @@ export default function PayslipsPage() {
   const [deleting, setDeleting]         = useState(false);
   const [emailing, setEmailing]         = useState(false);
 
+  // Edit payslip
+  const [editTarget, setEditTarget]     = useState(null);
+
   // Anomaly detection
   const [scanLoading, setScanLoading]   = useState(false);
   const [scanResult, setScanResult]     = useState(null);
+  const [scanMonthKey, setScanMonthKey] = useState(''); // 'YYYY-MM' or '' for latest
 
   const refetch = () => {
     qc.invalidateQueries({ queryKey: ['payslips'] });
@@ -268,21 +412,30 @@ export default function PayslipsPage() {
   };
 
   // ── Anomaly Scan ────────────────────────────────────────────────────────────
+  // Unique months available in loaded payslips — derived directly, no separate query needed
+  const availableMonths = useMemo(() => {
+    const seen = new Map();
+    payslips.forEach(p => {
+      const key = `${p.year}-${String(p.month).padStart(2,'0')}`;
+      if (!seen.has(key)) seen.set(key, { key, month: p.month, year: p.year });
+    });
+    return [...seen.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+  }, [payslips]);
+
   const handleAnomalyScan = async () => {
-    // Determine which month/year to scan
     let scanMonth, scanYear;
 
-    if (filterMonth) {
-      const [y, m] = filterMonth.split('-');
+    if (scanMonthKey) {
+      // User picked a specific month from the dropdown
+      const [y, m] = scanMonthKey.split('-');
       scanMonth = parseInt(m);
       scanYear  = parseInt(y);
-    } else if (months.length > 0) {
-      // Default to latest month
-      const [y, m] = months[0].split('-');
-      scanMonth = parseInt(m);
-      scanYear  = parseInt(y);
+    } else if (availableMonths.length > 0) {
+      // Default to the most recent month found in payslips data
+      scanMonth = availableMonths[0].month;
+      scanYear  = availableMonths[0].year;
     } else {
-      toast.error('No payslips available to scan. Generate payslips first.');
+      toast.error('No payslips found. Generate payslips first.');
       return;
     }
 
@@ -338,18 +491,33 @@ export default function PayslipsPage() {
             </>
           )}
 
-          {/* AI Anomaly Scan button */}
-          <Button
-            variant="outline"
-            className="h-9 text-purple-700 border-purple-300 hover:bg-purple-50 font-medium"
-            onClick={handleAnomalyScan}
-            disabled={scanLoading || payslips.length === 0}
-          >
-            {scanLoading
-              ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Scanning…</>
-              : <><Sparkles size={14} className="mr-1.5" /> AI Anomaly Scan</>
-            }
-          </Button>
+          {/* AI Anomaly Scan — month picker + button */}
+          <div className="flex items-center gap-1">
+            <select
+              value={scanMonthKey}
+              onChange={e => setScanMonthKey(e.target.value)}
+              disabled={scanLoading || payslips.length === 0}
+              className="h-9 rounded-l-md border border-r-0 border-purple-300 bg-purple-50 px-2 text-xs text-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            >
+              <option value="">Latest Month</option>
+              {availableMonths.map(m => (
+                <option key={m.key} value={m.key}>
+                  {MONTH_FULL[m.month]} {m.year}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="outline"
+              className="h-9 text-purple-700 border-purple-300 hover:bg-purple-50 font-medium rounded-l-none"
+              onClick={handleAnomalyScan}
+              disabled={scanLoading || payslips.length === 0}
+            >
+              {scanLoading
+                ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Scanning…</>
+                : <><Sparkles size={14} className="mr-1.5" /> AI Scan</>
+              }
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -452,6 +620,9 @@ export default function PayslipsPage() {
                       <DropdownMenuItem onClick={() => handleDownload(p)}>
                         <Download size={14} /> Download PDF
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEditTarget(p)}>
+                        <Pencil size={14} /> Edit Payslip
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => promptDelete(p)}>
                         <Trash2 size={14} /> Delete
@@ -477,6 +648,14 @@ export default function PayslipsPage() {
         onConfirm={handleDelete}
         loading={deleting}
       />
+
+      {editTarget && (
+        <EditPayslipModal
+          payslip={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['payslips'] })}
+        />
+      )}
     </div>
   );
 }
