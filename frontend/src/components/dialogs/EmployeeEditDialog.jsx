@@ -14,6 +14,11 @@ const EMPTY = {
   designation: '',
   phone: '',
   date_of_joining: '',
+  pan_number: '',
+  uan_number: '',
+  bank_name: '',
+  bank_account_number: '',
+  ifsc_code: '',
 };
 
 export default function EmployeeEditDialog({ open, onOpenChange, employee, onSaved }) {
@@ -27,11 +32,16 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
         employee_id:     employee.employee_id     || '',
         employee_name:   employee.employee_name   || '',
         email:           employee.email           || '',
-        salary:          employee.salary          != null ? String(employee.salary) : '',
-        department:      employee.department      || '',
-        designation:     employee.designation     || '',
-        phone:           employee.phone           || '',
-        date_of_joining: employee.date_of_joining || '',
+        salary:              employee.salary          != null ? String(employee.salary) : '',
+        department:          employee.department      || '',
+        designation:         employee.designation     || '',
+        phone:               employee.phone           || '',
+        date_of_joining:     employee.date_of_joining || '',
+        pan_number:          employee.pan_number          || '',
+        uan_number:          employee.uan_number          || '',
+        bank_name:           employee.bank_name           || '',
+        bank_account_number: employee.bank_account_number || '',
+        ifsc_code:           employee.ifsc_code           || '',
       });
     } else {
       setForm(EMPTY);
@@ -112,6 +122,40 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Joining</label>
               <Input type="date" value={form.date_of_joining} onChange={set('date_of_joining')} />
+            </div>
+
+            {/* Statutory details */}
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Statutory Details</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">PAN Number</label>
+                  <Input value={form.pan_number} onChange={set('pan_number')} placeholder="ABCDE1234F" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">UAN (PF Account)</label>
+                  <Input value={form.uan_number} onChange={set('uan_number')} placeholder="100123456789" />
+                </div>
+              </div>
+            </div>
+
+            {/* Bank details */}
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Bank Details (for Bank Advice report)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
+                  <Input value={form.bank_name} onChange={set('bank_name')} placeholder="State Bank of India" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
+                  <Input value={form.ifsc_code} onChange={set('ifsc_code')} placeholder="SBIN0001234" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Account Number</label>
+                <Input value={form.bank_account_number} onChange={set('bank_account_number')} placeholder="1234567890" />
+              </div>
             </div>
           </div>
 

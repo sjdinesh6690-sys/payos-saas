@@ -142,7 +142,8 @@ router.put('/:id', async (req, res) => {
     );
     if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
-    const { employee_name, email, salary, department, designation, phone, date_of_joining } = req.body;
+    const { employee_name, email, salary, department, designation, phone, date_of_joining,
+            pan_number, uan_number, bank_name, bank_account_number, ifsc_code } = req.body;
 
     if (salary !== undefined && (isNaN(parseFloat(salary)) || parseFloat(salary) < 0))
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
@@ -158,6 +159,11 @@ router.put('/:id', async (req, res) => {
     if (designation    !== undefined) { fields.push(`designation = $${idx++}`);     values.push(designation); }
     if (phone          !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone); }
     if (date_of_joining !== undefined) { fields.push(`date_of_joining = $${idx++}`); values.push(date_of_joining); }
+    if (pan_number          !== undefined) { fields.push(`pan_number = $${idx++}`);           values.push(pan_number || null); }
+    if (uan_number          !== undefined) { fields.push(`uan_number = $${idx++}`);           values.push(uan_number || null); }
+    if (bank_name           !== undefined) { fields.push(`bank_name = $${idx++}`);            values.push(bank_name || null); }
+    if (bank_account_number !== undefined) { fields.push(`bank_account_number = $${idx++}`);  values.push(bank_account_number || null); }
+    if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);            values.push(ifsc_code || null); }
 
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 

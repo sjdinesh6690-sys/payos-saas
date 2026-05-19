@@ -227,6 +227,8 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     company_name: '', company_email: '', company_phone: '', company_address: '',
     company_industry: '', company_size: '',
+    // Statutory registration
+    pan_number: '', tan_number: '', epfo_code: '', esic_code: '', pt_reg_number: '', state: '',
     smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '',
     email_subject: 'Your Payslip for {month} — {company}',
     email_body: DEFAULT_BODY,
@@ -244,6 +246,12 @@ export default function SettingsPage() {
         company_address:  s.company_address  || '',
         company_industry: s.company_industry || '',
         company_size:     s.company_size     || '',
+        pan_number:       s.pan_number       || '',
+        tan_number:       s.tan_number       || '',
+        epfo_code:        s.epfo_code        || '',
+        esic_code:        s.esic_code        || '',
+        pt_reg_number:    s.pt_reg_number    || '',
+        state:            s.state            || '',
         smtp_host:        s.smtp_host        || '',
         smtp_port:        s.smtp_port        || '587',
         smtp_user:        s.smtp_user        || '',
@@ -407,6 +415,50 @@ export default function SettingsPage() {
                 <textarea value={form.company_address} onChange={e => set('company_address', e.target.value)}
                   rows={2} placeholder="Full company address…" className={inp} />
               </Field>
+            </div>
+
+            {/* Statutory registration numbers */}
+            <div className="pt-4 border-t border-gray-100">
+              <div className="mb-3">
+                <h3 className="font-semibold text-gray-800 text-sm">📋 Statutory Registration Numbers</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  These appear on PF, ESI, PT, TDS, and Compliance reports. Required for official filing.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Company PAN">
+                  <input value={form.pan_number} onChange={e => set('pan_number', e.target.value)}
+                    placeholder="e.g. AABCA1234Z" className={inp} />
+                </Field>
+                <Field label="TAN (Tax Deduction Account Number)">
+                  <input value={form.tan_number} onChange={e => set('tan_number', e.target.value)}
+                    placeholder="e.g. CHET00000A" className={inp} />
+                </Field>
+                <Field label="EPFO Establishment Code (for PF Report)">
+                  <input value={form.epfo_code} onChange={e => set('epfo_code', e.target.value)}
+                    placeholder="e.g. TN/CHN/1234567" className={inp} />
+                </Field>
+                <Field label="ESIC Establishment Code (for ESI Report)">
+                  <input value={form.esic_code} onChange={e => set('esic_code', e.target.value)}
+                    placeholder="e.g. 41000123456789000" className={inp} />
+                </Field>
+                <Field label="Professional Tax Registration No.">
+                  <input value={form.pt_reg_number} onChange={e => set('pt_reg_number', e.target.value)}
+                    placeholder="e.g. PT/TN/12345" className={inp} />
+                </Field>
+                <Field label="State (for PT Report)">
+                  <select value={form.state} onChange={e => set('state', e.target.value)} className={inp}>
+                    <option value="">Select state…</option>
+                    {['Andhra Pradesh','Assam','Bihar','Chhattisgarh','Delhi','Goa','Gujarat',
+                      'Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh',
+                      'Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab',
+                      'Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh',
+                      'Uttarakhand','West Bengal'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
             </div>
           </div>
         )}

@@ -94,6 +94,31 @@ function drawFooter(doc) {
        { width: W, align: 'center' });
 }
 
+// Draw a statutory info strip below header
+function drawStatutoryBar(doc, y, items) {
+  const W = doc.page.width - 80;
+  const filled = items.filter(i => i.value);
+  if (!filled.length) {
+    // Show a warning if nothing is configured
+    doc.rect(40, y, W, 22).fill('#FEF3C7').stroke('#FCD34D');
+    doc.fillColor('#92400E').fontSize(7.5).font('Helvetica-Bold')
+       .text('⚠  Statutory registration numbers not configured. Go to Settings → Statutory Details to add them.',
+         44, y + 7, { width: W - 8 });
+    return y + 30;
+  }
+  doc.rect(40, y, W, 22).fill('#F0FDF4').stroke('#BBF7D0');
+  doc.fillColor('#166534').fontSize(7.5).font('Helvetica-Bold');
+  let x = 44;
+  const cellW = Math.floor((W - 8) / filled.length);
+  filled.forEach(item => {
+    doc.text(`${item.label}: `, x, y + 4, { continued: true });
+    doc.font('Helvetica').text(item.value, { width: cellW - 4 });
+    doc.font('Helvetica-Bold');
+    x += cellW;
+  });
+  return y + 30;
+}
+
 function checkPageBreak(doc, y, needed = 40) {
   if (y + needed > doc.page.height - 60) {
     doc.addPage();
@@ -109,8 +134,13 @@ router.get('/:reportId', async (req, res) => {
     const { reportId } = req.params;
     const { month, year } = req.query;
 
-    const adminResult = await pool.query('SELECT company_name FROM admins WHERE id = $1', [req.admin_id]);
-    const adminName   = adminResult.rows[0]?.company_name || 'Company';
+    const adminResult = await pool.query(
+      'SELECT company_name, pan_number, tan_number, epfo_code, esic_code, pt_reg_number, state FROM admins WHERE id = $1',
+      [req.admin_id]
+    );
+    const adminRow  = adminResult.rows[0] || {};
+    const adminName = adminRow.company_name || 'Company';
+    const adminInfo = adminRow; // pass full info to builders
 
     const m = parseInt(month) || new Date().getMonth() + 1;
     const y = parseInt(year)  || new Date().getFullYear();
@@ -153,20 +183,31 @@ router.get('/:reportId', async (req, res) => {
         buildSalaryRegister(doc, slips, adminName, periodLabel);
         break;
       case 'pf-report':
-        buildPFReport(doc, slips, adminName, periodLabel);
+        buildPFReport(doc, slips, adminName, periodLabel, adminInfo);
         break;
       case 'esi-report':
-        buildESIReport(doc, slips, adminName, periodLabel);
+        buildESIReport(doc, slips, adminName, periodLabel, adminInfo);
         break;
       case 'professional-tax-report':
-        buildPTReport(doc, slips, adminName, periodLabel);
+        buildPTReport(doc, slips, adminName, periodLabel, adminInfo);
         break;
       case 'tds-report':
-        buildTDSReport(doc, slips, adminName, periodLabel);
+        buildTDSReport(doc, slips, adminName, periodLabel, adminInfo);
         break;
-      case 'bank-advice':
-        buildBankAdvice(doc, slips, adminName, periodLabel);
+      case 'bank-advice': {
+        // Fetch bank account details for employees in these payslips
+        const empIds = [...new Set(slips.map(p => p.employee_id))];
+        let bankMap = {};
+        if (empIds.length) {
+          const bankResult = await pool.query(
+            'SELECT employee_id, bank_account_number, ifsc_code, bank_name FROM employees WHERE admin_id = $1 AND employee_id = ANY($2::text[])',
+            [req.admin_id, empIds]
+          );
+          bankResult.rows.forEach(e => { bankMap[e.employee_id] = e; });
+        }
+        buildBankAdvice(doc, slips, adminName, periodLabel, bankMap);
         break;
+      }
       case 'employee-headcount':
         buildHeadcount(doc, slips, adminName, periodLabel);
         break;
@@ -183,7 +224,7 @@ router.get('/:reportId', async (req, res) => {
         buildAnnualSummary(doc, slips, adminName, y);
         break;
       case 'statutory-compliance':
-        buildStatutoryCompliance(doc, slips, adminName, periodLabel, m, y);
+        buildStatutoryCompliance(doc, slips, adminName, periodLabel, m, y, adminInfo);
         break;
       default:
         doc.fontSize(14).fillColor(DARK).text(`Unknown report: ${reportId}`, 40, 100);
@@ -320,8 +361,12 @@ function buildSalaryRegister(doc, slips, adminName, periodLabel) {
   doc.end();
 }
 
-function buildPFReport(doc, slips, adminName, periodLabel) {
+function buildPFReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
   let y = drawHeader(doc, 'PF Contribution Report', adminName, periodLabel);
+  y = drawStatutoryBar(doc, y, [
+    { label: 'EPFO Establishment Code', value: adminInfo.epfo_code },
+    { label: 'Company PAN', value: adminInfo.pan_number },
+  ]);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -368,8 +413,12 @@ function buildPFReport(doc, slips, adminName, periodLabel) {
   doc.end();
 }
 
-function buildESIReport(doc, slips, adminName, periodLabel) {
+function buildESIReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
   let y = drawHeader(doc, 'ESI Contribution Report', adminName, periodLabel);
+  y = drawStatutoryBar(doc, y, [
+    { label: 'ESIC Establishment Code', value: adminInfo.esic_code },
+    { label: 'Company PAN', value: adminInfo.pan_number },
+  ]);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -421,8 +470,12 @@ function buildESIReport(doc, slips, adminName, periodLabel) {
   doc.end();
 }
 
-function buildPTReport(doc, slips, adminName, periodLabel) {
+function buildPTReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
   let y = drawHeader(doc, 'Professional Tax Report', adminName, periodLabel);
+  y = drawStatutoryBar(doc, y, [
+    { label: 'PT Registration No.', value: adminInfo.pt_reg_number },
+    { label: 'State', value: adminInfo.state },
+  ]);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -464,8 +517,12 @@ function buildPTReport(doc, slips, adminName, periodLabel) {
   doc.end();
 }
 
-function buildTDSReport(doc, slips, adminName, periodLabel) {
+function buildTDSReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
   let y = drawHeader(doc, 'TDS Report', adminName, periodLabel);
+  y = drawStatutoryBar(doc, y, [
+    { label: 'TAN', value: adminInfo.tan_number },
+    { label: 'PAN', value: adminInfo.pan_number },
+  ]);
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -512,8 +569,17 @@ function buildTDSReport(doc, slips, adminName, periodLabel) {
   doc.end();
 }
 
-function buildBankAdvice(doc, slips, adminName, periodLabel) {
-  let y = drawHeader(doc, 'Bank Advice', adminName, periodLabel);
+function buildBankAdvice(doc, slips, adminName, periodLabel, bankMap = {}) {
+  let y = drawHeader(doc, 'Bank Advice / Transfer List', adminName, periodLabel);
+
+  // Check if any bank data exists
+  const hasBank = Object.values(bankMap).some(e => e.bank_account_number);
+  if (!hasBank) {
+    doc.rect(40, y, doc.page.width - 80, 22).fill('#FEF3C7').stroke('#FCD34D');
+    doc.fillColor('#92400E').fontSize(7.5).font('Helvetica-Bold')
+       .text('⚠  Bank account numbers not added. Edit each employee to add bank details.', 44, y + 7, { width: doc.page.width - 88 });
+    y += 30;
+  }
 
   if (!slips.length) {
     drawNoData(doc, y, periodLabel);
@@ -523,11 +589,13 @@ function buildBankAdvice(doc, slips, adminName, periodLabel) {
   }
 
   const cols = [
-    { label: '#',              w: 28,  align: 'left' },
-    { label: 'Employee Name',  w: 160, align: 'left' },
-    { label: 'Employee ID',    w: 80,  align: 'left' },
-    { label: 'Bank Account',   w: 120, align: 'left' },
-    { label: 'Net Salary (₹)', w: 146, align: 'right' },
+    { label: '#',              w: 24,  align: 'left' },
+    { label: 'Employee Name',  w: 140, align: 'left' },
+    { label: 'Employee ID',    w: 70,  align: 'left' },
+    { label: 'Bank Name',      w: 80,  align: 'left' },
+    { label: 'Account No.',    w: 110, align: 'left' },
+    { label: 'IFSC',           w: 70,  align: 'left' },
+    { label: 'Net Salary (₹)', w: 40,  align: 'right' },
   ];
 
   y = drawTableHeader(doc, y, cols);
@@ -537,7 +605,16 @@ function buildBankAdvice(doc, slips, adminName, periodLabel) {
     y = checkPageBreak(doc, y);
     const net  = p.net_salary || p.salary || 0;
     total += net;
-    const vals = [i + 1, p.employee_name, p.employee_id, '—', INR(net)];
+    const bank = bankMap[p.employee_id] || {};
+    const vals = [
+      i + 1,
+      p.employee_name,
+      p.employee_id,
+      bank.bank_name        || '—',
+      bank.bank_account_number || '—',
+      bank.ifsc_code        || '—',
+      INR(net),
+    ];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
@@ -545,14 +622,14 @@ function buildBankAdvice(doc, slips, adminName, periodLabel) {
   doc.rect(40, y, doc.page.width - 80, 20).fill('#FFF7ED');
   doc.fillColor(ACCENT).fontSize(8.5).font('Helvetica-Bold');
   let x = 44;
-  ['', 'TOTAL', '', '', INR(total)].forEach((t, i2) => {
+  ['', 'TOTAL', '', '', '', '', INR(total)].forEach((t, i2) => {
     doc.text(t, x, y + 6, { width: cols[i2].w - 4, align: cols[i2].align || 'left' });
     x += cols[i2].w;
   });
 
   y += 28;
   doc.fillColor('#64748B').fontSize(8).font('Helvetica')
-     .text('Note: Bank account numbers are as per employee records. Please verify before transfer.', 40, y);
+     .text('Note: Bank details as per employee records. Please verify before initiating transfer.', 40, y);
 
   drawFooter(doc);
   doc.end();
@@ -798,8 +875,14 @@ function buildAnnualSummary(doc, slips, adminName, year) {
   doc.end();
 }
 
-function buildStatutoryCompliance(doc, slips, adminName, periodLabel, month, year) {
+function buildStatutoryCompliance(doc, slips, adminName, periodLabel, month, year, adminInfo = {}) {
   let y = drawHeader(doc, 'Statutory Compliance Checklist', adminName, periodLabel);
+  y = drawStatutoryBar(doc, y, [
+    { label: 'EPFO Code', value: adminInfo.epfo_code },
+    { label: 'ESIC Code', value: adminInfo.esic_code },
+    { label: 'PT Reg No.', value: adminInfo.pt_reg_number },
+    { label: 'TAN', value: adminInfo.tan_number },
+  ]);
 
   const W = doc.page.width - 80;
 

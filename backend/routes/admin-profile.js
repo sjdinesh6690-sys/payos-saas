@@ -23,6 +23,7 @@ router.put('/profile', async (req, res) => {
     const allowed = [
       'company_name','company_address','company_phone','company_email',
       'company_website','company_gstin','company_industry','company_size',
+      'pan_number','tan_number','epfo_code','esic_code','pt_reg_number','state',
     ];
     const fields = [];
     const values = [];

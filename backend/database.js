@@ -105,6 +105,21 @@ async function initDB() {
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_exit VARCHAR(50)`);
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS exit_reason VARCHAR(255)`);
 
+    // Add employee bank & statutory details
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(30)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(20)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS pan_number VARCHAR(20)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS uan_number VARCHAR(20)`);
+
+    // Add company statutory registration numbers to admins
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS pan_number VARCHAR(30)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS tan_number VARCHAR(30)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS epfo_code VARCHAR(30)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS esic_code VARCHAR(30)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS pt_reg_number VARCHAR(30)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS state VARCHAR(50)`);
+
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (
