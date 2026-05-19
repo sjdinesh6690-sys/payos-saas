@@ -1387,7 +1387,19 @@ export default function LandingPage() {
 
           <div style={{ borderTop: '1px solid #1E293B', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <p style={{ fontSize: 13, color: '#475569' }}>© 2026 PayLeef · Payroll That Actually Works</p>
-            <p style={{ fontSize: 13, color: '#475569' }}>Built by DinMind Software Solutions</p>
+            <p style={{ fontSize: 13, color: '#475569' }}>
+              Built &amp; Powered by{' '}
+              <a
+                href="https://www.dinmind.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#4ADE80', fontWeight: 600, textDecoration: 'none' }}
+                onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                onMouseOut={e => e.target.style.textDecoration = 'none'}
+              >
+                DinMind Infotech
+              </a>
+            </p>
           </div>
         </div>
       </footer>
