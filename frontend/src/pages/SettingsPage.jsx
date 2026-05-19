@@ -2,9 +2,165 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Settings, Mail, Building2, Server, Send, Eye, EyeOff,
-  CheckCircle2, AlertCircle, Palette, Save, TestTube
+  CheckCircle2, AlertCircle, Palette, Save, ExternalLink,
+  ChevronDown, ChevronUp, ArrowRight, Loader2, Info
 } from 'lucide-react';
 import api from '../lib/api';
+
+/* ─── Email provider guide data ─────────────────────────────────────── */
+const PROVIDERS = [
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    logo: '📧',
+    color: '#EA4335',
+    bgColor: '#FEF2F2',
+    hint: 'Most popular — works with any Gmail account',
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: '587',
+    steps: [
+      {
+        title: 'Open your Google Account security page',
+        desc: 'Click the button below to open Google in a new tab.',
+        link: { label: 'Open Google Account Security →', url: 'https://myaccount.google.com/security' },
+      },
+      {
+        title: 'Turn on 2-Step Verification',
+        desc: 'Scroll down to "How you sign in to Google". Click 2-Step Verification and turn it ON. (If it already shows a green tick, skip this step.)',
+        tip: 'You only need to do this once.',
+      },
+      {
+        title: 'Create an App Password',
+        desc: 'After turning on 2-Step Verification, search for "App passwords" in the Google search bar at the top of the page. Click it.',
+        link: { label: 'Or click here — App Passwords →', url: 'https://myaccount.google.com/apppasswords' },
+      },
+      {
+        title: 'Name it and copy the password',
+        desc: 'In the "App name" box type "PayOS" and click Create. Google will show you a 16-letter password like "abcd efgh ijkl mnop". Copy that password.',
+        tip: '⚠️ Copy it now — Google will never show it again.',
+      },
+      {
+        title: 'Paste your details below',
+        desc: 'Enter your Gmail address and paste the 16-letter App Password in the fields below. Then click Save & Test.',
+      },
+    ],
+  },
+  {
+    id: 'outlook',
+    name: 'Outlook / Microsoft 365',
+    logo: '📨',
+    color: '#0078D4',
+    bgColor: '#EFF6FF',
+    hint: 'For Outlook, Hotmail, Live, or company Microsoft 365',
+    smtp_host: 'smtp.office365.com',
+    smtp_port: '587',
+    steps: [
+      {
+        title: 'Open Microsoft Security settings',
+        desc: 'Click the button below to go to your Microsoft account security page.',
+        link: { label: 'Open Microsoft Account Security →', url: 'https://account.microsoft.com/security' },
+      },
+      {
+        title: 'Find "App passwords"',
+        desc: 'Click "Advanced security options". Scroll down to "App passwords" and click "Create a new app password".',
+        tip: 'If you do not see this option, your IT admin may have disabled it. Contact your IT team.',
+      },
+      {
+        title: 'Copy the password',
+        desc: 'Microsoft will show you a password. Copy it — you will need it in the next step.',
+        tip: '⚠️ Save this password somewhere safe — Microsoft only shows it once.',
+      },
+      {
+        title: 'Enter your details below',
+        desc: 'Type your full Outlook email address and paste the app password in the fields below. Then click Save & Test.',
+      },
+    ],
+  },
+  {
+    id: 'zoho',
+    name: 'Zoho Mail',
+    logo: '📬',
+    color: '#E42527',
+    bgColor: '#FFF5F5',
+    hint: 'For Zoho Mail or Zoho One accounts',
+    smtp_host: 'smtp.zoho.in',
+    smtp_port: '587',
+    steps: [
+      {
+        title: 'Log in to Zoho Mail',
+        desc: 'Open Zoho Mail and go to Settings.',
+        link: { label: 'Open Zoho Mail →', url: 'https://mail.zoho.in' },
+      },
+      {
+        title: 'Go to Security → App Passwords',
+        desc: 'In Zoho Mail settings, click "Security" in the left menu. Then click "App Passwords". Click "Generate New Password", name it "PayOS" and click Generate.',
+      },
+      {
+        title: 'Copy the password',
+        desc: 'Copy the generated password shown on screen.',
+        tip: '⚠️ This password is shown only once.',
+      },
+      {
+        title: 'Enter your details below',
+        desc: 'Type your Zoho email address and paste the password in the fields below. Click Save & Test.',
+      },
+    ],
+  },
+  {
+    id: 'hostinger',
+    name: 'Hostinger / Business Email',
+    logo: '🌐',
+    color: '#7C3AED',
+    bgColor: '#F5F3FF',
+    hint: 'For Hostinger or any custom business email (yourname@yourdomain.com)',
+    smtp_host: 'smtp.hostinger.com',
+    smtp_port: '587',
+    steps: [
+      {
+        title: 'Log in to Hostinger',
+        desc: 'Open your Hostinger control panel and go to the Email section.',
+        link: { label: 'Open Hostinger →', url: 'https://hpanel.hostinger.com' },
+      },
+      {
+        title: 'Find your email account',
+        desc: 'Go to Emails → Email Accounts. Find the email address you want to use for sending payslips.',
+      },
+      {
+        title: 'Use your email password',
+        desc: 'For Hostinger business email, you use your regular email account password — no app password needed.',
+        tip: 'If you forgot your email password, reset it from the Hostinger control panel.',
+      },
+      {
+        title: 'Enter your details below',
+        desc: 'Type your full business email address and your email account password in the fields below. Click Save & Test.',
+      },
+    ],
+  },
+  {
+    id: 'other',
+    name: 'Other / Custom SMTP',
+    logo: '⚙️',
+    color: '#374151',
+    bgColor: '#F9FAFB',
+    hint: 'For SendGrid, Mailgun, or any custom SMTP server',
+    smtp_host: '',
+    smtp_port: '587',
+    steps: [
+      {
+        title: 'Get your SMTP credentials from your provider',
+        desc: 'Log in to your email or SMTP service. Find the SMTP settings — usually under Account Settings, API Settings, or Email Configuration.',
+      },
+      {
+        title: 'You need 4 things',
+        desc: 'SMTP Host (e.g. smtp.sendgrid.net), Port (usually 587), Username (your email or API username), Password (your email password or API key).',
+      },
+      {
+        title: 'Fill in all fields below',
+        desc: 'Enter all the SMTP details you found. Click Save & Test to verify everything works.',
+      },
+    ],
+  },
+];
 
 const MONTH_VARS = ['{month}', '{company}', '{employee}', '{employee_id}', '{net_salary}'];
 
@@ -21,13 +177,16 @@ const DEFAULT_BODY = `<p>Dear {employee},</p>
 
 <p>Regards,<br/>{company} Payroll Team</p>`;
 
+/* ─── Main Page ─────────────────────────────────────────────────────── */
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('company');
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
-  const [testing, setTesting]     = useState(false);
-  const [showPass, setShowPass]   = useState(false);
-  const [testEmail, setTestEmail] = useState('');
+  const [activeTab, setActiveTab]       = useState('company');
+  const [loading, setLoading]           = useState(true);
+  const [saving, setSaving]             = useState(false);
+  const [testing, setTesting]           = useState(false);
+  const [showPass, setShowPass]         = useState(false);
+  const [selectedProvider, setProvider] = useState(null);
+  const [showAdvanced, setAdvanced]     = useState(false);
+  const [smtpSaved, setSmtpSaved]       = useState(false);
 
   const [form, setForm] = useState({
     company_name: '', company_email: '', company_phone: '', company_address: '',
@@ -59,7 +218,13 @@ export default function SettingsPage() {
         brand_color:      s.brand_color      || '#1B4F8A',
         logo_url:         s.logo_url         || '',
       }));
-    }).catch(e => toast.error('Failed to load settings')).finally(() => setLoading(false));
+      // Auto-detect provider from saved smtp_host
+      if (s.smtp_host) {
+        const found = PROVIDERS.find(p => p.smtp_host && s.smtp_host.includes(p.smtp_host.split('.').slice(-2).join('.')));
+        if (found) setProvider(found.id);
+        setSmtpSaved(true);
+      }
+    }).catch(() => toast.error('Failed to load settings')).finally(() => setLoading(false));
   }, []);
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -68,93 +233,98 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await api.put('/settings', form);
-      toast.success('Settings saved successfully!');
+      toast.success('Settings saved!');
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Failed to save settings');
+      toast.error(e.response?.data?.error || 'Failed to save');
     } finally { setSaving(false); }
   };
 
-  const testSmtp = async () => {
-    if (!form.smtp_host || !form.smtp_user) {
-      toast.error('Enter SMTP host and username first');
+  const saveAndTest = async () => {
+    if (!form.smtp_host || !form.smtp_user || !form.smtp_pass) {
+      toast.error('Please fill in your email address and password first');
       return;
     }
     if (form.smtp_pass === '••••••••') {
-      toast.error('Re-enter your SMTP password to test');
+      toast.error('Please re-enter your password to test');
       return;
     }
+    setSaving(true);
+    try {
+      await api.put('/settings', form);
+      toast.success('Settings saved!');
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Failed to save');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
     setTesting(true);
     try {
       const res = await api.post('/settings/test-smtp', {
         smtp_host: form.smtp_host, smtp_port: form.smtp_port,
         smtp_user: form.smtp_user, smtp_pass: form.smtp_pass,
-        smtp_from: form.smtp_from, test_to: testEmail || form.smtp_user,
+        smtp_from: form.smtp_from || form.smtp_user,
+        test_to: form.smtp_user,
       });
-      toast.success(res.data.message);
+      toast.success('🎉 ' + res.data.message);
+      setSmtpSaved(true);
     } catch (e) {
-      toast.error(e.response?.data?.error || 'SMTP test failed');
+      toast.error(e.response?.data?.error || 'Connection failed — check your password and try again');
     } finally { setTesting(false); }
   };
 
-  const insertVar = (v) => {
-    setForm(prev => ({ ...prev, email_body: (prev.email_body || '') + v }));
+  const pickProvider = (p) => {
+    setProvider(p.id);
+    setAdvanced(p.id === 'other');
+    setSmtpSaved(false);
+    if (p.smtp_host) set('smtp_host', p.smtp_host);
+    set('smtp_port', p.smtp_port);
   };
 
-  const SMTP_PRESETS = [
-    { name: 'Gmail',   host: 'smtp.gmail.com',      port: '587', note: 'Use App Password (not your Gmail password)' },
-    { name: 'Outlook', host: 'smtp.office365.com',  port: '587', note: 'Use your Microsoft 365 account credentials' },
-    { name: 'Zoho',    host: 'smtp.zoho.in',        port: '587', note: 'Use your Zoho Mail credentials' },
-    { name: 'Hostinger', host: 'smtp.hostinger.com', port: '587', note: 'Use your Hostinger email credentials' },
-  ];
+  const insertVar = (v) => set('email_body', (form.email_body || '') + v);
+
+  const provider = PROVIDERS.find(p => p.id === selectedProvider);
 
   const tabs = [
-    { id: 'company',  label: 'Company Profile', icon: Building2 },
-    { id: 'smtp',     label: 'SMTP / Email',    icon: Server },
-    { id: 'template', label: 'Email Template',  icon: Mail },
-    { id: 'branding', label: 'Branding',        icon: Palette },
+    { id: 'company',  label: 'Company',       icon: Building2 },
+    { id: 'smtp',     label: 'Email Setup',   icon: Mail },
+    { id: 'template', label: 'Email Message', icon: Send },
+    { id: 'branding', label: 'Branding',      icon: Palette },
   ];
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
     </div>
   );
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
+          <div className="p-2 bg-blue-50 rounded-lg">
             <Settings className="w-5 h-5 text-blue-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-            <p className="text-sm text-gray-500">Configure email, SMTP, templates and branding</p>
+            <p className="text-sm text-gray-400">Manage your company, email and branding</p>
           </div>
         </div>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-        >
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
           <Save className="w-4 h-4" />
-          {saving ? 'Saving…' : 'Save All Settings'}
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
         {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 flex-1 justify-center py-2 px-3 rounded-md text-sm font-medium transition-all ${
-              activeTab === t.id
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 flex-1 justify-center py-2 px-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === t.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}>
             <t.icon className="w-4 h-4" />
             <span className="hidden sm:inline">{t.label}</span>
           </button>
@@ -163,28 +333,26 @@ export default function SettingsPage() {
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
 
-        {/* ── COMPANY PROFILE TAB ── */}
+        {/* ── COMPANY TAB ── */}
         {activeTab === 'company' && (
-          <div className="space-y-5">
-            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-blue-600" /> Company Details
-            </h2>
+          <div className="space-y-4">
+            <h2 className="font-semibold text-gray-800">Company Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Company Name" required>
                 <input value={form.company_name} onChange={e => set('company_name', e.target.value)}
-                  placeholder="Acme Pvt. Ltd." className={inputCls} />
+                  placeholder="e.g. Acme Pvt. Ltd." className={inp} />
               </Field>
-              <Field label="Company Email">
+              <Field label="HR / Payroll Email">
                 <input value={form.company_email} onChange={e => set('company_email', e.target.value)}
-                  type="email" placeholder="hr@company.com" className={inputCls} />
+                  type="email" placeholder="hr@company.com" className={inp} />
               </Field>
-              <Field label="Phone Number">
+              <Field label="Phone">
                 <input value={form.company_phone} onChange={e => set('company_phone', e.target.value)}
-                  placeholder="+91-XXXXX-XXXXX" className={inputCls} />
+                  placeholder="+91 98765 43210" className={inp} />
               </Field>
               <Field label="Industry">
-                <select value={form.company_industry} onChange={e => set('company_industry', e.target.value)} className={inputCls}>
-                  <option value="">Select Industry</option>
+                <select value={form.company_industry} onChange={e => set('company_industry', e.target.value)} className={inp}>
+                  <option value="">Select…</option>
                   {['Manufacturing','Logistics','IT & Software','Healthcare','Education',
                     'Retail','Construction','Finance','Hospitality','Other'].map(i => (
                     <option key={i} value={i}>{i}</option>
@@ -192,8 +360,8 @@ export default function SettingsPage() {
                 </select>
               </Field>
               <Field label="Company Size">
-                <select value={form.company_size} onChange={e => set('company_size', e.target.value)} className={inputCls}>
-                  <option value="">Select Size</option>
+                <select value={form.company_size} onChange={e => set('company_size', e.target.value)} className={inp}>
+                  <option value="">Select…</option>
                   {['1–10','11–50','51–200','201–500','500+'].map(s => (
                     <option key={s} value={s}>{s} employees</option>
                   ))}
@@ -201,7 +369,7 @@ export default function SettingsPage() {
               </Field>
               <Field label="Address" className="sm:col-span-2">
                 <textarea value={form.company_address} onChange={e => set('company_address', e.target.value)}
-                  rows={2} placeholder="Full company address…" className={inputCls} />
+                  rows={2} placeholder="Full company address…" className={inp} />
               </Field>
             </div>
           </div>
@@ -210,101 +378,173 @@ export default function SettingsPage() {
         {/* ── SMTP TAB ── */}
         {activeTab === 'smtp' && (
           <div className="space-y-6">
+
             <div>
-              <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-1">
-                <Server className="w-4 h-4 text-blue-600" /> SMTP Email Configuration
-              </h2>
-              <p className="text-sm text-gray-500">
-                Configure your email server so payslips can be sent directly from your company email.
+              <h2 className="font-semibold text-gray-900 text-lg">Set Up Email Sending</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                This lets PayOS send payslips directly to your employees from your own email address.
               </p>
             </div>
 
-            {/* Quick presets */}
+            {/* Step 1 — Pick provider */}
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-2">Quick Setup — Click to fill host &amp; port:</p>
-              <div className="flex flex-wrap gap-2">
-                {SMTP_PRESETS.map(p => (
-                  <button
-                    key={p.name}
-                    onClick={() => { set('smtp_host', p.host); set('smtp_port', p.port); toast.success(`${p.name} preset loaded. ${p.note}`); }}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                  >
-                    {p.name}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</div>
+                <p className="font-medium text-gray-800">Which email service do you use?</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {PROVIDERS.map(p => (
+                  <button key={p.id} onClick={() => pickProvider(p)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all hover:shadow-sm ${
+                      selectedProvider === p.id
+                        ? 'border-blue-500 shadow-md'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    style={selectedProvider === p.id ? { backgroundColor: p.bgColor } : {}}>
+                    <div className="text-2xl mb-1">{p.logo}</div>
+                    <div className="font-semibold text-sm text-gray-900">{p.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 leading-tight">{p.hint}</div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="SMTP Host" required>
-                <input value={form.smtp_host} onChange={e => set('smtp_host', e.target.value)}
-                  placeholder="smtp.gmail.com" className={inputCls} />
-              </Field>
-              <Field label="SMTP Port">
-                <select value={form.smtp_port} onChange={e => set('smtp_port', e.target.value)} className={inputCls}>
-                  <option value="587">587 (TLS — recommended)</option>
-                  <option value="465">465 (SSL)</option>
-                  <option value="25">25 (plain)</option>
-                </select>
-              </Field>
-              <Field label="Email Username (Login)" required>
-                <input value={form.smtp_user} onChange={e => set('smtp_user', e.target.value)}
-                  placeholder="payroll@yourcompany.com" className={inputCls} />
-              </Field>
-              <Field label="Email Password / App Password" required>
-                <div className="relative">
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={form.smtp_pass}
-                    onChange={e => set('smtp_pass', e.target.value)}
-                    placeholder="Your email password or app password"
-                    className={`${inputCls} pr-10`}
-                  />
-                  <button onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+            {/* Step 2 — Guide + form */}
+            {provider && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</div>
+                  <p className="font-medium text-gray-800">Follow these steps to get your password</p>
                 </div>
-              </Field>
-              <Field label="From Name / Address" className="sm:col-span-2">
-                <input value={form.smtp_from} onChange={e => set('smtp_from', e.target.value)}
-                  placeholder="HR Payroll <payroll@yourcompany.com>" className={inputCls} />
-              </Field>
-            </div>
 
-            {/* Test connection */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-dashed border-gray-300">
-              <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                <TestTube className="w-4 h-4" /> Test SMTP Connection
-              </p>
-              <div className="flex gap-3">
-                <input
-                  value={testEmail}
-                  onChange={e => setTestEmail(e.target.value)}
-                  placeholder="Send test to (leave blank = use your SMTP username)"
-                  className={`${inputCls} flex-1`}
-                />
-                <button
-                  onClick={testSmtp}
-                  disabled={testing}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium whitespace-nowrap disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  {testing ? 'Testing…' : 'Send Test Email'}
+                {/* Step cards */}
+                <div className="space-y-3 mb-6">
+                  {provider.steps.map((step, i) => (
+                    <div key={i} className="flex gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                      <div className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ backgroundColor: provider.color }}>
+                        {i + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 text-sm">{step.title}</p>
+                        <p className="text-gray-600 text-sm mt-1 leading-relaxed">{step.desc}</p>
+                        {step.link && (
+                          <a href={step.link.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                            style={{ backgroundColor: provider.color }}>
+                            {step.link.label}
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {step.tip && (
+                          <div className="flex items-start gap-1.5 mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            {step.tip}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Step 3 — Enter credentials */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</div>
+                  <p className="font-medium text-gray-800">Enter your email details</p>
+                </div>
+
+                <div className="space-y-3 p-4 rounded-xl border-2 border-blue-100 bg-blue-50">
+                  <Field label={`Your ${provider.name} Email Address`} required>
+                    <input value={form.smtp_user} onChange={e => { set('smtp_user', e.target.value); if (!form.smtp_from) set('smtp_from', e.target.value); }}
+                      type="email" placeholder="yourname@gmail.com" className={inp} />
+                  </Field>
+
+                  <Field label={provider.id === 'gmail' ? 'App Password (16 letters from Google)' : provider.id === 'hostinger' ? 'Your Email Password' : 'App Password'} required>
+                    <div className="relative">
+                      <input type={showPass ? 'text' : 'password'} value={form.smtp_pass}
+                        onChange={e => set('smtp_pass', e.target.value)}
+                        placeholder={provider.id === 'gmail' ? 'Paste the 16-letter app password here' : 'Paste your password here'}
+                        className={`${inp} pr-10`} />
+                      <button onClick={() => setShowPass(!showPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </Field>
+
+                  {/* Advanced — hidden by default */}
+                  <button onClick={() => setAdvanced(!showAdvanced)}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-1">
+                    {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    Advanced settings (SMTP host / port / from address)
+                  </button>
+
+                  {showAdvanced && (
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-200">
+                      <Field label="SMTP Host">
+                        <input value={form.smtp_host} onChange={e => set('smtp_host', e.target.value)}
+                          placeholder="smtp.gmail.com" className={inp} />
+                      </Field>
+                      <Field label="Port">
+                        <select value={form.smtp_port} onChange={e => set('smtp_port', e.target.value)} className={inp}>
+                          <option value="587">587 (recommended)</option>
+                          <option value="465">465 (SSL)</option>
+                          <option value="25">25</option>
+                        </select>
+                      </Field>
+                      <Field label="From Name / Address" className="col-span-2">
+                        <input value={form.smtp_from} onChange={e => set('smtp_from', e.target.value)}
+                          placeholder="HR Payroll <payroll@yourcompany.com>" className={inp} />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 4 — Save & Test */}
+                <div className="flex items-center gap-2 mt-5 mb-4">
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">4</div>
+                  <p className="font-medium text-gray-800">Save and send a test email</p>
+                </div>
+
+                <button onClick={saveAndTest} disabled={saving || testing}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: provider.color }}>
+                  {(saving || testing)
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {saving ? 'Saving…' : 'Sending test email…'}</>
+                    : <><Send className="w-4 h-4" /> Save Settings &amp; Send Test Email <ArrowRight className="w-4 h-4" /></>
+                  }
                 </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                💡 For Gmail: use an <strong>App Password</strong> (not your main password). Go to Google Account → Security → 2-Step Verification → App passwords.
-              </p>
-            </div>
 
-            {/* Status indicator */}
-            <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${form.smtp_host && form.smtp_user ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-              {form.smtp_host && form.smtp_user
-                ? <><CheckCircle2 className="w-4 h-4" /> SMTP configured — payslips will be sent via your email server</>
-                : <><AlertCircle className="w-4 h-4" /> SMTP not configured — payslips will be <strong>simulated</strong> (not actually sent)</>
-              }
-            </div>
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  This will save your settings and send a test email to <strong>{form.smtp_user || 'your email'}</strong> to confirm everything is working.
+                </p>
+
+                {/* Success badge */}
+                {smtpSaved && (
+                  <div className="flex items-center gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-800">Email is connected!</p>
+                      <p className="text-xs text-green-600">Payslips will now be sent from your {provider.name} account.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Warning if not set */}
+                {!smtpSaved && !form.smtp_host && (
+                  <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <p className="text-xs text-amber-700">Email not yet configured. Payslips will be <strong>simulated</strong> (not actually sent to employees).</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!provider && (
+              <div className="text-center py-6 text-gray-400 text-sm">
+                ☝️ Select your email provider above to get started
+              </div>
+            )}
           </div>
         )}
 
@@ -312,24 +552,23 @@ export default function SettingsPage() {
         {activeTab === 'template' && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-1">
-                <Mail className="w-4 h-4 text-blue-600" /> Email Template
-              </h2>
-              <p className="text-sm text-gray-500">
-                Customise the email your employees receive when their payslip is sent.
-              </p>
+              <h2 className="font-semibold text-gray-900">Email Message</h2>
+              <p className="text-sm text-gray-500 mt-1">This is the email your employees will receive when you send their payslip.</p>
             </div>
 
-            <Field label="Email Subject">
+            <Field label="Email Subject Line">
               <input value={form.email_subject} onChange={e => set('email_subject', e.target.value)}
-                placeholder="Your Payslip for {month} — {company}" className={inputCls} />
-              <p className="text-xs text-gray-400 mt-1">Variables: {MONTH_VARS.map(v => <code key={v} className="mx-0.5 bg-gray-100 px-1 rounded">{v}</code>)}</p>
+                placeholder="Your Payslip for {month} — {company}" className={inp} />
+              <p className="text-xs text-gray-400 mt-1">
+                You can use these magic words that get replaced automatically:&nbsp;
+                {MONTH_VARS.map(v => <code key={v} className="mx-0.5 bg-gray-100 px-1 rounded text-xs">{v}</code>)}
+              </p>
             </Field>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Body (HTML supported)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Body</label>
               <div className="flex flex-wrap gap-1 mb-2">
-                <span className="text-xs text-gray-500 self-center mr-1">Insert variable:</span>
+                <span className="text-xs text-gray-400 self-center mr-1">Insert:</span>
                 {MONTH_VARS.map(v => (
                   <button key={v} onClick={() => insertVar(v)}
                     className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs hover:bg-blue-100">
@@ -337,42 +576,26 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <textarea
-                value={form.email_body}
-                onChange={e => set('email_body', e.target.value)}
-                rows={14}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
-                placeholder="Enter your custom email body here…"
-              />
+              <textarea value={form.email_body} onChange={e => set('email_body', e.target.value)}
+                rows={12} className={`${inp} font-mono text-xs resize-y`}
+                placeholder="Write your email message here…" />
             </div>
 
-            {/* Preview */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <Eye className="w-4 h-4" /> Live Preview
-              </p>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-100 px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
-                  Subject: <span className="font-medium text-gray-700">
-                    {form.email_subject.replace('{month}', 'May 2026').replace('{company}', 'Your Company').replace('{employee}', 'Rajesh Kumar')}
-                  </span>
-                </div>
-                <div className="p-4 bg-white text-sm"
-                  dangerouslySetInnerHTML={{ __html:
-                    (form.email_body || '')
-                      .replace(/{month}/g, 'May 2026')
-                      .replace(/{company}/g, 'Your Company')
-                      .replace(/{employee}/g, 'Rajesh Kumar')
-                      .replace(/{employee_id}/g, 'EMP001')
-                      .replace(/{net_salary}/g, '₹52,400')
-                  }}
-                />
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-500 border-b">
+                📧 Preview — Subject: <span className="font-medium text-gray-700">
+                  {form.email_subject.replace('{month}','May 2026').replace('{company}','Your Company').replace('{employee}','Rajesh Kumar')}
+                </span>
               </div>
+              <div className="p-5 text-sm" dangerouslySetInnerHTML={{ __html:
+                (form.email_body||'')
+                  .replace(/{month}/g,'May 2026').replace(/{company}/g,'Your Company')
+                  .replace(/{employee}/g,'Rajesh Kumar').replace(/{employee_id}/g,'EMP001')
+                  .replace(/{net_salary}/g,'₹52,400')
+              }} />
             </div>
-
-            <button onClick={() => set('email_body', DEFAULT_BODY)}
-              className="text-xs text-gray-500 hover:text-gray-700 underline">
-              Reset to default template
+            <button onClick={() => set('email_body', DEFAULT_BODY)} className="text-xs text-gray-400 hover:text-gray-600 underline">
+              Reset to default
             </button>
           </div>
         )}
@@ -381,53 +604,37 @@ export default function SettingsPage() {
         {activeTab === 'branding' && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-1">
-                <Palette className="w-4 h-4 text-blue-600" /> Branding &amp; Appearance
-              </h2>
-              <p className="text-sm text-gray-500">
-                Your brand colour and logo appear on generated payslip PDFs.
-              </p>
+              <h2 className="font-semibold text-gray-900">Branding</h2>
+              <p className="text-sm text-gray-500 mt-1">Your colour and logo appear on payslip PDFs sent to employees.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <Field label="Primary Brand Colour">
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="color"
-                    value={form.brand_color}
-                    onChange={e => set('brand_color', e.target.value)}
-                    className="h-10 w-16 rounded cursor-pointer border border-gray-200"
-                  />
-                  <input
-                    value={form.brand_color}
-                    onChange={e => set('brand_color', e.target.value)}
-                    placeholder="#1B4F8A"
-                    className={`${inputCls} flex-1`}
-                  />
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {['#1B4F8A','#16a34a','#dc2626','#7c3aed','#ea580c','#0891b2'].map(c => (
-                    <button key={c} onClick={() => set('brand_color', c)}
-                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
-                      style={{ backgroundColor: c, borderColor: form.brand_color === c ? '#374151' : 'transparent' }}
-                    />
-                  ))}
-                </div>
-              </Field>
+            <Field label="Your Brand Colour">
+              <div className="flex gap-3 items-center">
+                <input type="color" value={form.brand_color} onChange={e => set('brand_color', e.target.value)}
+                  className="h-10 w-16 rounded cursor-pointer border border-gray-200" />
+                <input value={form.brand_color} onChange={e => set('brand_color', e.target.value)}
+                  placeholder="#1B4F8A" className={`${inp} flex-1`} />
+              </div>
+              <div className="flex gap-2 mt-2">
+                {['#1B4F8A','#16a34a','#dc2626','#7c3aed','#ea580c','#0891b2'].map(c => (
+                  <button key={c} onClick={() => set('brand_color', c)}
+                    className="w-8 h-8 rounded-full border-2 transition-all hover:scale-110"
+                    style={{ backgroundColor: c, borderColor: form.brand_color === c ? '#374151' : 'transparent' }} />
+                ))}
+              </div>
+            </Field>
 
-              <Field label="Logo URL (optional)">
-                <input value={form.logo_url} onChange={e => set('logo_url', e.target.value)}
-                  placeholder="https://yoursite.com/logo.png" className={inputCls} />
-                <p className="text-xs text-gray-400 mt-1">PNG or JPG. Will appear on payslip PDFs.</p>
-              </Field>
-            </div>
+            <Field label="Company Logo URL (optional)">
+              <input value={form.logo_url} onChange={e => set('logo_url', e.target.value)}
+                placeholder="https://yoursite.com/logo.png" className={inp} />
+              <p className="text-xs text-gray-400 mt-1">Link to your logo image. Will show on payslip PDFs. (PNG or JPG)</p>
+            </Field>
 
-            {/* Brand preview */}
-            <div className="mt-4 p-4 rounded-xl border border-gray-200">
-              <p className="text-xs text-gray-400 mb-3">Payslip header preview:</p>
-              <div className="rounded-lg overflow-hidden border border-gray-200">
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Payslip header preview:</p>
+              <div className="rounded-xl overflow-hidden border border-gray-200">
                 <div className="h-2" style={{ backgroundColor: form.brand_color }} />
-                <div className="p-4 flex items-center gap-3" style={{ backgroundColor: form.brand_color + '12' }}>
+                <div className="p-4 flex items-center gap-3" style={{ backgroundColor: form.brand_color + '15' }}>
                   {form.logo_url
                     ? <img src={form.logo_url} alt="logo" className="h-10 object-contain" />
                     : <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
@@ -439,7 +646,7 @@ export default function SettingsPage() {
                     <p className="font-bold text-base" style={{ color: form.brand_color }}>
                       {form.company_name || 'Your Company Name'}
                     </p>
-                    <p className="text-xs text-gray-500">SALARY SLIP</p>
+                    <p className="text-xs text-gray-400">SALARY SLIP — MAY 2026</p>
                   </div>
                 </div>
               </div>
@@ -448,13 +655,9 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Bottom save bar */}
       <div className="mt-4 flex justify-end">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
-        >
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">
           <Save className="w-4 h-4" />
           {saving ? 'Saving…' : 'Save All Settings'}
         </button>
@@ -463,7 +666,7 @@ export default function SettingsPage() {
   );
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none';
 
 function Field({ label, children, required, className = '' }) {
   return (
