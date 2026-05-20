@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Variables ──────────────────────────────────────────── */
+:root {
+  --brand:         #1A7A4A;
+  --brand-light:   #F0FDF4;
+  --brand-hover:   #155C38;
+  --bg-warm:       #F7F6F3;
+  --sidebar-bg:    #FFFFFF;
+  --card-bg:       #FFFFFF;
+  --text-primary:  #18181B;
+  --text-secondary:#52525B;
+  --text-muted:    #A1A1AA;
+  --border:        #E4E4E7;
+  --border-light:  #F4F4F5;
+  --success:       #059669;
+  --success-light: #ECFDF5;
+  --warning:       #D97706;
+  --warning-light: #FFFBEB;
+  --danger:        #DC2626;
+  --danger-light:  #FEF2F2;
+  --info:          #0284C7;
+  --info-light:    #F0F9FF;
+}
+
+/* ── Base ───────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-warm);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D4D8; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #A1A1AA; }
+
+/* ── Focus ring ─────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ── Dynamic brand — all Tailwind orange/brand classes route through --brand ── */
+.bg-orange-600                      { background-color: var(--brand) !important; }
+.bg-orange-500                      { background-color: var(--brand) !important; }
+.hover\:bg-orange-700:hover         { background-color: color-mix(in srgb, var(--brand) 80%, black) !important; }
+.hover\:bg-orange-600:hover         { background-color: var(--brand) !important; }
+.text-orange-500                    { color: var(--brand) !important; }
+.text-orange-600                    { color: var(--brand) !important; }
+.border-orange-500                  { border-color: var(--brand) !important; }
+.border-orange-600                  { border-color: var(--brand) !important; }
+.focus\:ring-orange-500:focus       { --tw-ring-color: var(--brand) !important; }
+.ring-orange-500                    { --tw-ring-color: var(--brand) !important; }
+.bg-orange-50                       { background-color: var(--brand-light) !important; }
+.text-orange-800                    { color: color-mix(in srgb, var(--brand) 70%, black) !important; }
+.border-orange-200                  { border-color: color-mix(in srgb, var(--brand) 30%, white) !important; }
+
+/* ── PayLeef green — blue class overrides ── */
+.bg-blue-600                        { background-color: var(--brand) !important; }
+.bg-blue-500                        { background-color: var(--brand) !important; }
+.hover\:bg-blue-700:hover           { background-color: var(--brand-hover) !important; }
+.hover\:bg-blue-600:hover           { background-color: var(--brand) !important; }
+.text-blue-600                      { color: var(--brand) !important; }
+.text-blue-500                      { color: var(--brand) !important; }
+.border-blue-500                    { border-color: var(--brand) !important; }
+.bg-blue-50                         { background-color: var(--brand-light) !important; }
+.text-blue-800                      { color: color-mix(in srgb, var(--brand) 70%, black) !important; }
