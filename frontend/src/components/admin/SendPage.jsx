@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import * as XLSX from 'xlsx';
 import {
   CheckCircle2, AlertCircle, Send, FileText, Users, Mail,
   ChevronLeft, ChevronRight, Search, X, UserMinus, Settings2,
-  Plus, Building2,
+  Plus, Building2, Eye, FileSpreadsheet, Upload, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-const fmt    = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+const MONTH_SHORT = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
 function getManualComponents(config) {
   if (!config) return { manualEarnings: [], manualDeductions: [], hasLop: false };
@@ -23,7 +25,7 @@ function getManualComponents(config) {
   return { manualEarnings, manualDeductions, hasLop: !!lopComp };
 }
 
-// Employee search dropdown — shared across sections
+// Employee search dropdown
 function EmpSearch({ employees, exclude = [], placeholder, onSelect }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
@@ -67,7 +69,10 @@ function EmpSearch({ employees, exclude = [], placeholder, onSelect }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-800 truncate">{e.employee_name}</p>
-                <p className="text-xs text-slate-400">{e.employee_id}{e.department ? ` · ${e.department}` : ''}</p>
+                <p className="text-xs text-slate-400">
+                  {e.employee_id}{e.department ? ` · ${e.department}` : ''}
+                  {e.status === 'inactive' && <span className="ml-1 text-red-400"> · Left {e.date_of_exit ? e.date_of_exit : ''}</span>}
+                </p>
               </div>
               <span className="text-xs text-slate-500 shrink-0">₹{Number(e.salary||0).toLocaleString('en-IN')}</span>
             </button>
@@ -83,6 +88,273 @@ function EmpSearch({ employees, exclude = [], placeholder, onSelect }) {
   );
 }
 
+// ── Preview Dialog ────────────────────────────────────────────────────────────
+function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments }) {
+  if (!open || !data) return null;
+  const { previews = [] } = data;
+
+  const totalGross = previews.reduce((s, p) => s + (p.gross_salary || 0), 0);
+  const totalNet   = previews.reduce((s, p) => s + (p.net_salary   || 0), 0);
+  const totalDed   = previews.reduce((s, p) => s + (p.total_deductions || 0), 0);
+
+  const downloadExcel = () => {
+    const rows = previews.map((p, idx) => {
+      const earn = p.earnings || {};
+      const ded  = p.deductions || {};
+      const ec   = p.employer_contributions || {};
+      return {
+        '#':              idx + 1,
+        'Employee ID':    p.employee_id,
+        'Employee Name':  p.employee_name,
+        'Department':     p.department || '',
+        'Status':         p.status === 'inactive' ? `Left (${p.date_of_exit || ''})` : 'Active',
+        'Working Days':   p.working_days,
+        'Present Days':   p.present_days,
+        'LOP Days':       p.lop_days || 0,
+        // Earnings
+        'Basic (₹)':        Number(earn.basic       || 0),
+        'HRA (₹)':          Number(earn.hra         || 0),
+        'DA (₹)':           Number(earn.da          || 0),
+        'Conveyance (₹)':   Number(earn.conveyance  || 0),
+        'Medical (₹)':      Number(earn.medical     || 0),
+        'Special (₹)':      Number(earn.special     || 0),
+        'Overtime (₹)':     Number(earn.overtime    || 0),
+        'Bonus (₹)':        Number(earn.bonus       || 0),
+        'Incentive (₹)':    Number(earn.incentive   || 0),
+        'Total Earnings (₹)': Number(p.total_earnings || 0),
+        'Gross Salary (₹)': Number(p.gross_salary   || 0),
+        // Deductions
+        'PF Employee (₹)':  Number(ded.pf_employee  || 0),
+        'ESI Employee (₹)': Number(ded.esi_employee || 0),
+        'Professional Tax (₹)': Number(ded.pt       || 0),
+        'TDS (₹)':          Number(ded.tds          || 0),
+        'LOP Deduction (₹)': Number(ded.lop         || 0),
+        'Total Deductions (₹)': Number(p.total_deductions || 0),
+        // Net
+        'Net Salary / Take-Home (₹)': Number(p.net_salary || 0),
+        // Employer cost
+        'PF Employer (₹)':  Number(ec.pf_employer   || 0),
+        'ESI Employer (₹)': Number(ec.esi_employer  || 0),
+      };
+    });
+
+    // Totals row
+    rows.push({
+      '#': '', 'Employee ID': 'TOTAL', 'Employee Name': `${previews.length} employees`,
+      'Department': '', 'Status': '', 'Working Days': '', 'Present Days': '', 'LOP Days': '',
+      'Basic (₹)': previews.reduce((s,p)=>s+(p.earnings?.basic||0),0),
+      'HRA (₹)': previews.reduce((s,p)=>s+(p.earnings?.hra||0),0),
+      'DA (₹)': previews.reduce((s,p)=>s+(p.earnings?.da||0),0),
+      'Conveyance (₹)': previews.reduce((s,p)=>s+(p.earnings?.conveyance||0),0),
+      'Medical (₹)': previews.reduce((s,p)=>s+(p.earnings?.medical||0),0),
+      'Special (₹)': previews.reduce((s,p)=>s+(p.earnings?.special||0),0),
+      'Overtime (₹)': previews.reduce((s,p)=>s+(p.earnings?.overtime||0),0),
+      'Bonus (₹)': previews.reduce((s,p)=>s+(p.earnings?.bonus||0),0),
+      'Incentive (₹)': previews.reduce((s,p)=>s+(p.earnings?.incentive||0),0),
+      'Total Earnings (₹)': previews.reduce((s,p)=>s+(p.total_earnings||0),0),
+      'Gross Salary (₹)': totalGross,
+      'PF Employee (₹)': previews.reduce((s,p)=>s+(p.deductions?.pf_employee||0),0),
+      'ESI Employee (₹)': previews.reduce((s,p)=>s+(p.deductions?.esi_employee||0),0),
+      'Professional Tax (₹)': previews.reduce((s,p)=>s+(p.deductions?.pt||0),0),
+      'TDS (₹)': previews.reduce((s,p)=>s+(p.deductions?.tds||0),0),
+      'LOP Deduction (₹)': previews.reduce((s,p)=>s+(p.deductions?.lop||0),0),
+      'Total Deductions (₹)': totalDed,
+      'Net Salary / Take-Home (₹)': totalNet,
+      'PF Employer (₹)': previews.reduce((s,p)=>s+((p.employer_contributions||{}).pf_employer||0),0),
+      'ESI Employer (₹)': previews.reduce((s,p)=>s+((p.employer_contributions||{}).esi_employer||0),0),
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      {wch:4},{wch:12},{wch:24},{wch:16},{wch:16},{wch:12},{wch:12},{wch:10},
+      {wch:12},{wch:10},{wch:10},{wch:13},{wch:11},{wch:11},{wch:11},{wch:10},{wch:11},
+      {wch:16},{wch:14},
+      {wch:14},{wch:14},{wch:18},{wch:10},{wch:15},{wch:18},
+      {wch:22},{wch:13},{wch:13},
+    ];
+
+    // Instructions sheet for editing and re-uploading
+    const instrData = [
+      ['ADJUSTMENT UPLOAD GUIDE'],
+      [''],
+      ['You can edit LOP Days, Bonus, Overtime, TDS etc in this sheet and re-upload it.'],
+      ['Re-upload this file in the "Upload Adjustments from Excel" section on the Generate page.'],
+      [''],
+      ['Column', 'What you can edit'],
+      ['LOP Days', 'Enter number of absent days. System will recalculate proportional deduction.'],
+      ['Bonus (₹)', 'One-time bonus amount for this month.'],
+      ['Overtime (₹)', 'Overtime pay for this month.'],
+      ['Incentive (₹)', 'Incentive / commission for this month.'],
+      ['TDS (₹)', 'Manual TDS amount to deduct.'],
+      ['Net Salary / Take-Home (₹)', 'DO NOT EDIT — this is calculated by the system.'],
+      ['Gross Salary (₹)', 'DO NOT EDIT — this is calculated by the system.'],
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instrData);
+    instrWs['!cols'] = [{wch:30},{wch:60}];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Payroll Preview ${MONTH_SHORT[month]} ${year}`);
+    XLSX.utils.book_append_sheet(wb, instrWs, 'How to Edit & Re-upload');
+
+    XLSX.writeFile(wb, `Payroll_Preview_${MONTHS[month]}_${year}.xlsx`);
+    toast.success('Excel downloaded — edit and re-upload to apply changes');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb    = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws    = wb.Sheets[wb.SheetNames[0]];
+        const rows  = XLSX.utils.sheet_to_json(ws);
+        // Build adjustments from the uploaded rows (exclude TOTAL row)
+        const adj = {};
+        const overrides = {};
+        rows.filter(r => r['Employee ID'] && r['Employee ID'] !== 'TOTAL').forEach(r => {
+          const empId = String(r['Employee ID'] || '').trim().toUpperCase();
+          if (!empId) return;
+          const lopDays = parseFloat(r['LOP Days'] || 0);
+          const bonus     = parseFloat(r['Bonus (₹)']      || 0);
+          const overtime  = parseFloat(r['Overtime (₹)']   || 0);
+          const incentive = parseFloat(r['Incentive (₹)']  || 0);
+          const tds       = parseFloat(r['TDS (₹)']        || 0);
+          const wp        = parseFloat(r['Working Days']    || 26);
+
+          adj[empId] = {
+            present_days: Math.max(0, wp - lopDays),
+            ...(bonus     > 0 ? { bonus }     : {}),
+            ...(overtime  > 0 ? { overtime }  : {}),
+            ...(incentive > 0 ? { incentive } : {}),
+            ...(tds       > 0 ? { tds }       : {}),
+          };
+        });
+        onApplyAdjustments(adj, overrides);
+        toast.success('Adjustments loaded from Excel — click Preview again to recalculate');
+        onClose();
+        e.target.value = '';
+      } catch (err) {
+        toast.error('Could not read Excel file: ' + err.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1000, display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'24px 16px', overflowY:'auto' }}>
+      <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:1100, boxShadow:'0 24px 80px rgba(0,0,0,0.25)', overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ background:'linear-gradient(135deg,#1E293B,#0F172A)', padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <h2 style={{ color:'#fff', fontSize:18, fontWeight:700, margin:0 }}>
+              📊 Payroll Preview — {MONTHS[month]} {year}
+            </h2>
+            <p style={{ color:'rgba(255,255,255,0.6)', fontSize:13, margin:'4px 0 0' }}>
+              Review salary details before generating. {previews.length} employees · {previews.filter(p=>p.status==='inactive').length > 0 ? `includes ${previews.filter(p=>p.status==='inactive').length} recently-left employee(s)` : 'all active'}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'#fff', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:13 }}>Close ✕</button>
+        </div>
+
+        {/* Summary bar */}
+        <div style={{ display:'flex', gap:0, background:'#F8FAFC', borderBottom:'1px solid #E2E8F0' }}>
+          {[
+            { label:'Employees', value: previews.length, color:'#1E293B' },
+            { label:'Total Gross', value: fmt(totalGross), color:'#1E293B' },
+            { label:'Total Deductions', value: fmt(totalDed), color:'#DC2626' },
+            { label:'Total Net Pay', value: fmt(totalNet), color:'#16A34A' },
+          ].map((s, i) => (
+            <div key={i} style={{ flex:1, padding:'14px 20px', borderRight: i < 3 ? '1px solid #E2E8F0' : 'none' }}>
+              <p style={{ fontSize:11, color:'#64748B', margin:0 }}>{s.label}</p>
+              <p style={{ fontSize:18, fontWeight:700, color:s.color, margin:'2px 0 0' }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowX:'auto', maxHeight:'50vh', overflowY:'auto' }}>
+          <table style={{ width:'100%', fontSize:12, borderCollapse:'collapse' }}>
+            <thead style={{ position:'sticky', top:0, zIndex:2 }}>
+              <tr style={{ background:'#1E293B', color:'#fff' }}>
+                {['#','Employee','Dept','Status','Gross (₹)','Earnings','Deductions','Net Pay (₹)','PF EE','ESI EE','PT','TDS','LOP Days'].map(h => (
+                  <th key={h} style={{ padding:'10px 12px', textAlign: h==='#'?'center':'left', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {previews.map((p, idx) => {
+                const ded = p.deductions || {};
+                const isLeft = p.status === 'inactive';
+                return (
+                  <tr key={p.employee_id} style={{ background: idx%2===0?'#fff':'#F8FAFC', borderBottom:'1px solid #F1F5F9' }}>
+                    <td style={{ padding:'9px 12px', textAlign:'center', color:'#94A3B8' }}>{idx+1}</td>
+                    <td style={{ padding:'9px 12px' }}>
+                      <p style={{ fontWeight:600, color:'#0F172A', margin:0 }}>{p.employee_name}</p>
+                      <p style={{ fontSize:10, color:'#94A3B8', margin:0 }}>{p.employee_id}</p>
+                    </td>
+                    <td style={{ padding:'9px 12px', color:'#475569' }}>{p.department || '—'}</td>
+                    <td style={{ padding:'9px 12px' }}>
+                      {isLeft
+                        ? <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2', color:'#991B1B', padding:'2px 7px', borderRadius:20 }}>LEFT</span>
+                        : <span style={{ fontSize:10, fontWeight:700, background:'#DCFCE7', color:'#166534', padding:'2px 7px', borderRadius:20 }}>ACTIVE</span>
+                      }
+                    </td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:600, color:'#0F172A' }}>{fmt(p.gross_salary)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#166534' }}>{fmt(p.total_earnings)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#DC2626' }}>{fmt(p.total_deductions)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#0F172A', background:'#F0FDF4' }}>{fmt(p.net_salary)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.pf_employee)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.esi_employee)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.pt)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.tds)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', color: p.lop_days>0?'#DC2626':'#94A3B8', fontWeight: p.lop_days>0?700:400 }}>{p.lop_days || 0}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            {/* Totals */}
+            <tfoot>
+              <tr style={{ background:'#FFF7ED', borderTop:'2px solid #FCD34D' }}>
+                <td colSpan={4} style={{ padding:'10px 12px', fontWeight:700, color:'#92400E', fontSize:12 }}>TOTAL — {previews.length} employees</td>
+                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#0F172A' }}>{fmt(totalGross)}</td>
+                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#166534' }}>{fmt(previews.reduce((s,p)=>s+(p.total_earnings||0),0))}</td>
+                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#DC2626' }}>{fmt(totalDed)}</td>
+                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#166534', background:'#F0FDF4' }}>{fmt(totalNet)}</td>
+                <td colSpan={5} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Footer actions */}
+        <div style={{ padding:'16px 24px', background:'#F8FAFC', borderTop:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+          <button
+            onClick={downloadExcel}
+            style={{ display:'flex', alignItems:'center', gap:7, background:'#16A34A', color:'#fff', border:'none', borderRadius:9, padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}
+          >
+            <FileSpreadsheet size={15} /> Download Excel — Edit & Re-upload
+          </button>
+
+          <label style={{ display:'flex', alignItems:'center', gap:7, background:'#2563EB', color:'#fff', border:'none', borderRadius:9, padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+            <Upload size={15} /> Upload Adjusted Excel
+            <input type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleFileUpload} />
+          </label>
+
+          <span style={{ fontSize:12, color:'#64748B', flex:1 }}>
+            💡 Download Excel → edit LOP, bonus, TDS → re-upload → preview again
+          </span>
+
+          <button onClick={onClose} style={{ background:'none', border:'1px solid #CBD5E1', borderRadius:9, padding:'9px 18px', fontSize:13, cursor:'pointer', color:'#475569' }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main SendPage ─────────────────────────────────────────────────────────────
 export default function SendPage() {
   const qc  = useQueryClient();
   const now = new Date();
@@ -92,17 +364,23 @@ export default function SendPage() {
   const [workingDays, setWorkingDays] = useState(26);
   const [genLoading,  setGenLoading]  = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Exceptions — only these are stored; everyone else is normal
-  const [lopList,          setLopList]          = useState([]);   // [{ emp, absentDays }]
-  const [excludeList,      setExcludeList]      = useState([]);   // [emp]
-  const [extrasList,       setExtrasList]       = useState([]);   // [{ emp, ...values }]
-  const [salaryOverrides,  setSalaryOverrides]  = useState([]);   // [{ emp, salary }]
+  const [lopList,         setLopList]         = useState([]);
+  const [excludeList,     setExcludeList]     = useState([]);
+  const [extrasList,      setExtrasList]       = useState([]);
+  const [salaryOverrides, setSalaryOverrides]  = useState([]);
 
+  // Fetch employees who were active DURING the selected month
+  // This includes: active employees + inactive employees who left AFTER the selected month
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees', 'active'],
-    queryFn: () => api.get('/employees?status=active').then(r => r.data),
+    queryKey: ['employees', 'as_of', month, year],
+    queryFn: () => api.get(`/employees?as_of_month=${month}&as_of_year=${year}`).then(r => r.data),
   });
+
   const { data: allPayslips = [] } = useQuery({
     queryKey: ['payslips'],
     queryFn: () => api.get('/payslips').then(r => r.data),
@@ -142,9 +420,11 @@ export default function SendPage() {
   // Derived counts
   const excludedIds   = new Set(excludeList.map(e => e.employee_id));
   const lopIds        = new Set(lopList.map(l => l.emp.employee_id));
+  const activeEmps    = employees.filter(e => e.status !== 'inactive');
+  const leftEmps      = employees.filter(e => e.status === 'inactive');
   const selectedCount = employees.length - excludeList.length;
 
-  // Department summary
+  // Department summary — only active
   const deptMap = {};
   employees.forEach(e => {
     const d = e.department || 'No Dept';
@@ -166,7 +446,6 @@ export default function SendPage() {
     return adj;
   };
 
-  // Build salary overrides object for API
   const buildSalaryOverrides = () => {
     const overrides = {};
     salaryOverrides.forEach(({ emp, salary }) => {
@@ -175,15 +454,51 @@ export default function SendPage() {
     return overrides;
   };
 
-  // Salary override helpers
-  const overrideIds   = new Set(salaryOverrides.map(e => e.emp.employee_id));
-  const addOverride   = (emp) => {
-    if (overrideIds.has(emp.employee_id)) return;
-    setSalaryOverrides(prev => [...prev, { emp, salary: emp.salary || '' }]);
+  // Apply adjustments from Excel re-upload
+  const applyAdjustmentsFromExcel = (adj) => {
+    // Convert adj object to lopList entries
+    const newLopList = [];
+    Object.entries(adj).forEach(([empId, empAdj]) => {
+      const emp = employees.find(e => e.employee_id === empId);
+      if (!emp) return;
+      const absentDays = workingDays - (empAdj.present_days || workingDays);
+      if (absentDays > 0) newLopList.push({ emp, absentDays: String(absentDays) });
+      // Handle extras
+      const extraKeys = ['bonus','overtime','incentive','tds'];
+      const hasAnyExtra = extraKeys.some(k => empAdj[k] > 0);
+      if (hasAnyExtra) {
+        const extrasEntry = { emp };
+        extraKeys.forEach(k => { if (empAdj[k] > 0) extrasEntry[k] = String(empAdj[k]); });
+        setExtrasList(prev => {
+          const filtered = prev.filter(e => e.emp.employee_id !== empId);
+          return [...filtered, extrasEntry];
+        });
+      }
+    });
+    if (newLopList.length > 0) setLopList(newLopList);
   };
-  const removeOverride   = (empId) => setSalaryOverrides(prev => prev.filter(e => e.emp.employee_id !== empId));
-  const setOverrideSalary = (empId, val) =>
-    setSalaryOverrides(prev => prev.map(e => e.emp.employee_id === empId ? { ...e, salary: val } : e));
+
+  const previewSalaries = async () => {
+    setPreviewLoading(true);
+    try {
+      const selectedIds = employees
+        .filter(e => !excludedIds.has(e.employee_id))
+        .map(e => e.employee_id);
+      const res = await api.post('/payslips/preview', {
+        month, year,
+        working_days: workingDays,
+        adjustments: buildAdjustments(),
+        employee_ids: selectedIds,
+        salary_overrides: buildSalaryOverrides(),
+      });
+      setPreviewData(res.data);
+      setPreviewOpen(true);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Preview failed');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const generate = async () => {
     if (selectedCount === 0) { toast.error('No employees selected'); return; }
@@ -199,8 +514,7 @@ export default function SendPage() {
         .filter(e => !excludedIds.has(e.employee_id))
         .map(e => e.employee_id);
       await api.post('/payslips/generate', {
-        month,
-        year,
+        month, year,
         working_days: workingDays,
         adjustments: buildAdjustments(),
         employee_ids: selectedIds,
@@ -234,32 +548,44 @@ export default function SendPage() {
     if (lopIds.has(emp.employee_id)) return;
     setLopList(prev => [...prev, { emp, absentDays: '' }]);
   };
-  const removeLop = (empId) => setLopList(prev => prev.filter(l => l.emp.employee_id !== empId));
+  const removeLop  = (empId) => setLopList(prev => prev.filter(l => l.emp.employee_id !== empId));
   const setLopDays = (empId, val) =>
     setLopList(prev => prev.map(l => l.emp.employee_id === empId ? { ...l, absentDays: val } : l));
 
   // Exclude helpers
-  const addExclude = (emp) => {
-    if (excludedIds.has(emp.employee_id)) return;
-    setExcludeList(prev => [...prev, emp]);
-  };
+  const addExclude    = (emp) => { if (excludedIds.has(emp.employee_id)) return; setExcludeList(prev => [...prev, emp]); };
   const removeExclude = (empId) => setExcludeList(prev => prev.filter(e => e.employee_id !== empId));
 
   // Extras helpers
-  const extrasIds = new Set(extrasList.map(e => e.emp.employee_id));
-  const addExtras = (emp) => {
-    if (extrasIds.has(emp.employee_id)) return;
-    setExtrasList(prev => [...prev, { emp }]);
-  };
+  const extrasIds  = new Set(extrasList.map(e => e.emp.employee_id));
+  const addExtras  = (emp) => { if (extrasIds.has(emp.employee_id)) return; setExtrasList(prev => [...prev, { emp }]); };
   const removeExtras = (empId) => setExtrasList(prev => prev.filter(e => e.emp.employee_id !== empId));
   const setExtrasVal = (empId, key, val) =>
     setExtrasList(prev => prev.map(e => e.emp.employee_id === empId ? { ...e, [key]: val } : e));
 
+  // Salary override helpers
+  const overrideIds      = new Set(salaryOverrides.map(e => e.emp.employee_id));
+  const addOverride      = (emp) => { if (overrideIds.has(emp.employee_id)) return; setSalaryOverrides(prev => [...prev, { emp, salary: emp.salary || '' }]); };
+  const removeOverride   = (empId) => setSalaryOverrides(prev => prev.filter(e => e.emp.employee_id !== empId));
+  const setOverrideSalary = (empId, val) =>
+    setSalaryOverrides(prev => prev.map(e => e.emp.employee_id === empId ? { ...e, salary: val } : e));
+
   return (
     <div className="p-6 space-y-5">
+      <PreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        data={previewData}
+        month={month}
+        year={year}
+        onApplyAdjustments={applyAdjustmentsFromExcel}
+      />
+
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Generate & Send Payslips</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Select month → mark exceptions → generate → send</p>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Step 1: Select month → Step 2: Mark exceptions → Step 3: Preview → Step 4: Generate → Step 5: Send emails
+        </p>
       </div>
 
       {/* Month selector */}
@@ -283,30 +609,49 @@ export default function SendPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Active Employees', value: employees.length,      color: 'text-slate-900' },
-          { label: 'Will Get Payslip', value: selectedCount,         color: 'text-green-700' },
-          { label: 'Emails Sent',      value: emailedCount,          color: 'text-blue-700'  },
-          { label: 'Total Payroll',    value: fmt(totalPayroll),     color: 'text-slate-900' },
+          { label: 'Employees this month', value: employees.length,          color: 'text-slate-900', sub: leftEmps.length > 0 ? `${leftEmps.length} recently left included` : null },
+          { label: 'Will Get Payslip',     value: selectedCount,            color: 'text-green-700', sub: excludeList.length > 0 ? `${excludeList.length} excluded` : null },
+          { label: 'Emails Sent',          value: emailedCount,             color: 'text-blue-700'  },
+          { label: 'Total Payroll',        value: fmt(totalPayroll),        color: 'text-slate-900' },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="py-3 px-4">
               <p className="text-xs text-slate-500">{s.label}</p>
               <p className={`text-xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+              {s.sub && <p className="text-xs text-amber-600 mt-0.5">{s.sub}</p>}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Recently left employee notice */}
+      {leftEmps.length > 0 && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              {leftEmps.length} recently-left employee{leftEmps.length > 1 ? 's' : ''} included for {MONTHS[month]} {year}
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              {leftEmps.map(e => `${e.employee_name} (left: ${e.date_of_exit || 'unknown'})`).join(', ')}.
+              These employees were still active in {MONTHS[month]}, so payslips will be generated for them.
+              Use the Exclude section below if you don't want a payslip for any of them.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Step 1 — Generate */}
       <Card>
         <CardContent className="py-5 space-y-5">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold flex items-center justify-center shrink-0">1</div>
-            <div>
-              <p className="font-semibold text-slate-900">Generate Payslips</p>
+            <div className="flex-1">
+              <p className="font-semibold text-slate-900">Set Up Payroll</p>
               <p className="text-sm text-slate-500 mt-0.5">
-                All active employees are included by default. Only action the exceptions below.
-                {thisMonthSlips.length > 0 && <span className="text-amber-600 ml-1">({thisMonthSlips.length} already generated — will overwrite.)</span>}
+                All employees active in {MONTHS[month]} {year} are included by default.
+                Only action the exceptions below if any employee has absent days, bonus, or should be skipped.
+                {thisMonthSlips.length > 0 && <span className="text-amber-600 ml-1">({thisMonthSlips.length} already generated — will overwrite if you generate again.)</span>}
               </p>
             </div>
             {thisMonthSlips.length > 0 && <Badge className="bg-green-100 text-green-700 border-green-200 ml-auto shrink-0">Done</Badge>}
@@ -314,17 +659,17 @@ export default function SendPage() {
 
           {employees.length === 0 && (
             <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-              <AlertCircle size={15} /> No employees found. Add employees first.
+              <AlertCircle size={15} /> No employees found for {MONTHS[month]} {year}. Add employees first.
             </div>
           )}
 
           {employees.length > 0 && (
             <>
-              {/* Working days + department summary */}
+              {/* Working days + summary */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Working Days:</label>
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Working Days in {MONTHS[month]}:</label>
                     <Input
                       type="number"
                       value={workingDays}
@@ -332,6 +677,7 @@ export default function SendPage() {
                       className="h-8 w-20 text-sm"
                       min={1} max={31}
                     />
+                    <span className="text-xs text-slate-400">(adjust for this month's actual working days)</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm text-green-700 font-medium bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
                     <CheckCircle2 size={14} />
@@ -351,18 +697,21 @@ export default function SendPage() {
                 </div>
               </div>
 
-              {/* SECTION A — Mark LOP */}
+              {/* SECTION A — LOP */}
               {hasLop && (
                 <div className="rounded-xl border border-red-100 overflow-hidden">
                   <div className="bg-red-50 px-4 py-3 border-b border-red-100">
-                    <p className="text-sm font-semibold text-red-800">🔴 Mark LOP — Who was absent this month?</p>
-                    <p className="text-xs text-red-600 mt-0.5">Search and add only the employees who missed days. Everyone else gets full salary.</p>
+                    <p className="text-sm font-semibold text-red-800">🔴 LOP — Mark Absent Days</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Only add employees who were absent. Leave everyone else — they get full salary.
+                      System automatically calculates proportional deduction: (absent days ÷ working days) × gross salary.
+                    </p>
                   </div>
                   <div className="p-4 space-y-3">
                     <EmpSearch
                       employees={employees}
                       exclude={[...lopIds, ...excludedIds]}
-                      placeholder="Search employee name or ID to mark LOP…"
+                      placeholder="Search employee name or ID to mark absent days…"
                       onSelect={addLop}
                     />
                     {lopList.length === 0 && (
@@ -377,7 +726,9 @@ export default function SendPage() {
                               className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-800 truncate">{emp.employee_name}</p>
-                                <p className="text-xs text-slate-500">{emp.employee_id}{emp.department ? ` · ${emp.department}` : ''}</p>
+                                <p className="text-xs text-slate-500">{emp.employee_id}{emp.department ? ` · ${emp.department}` : ''}
+                                  {emp.status === 'inactive' && <span className="ml-1 text-red-400">(Left)</span>}
+                                </p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <div className="text-right">
@@ -387,8 +738,7 @@ export default function SendPage() {
                                     value={absentDays}
                                     onChange={e => setLopDays(emp.employee_id, e.target.value)}
                                     className="h-8 w-20 text-sm text-center border-red-300 bg-white"
-                                    min={0} max={workingDays}
-                                    placeholder="0"
+                                    min={0} max={workingDays} placeholder="0"
                                   />
                                 </div>
                                 <div className="text-right">
@@ -409,21 +759,24 @@ export default function SendPage() {
                 </div>
               )}
 
-              {/* SECTION B — Exclude employees */}
+              {/* SECTION B — Exclude */}
               <div className="rounded-xl border border-amber-100 overflow-hidden">
                 <div className="bg-amber-50 px-4 py-3 border-b border-amber-100">
-                  <p className="text-sm font-semibold text-amber-800">⛔ Exclude Employees — Skip anyone this month?</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Search and add employees who should NOT get a payslip this month (e.g. on leave without pay, new joiner mid-month).</p>
+                  <p className="text-sm font-semibold text-amber-800">⛔ Skip Employees — Don't generate payslip for these</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Use this for: new joiner paid from mid-month separately, employee on unpaid leave, or if you want to hold a payslip.
+                    Excluded employees will not appear in the generated list.
+                  </p>
                 </div>
                 <div className="p-4 space-y-3">
                   <EmpSearch
                     employees={employees}
                     exclude={[...excludedIds]}
-                    placeholder="Search to exclude an employee this month…"
+                    placeholder="Search to exclude an employee from this month's payroll…"
                     onSelect={addExclude}
                   />
                   {excludeList.length === 0 && (
-                    <p className="text-xs text-slate-400 text-center py-2">No exclusions — all active employees included</p>
+                    <p className="text-xs text-slate-400 text-center py-2">No exclusions — all employees included</p>
                   )}
                   {excludeList.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -445,21 +798,23 @@ export default function SendPage() {
                 </div>
               </div>
 
-              {/* SECTION C — Extras (bonus, overtime, TDS) */}
+              {/* SECTION C — Extras */}
               {hasExtras && (
                 <div className="rounded-xl border border-orange-100 overflow-hidden">
                   <div className="bg-orange-50 px-4 py-3 border-b border-orange-100">
                     <p className="text-sm font-semibold text-orange-800">
                       <Settings2 size={14} className="inline mr-1.5" />
-                      Extra Adjustments — Bonus, Overtime, TDS
+                      Extra Earnings / Deductions — Bonus, Overtime, Incentive, TDS
                     </p>
-                    <p className="text-xs text-orange-600 mt-0.5">Search and add employees who have extra earnings or deductions this month.</p>
+                    <p className="text-xs text-orange-600 mt-0.5">
+                      Add this only for employees who have extra earnings or special deductions this month.
+                    </p>
                   </div>
                   <div className="p-4 space-y-3">
                     <EmpSearch
                       employees={employees}
                       exclude={[...extrasIds]}
-                      placeholder="Search to add bonus / overtime / TDS for an employee…"
+                      placeholder="Search employee to add bonus / overtime / TDS…"
                       onSelect={addExtras}
                     />
                     {extrasList.length === 0 && (
@@ -482,8 +837,7 @@ export default function SendPage() {
                                   value={item[col.key] || ''}
                                   onChange={e => setExtrasVal(item.emp.employee_id, col.key, e.target.value)}
                                   className="h-8 w-24 text-sm text-center"
-                                  placeholder="0"
-                                  min={0}
+                                  placeholder="0" min={0}
                                 />
                               </div>
                             ))}
@@ -499,13 +853,13 @@ export default function SendPage() {
                 </div>
               )}
 
-              {/* SECTION D — Salary Override (for retroactive / different pay months) */}
+              {/* SECTION D — Salary Override */}
               <div className="rounded-xl border border-purple-100 overflow-hidden">
                 <div className="bg-purple-50 px-4 py-3 border-b border-purple-100">
                   <p className="text-sm font-semibold text-purple-800">💰 Different Salary This Month?</p>
                   <p className="text-xs text-purple-600 mt-0.5">
-                    Use this for past months where an employee was paid less than their current salary.
-                    Leave blank for everyone unless their salary was different this month.
+                    Use for retroactive payslips where the employee was paid a different amount that month.
+                    Leave blank unless the salary was actually different — system uses master salary by default.
                   </p>
                 </div>
                 <div className="p-4 space-y-3">
@@ -516,9 +870,7 @@ export default function SendPage() {
                     onSelect={addOverride}
                   />
                   {salaryOverrides.length === 0 && (
-                    <p className="text-xs text-slate-400 text-center py-2">
-                      No overrides — all employees use their current master salary
-                    </p>
+                    <p className="text-xs text-slate-400 text-center py-2">No overrides — all employees use master salary</p>
                   )}
                   {salaryOverrides.length > 0 && (
                     <div className="space-y-2">
@@ -528,7 +880,7 @@ export default function SendPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">{emp.employee_name}</p>
                             <p className="text-xs text-slate-500">
-                              {emp.employee_id} · Current master salary: ₹{Number(emp.salary||0).toLocaleString('en-IN')}
+                              {emp.employee_id} · Master salary: ₹{Number(emp.salary||0).toLocaleString('en-IN')}/mo
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
@@ -540,8 +892,7 @@ export default function SendPage() {
                                 value={salary}
                                 onChange={e => setOverrideSalary(emp.employee_id, e.target.value)}
                                 className="h-8 w-36 text-sm pl-6 text-right border-purple-300 bg-white"
-                                placeholder="e.g. 25000"
-                                min={0}
+                                placeholder="e.g. 25000" min={0}
                               />
                             </div>
                           </div>
@@ -566,50 +917,87 @@ export default function SendPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-red-400">{lopList.length}</p>
-                    <p className="text-xs text-slate-400">With LOP</p>
+                    <p className="text-xs text-slate-400">With LOP / absent days</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-amber-400">{excludeList.length}</p>
-                    <p className="text-xs text-slate-400">Excluded</p>
+                    <p className="text-xs text-slate-400">Excluded this month</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-blue-400">{extrasList.length}</p>
-                    <p className="text-xs text-slate-400">With extras</p>
+                    <p className="text-xs text-slate-400">With bonus / overtime</p>
                   </div>
                 </div>
+                {leftEmps.length > 0 && (
+                  <p className="text-xs text-amber-400 mt-3 text-center">
+                    ⚠ {leftEmps.filter(e => !excludedIds.has(e.employee_id)).length} recently-left employee(s) included — generating payslip for their last working month.
+                  </p>
+                )}
               </div>
 
-              <button
-                onClick={generate}
-                disabled={genLoading || selectedCount === 0}
-                style={{
-                  width: '100%',
-                  padding: '14px 20px',
-                  background: genLoading || selectedCount === 0 ? '#CBD5E1' : 'linear-gradient(135deg, #F97316, #EA580C)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 16,
-                  fontWeight: 700,
-                  cursor: genLoading || selectedCount === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10,
-                  boxShadow: genLoading || selectedCount === 0 ? 'none' : '0 4px 14px rgba(234,88,12,0.35)',
-                  transition: 'all 0.15s ease',
-                  letterSpacing: '0.01em',
-                }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #EA580C, #C2410C)'; }}
-                onMouseLeave={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #F97316, #EA580C)'; }}
-              >
-                <FileText size={18} />
-                {genLoading
-                  ? '⏳ Generating Payslips…'
-                  : selectedCount === 0
-                    ? 'Select employees above to generate'
-                    : `🚀 Generate ${selectedCount} Payslips — ${MONTHS[month]} ${year}`}
-              </button>
+              {/* Preview + Generate buttons */}
+              <div className="flex flex-col gap-3">
+                {/* Preview button */}
+                <button
+                  onClick={previewSalaries}
+                  disabled={previewLoading || selectedCount === 0}
+                  style={{
+                    width: '100%',
+                    padding: '12px 20px',
+                    background: previewLoading || selectedCount === 0 ? '#F1F5F9' : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+                    color: previewLoading || selectedCount === 0 ? '#94A3B8' : '#fff',
+                    border: '2px solid ' + (previewLoading || selectedCount === 0 ? '#E2E8F0' : '#1D4ED8'),
+                    borderRadius: 12,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: previewLoading || selectedCount === 0 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Eye size={17} />
+                  {previewLoading ? '⏳ Calculating preview…' : `📊 Preview Salaries — See breakdown before generating`}
+                </button>
+
+                {/* Generate button */}
+                <button
+                  onClick={generate}
+                  disabled={genLoading || selectedCount === 0}
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    background: genLoading || selectedCount === 0 ? '#CBD5E1' : 'linear-gradient(135deg, #F97316, #EA580C)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: genLoading || selectedCount === 0 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    boxShadow: genLoading || selectedCount === 0 ? 'none' : '0 4px 14px rgba(234,88,12,0.35)',
+                    transition: 'all 0.15s ease',
+                    letterSpacing: '0.01em',
+                  }}
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #EA580C, #C2410C)'; }}
+                  onMouseLeave={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #F97316, #EA580C)'; }}
+                >
+                  <FileText size={18} />
+                  {genLoading
+                    ? '⏳ Generating Payslips…'
+                    : selectedCount === 0
+                      ? 'No employees selected'
+                      : `🚀 Generate ${selectedCount} Payslips — ${MONTHS[month]} ${year}`}
+                </button>
+                <p className="text-xs text-center text-slate-400">
+                  💡 Tip: Preview first to review salary breakdown, then generate. You can regenerate to correct mistakes.
+                </p>
+              </div>
             </>
           )}
         </CardContent>
@@ -621,11 +1009,11 @@ export default function SendPage() {
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 text-sm font-bold flex items-center justify-center shrink-0">2</div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-900">Send Emails</p>
+              <p className="font-semibold text-slate-900">Send Payslips by Email</p>
               <p className="text-sm text-slate-500 mt-0.5">
                 {pendingEmail.length > 0
-                  ? `${pendingEmail.length} payslip${pendingEmail.length > 1 ? 's' : ''} ready to send.`
-                  : emailedCount > 0 ? 'All emails sent.' : 'Generate payslips first, then send.'}
+                  ? `${pendingEmail.length} payslip${pendingEmail.length > 1 ? 's' : ''} ready to email. Each employee gets a PDF of their payslip.`
+                  : emailedCount > 0 ? 'All emails sent for this month.' : 'Generate payslips first (Step 1), then send emails.'}
               </p>
             </div>
             {emailedCount > 0 && emailedCount === thisMonthSlips.length && (
@@ -665,7 +1053,7 @@ export default function SendPage() {
             className="w-full bg-green-600 hover:bg-green-700 text-white h-10"
           >
             <Mail size={15} className="mr-2" />
-            {sendLoading ? 'Sending…' : `Send ${pendingEmail.length || ''} Emails`}
+            {sendLoading ? 'Sending…' : `Send ${pendingEmail.length || ''} Emails — ${MONTHS[month]} ${year}`}
           </Button>
         </CardContent>
       </Card>

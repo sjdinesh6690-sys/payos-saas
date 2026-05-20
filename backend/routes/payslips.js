@@ -41,6 +41,61 @@ router.get('/months', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── POST preview payslips (calculate but do NOT save) ────────────────────────
+router.post('/preview', async (req, res) => {
+  try {
+    const { month, year, adjustments = {}, working_days, employee_ids, salary_overrides = {} } = req.body;
+    if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+
+    const targetMonthStart = `${String(parseInt(year)).padStart(4,'0')}-${String(parseInt(month)).padStart(2,'0')}-01`;
+
+    let empQuery = `SELECT * FROM employees WHERE admin_id = $1 AND (
+      (status = 'active' OR status IS NULL)
+      OR
+      (status = 'inactive' AND (date_of_exit IS NULL OR date_of_exit >= $2))
+    )`;
+    const empParams = [req.admin_id, targetMonthStart];
+
+    if (Array.isArray(employee_ids) && employee_ids.length > 0) {
+      empQuery += ` AND employee_id = ANY($3::text[])`;
+      empParams.push(employee_ids);
+    }
+    empQuery += ' ORDER BY employee_name ASC';
+
+    const empResult = await pool.query(empQuery, empParams);
+
+    const cfgResult = await pool.query('SELECT config FROM payroll_configs WHERE admin_id = $1', [req.admin_id]);
+    const config = cfgResult.rows.length ? cfgResult.rows[0].config : getDefaultConfig();
+
+    const previews = empResult.rows.map(emp => {
+      const overrideSalary = salary_overrides[emp.employee_id];
+      const empData = overrideSalary ? { ...emp, salary: Number(overrideSalary) } : emp;
+      const empAdj  = { working_days: working_days || 26, ...(adjustments[emp.employee_id] || {}) };
+      const calc    = calculatePayslip(empData, config, empAdj);
+      return {
+        employee_id:   emp.employee_id,
+        employee_name: emp.employee_name,
+        department:    emp.department || '',
+        designation:   emp.designation || '',
+        status:        emp.status || 'active',
+        date_of_exit:  emp.date_of_exit || null,
+        gross_salary:  calc.gross_salary,
+        net_salary:    calc.net_salary,
+        total_earnings:    calc.total_earnings,
+        total_deductions:  calc.total_deductions,
+        working_days:  calc.working_days,
+        present_days:  calc.present_days,
+        lop_days:      calc.lop_days,
+        earnings:      calc.earnings,
+        deductions:    calc.deductions,
+        employer_contributions: calc.employer_contributions,
+      };
+    });
+
+    res.json({ previews, month, year, count: previews.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── POST generate payslips ────────────────────────────────────────────────────
 router.post('/generate', async (req, res) => {
   try {

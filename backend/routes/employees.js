@@ -12,8 +12,19 @@ router.get('/', async (req, res) => {
     const statusFilter = req.query.status; // 'active' | 'inactive' | omit for all
     let whereClause = 'e.admin_id = $1';
     const params = [req.admin_id];
-    if (statusFilter === 'active')   { whereClause += ` AND (e.status = 'active' OR e.status IS NULL)`; }
-    if (statusFilter === 'inactive') { whereClause += ` AND e.status = 'inactive'`; }
+
+    // as_of_month / as_of_year — return employees who were employed during that month
+    // (active employees + inactive employees whose exit date is on or after the 1st of that month)
+    if (req.query.as_of_month && req.query.as_of_year) {
+      const m  = String(parseInt(req.query.as_of_month)).padStart(2, '0');
+      const y  = parseInt(req.query.as_of_year);
+      const dt = `${y}-${m}-01`;
+      whereClause += ` AND ((e.status = 'active' OR e.status IS NULL) OR (e.status = 'inactive' AND (e.date_of_exit IS NULL OR e.date_of_exit >= $2)))`;
+      params.push(dt);
+    } else {
+      if (statusFilter === 'active')   { whereClause += ` AND (e.status = 'active' OR e.status IS NULL)`; }
+      if (statusFilter === 'inactive') { whereClause += ` AND e.status = 'inactive'`; }
+    }
 
     const result = await pool.query(`
       SELECT e.*,
