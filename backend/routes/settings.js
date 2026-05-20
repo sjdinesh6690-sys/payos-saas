@@ -1,8 +1,9 @@
-const express = require('express');
-const router  = express.Router();
+const express  = require('express');
+const router   = express.Router();
 const { pool } = require('../database');
 const authCheck = require('../middleware/auth');
 const nodemailer = require('nodemailer');
+const { encrypt, decrypt } = require('../lib/crypto');
 
 router.use(authCheck);
 
@@ -20,8 +21,10 @@ router.get('/', async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Admin not found' });
     const row = result.rows[0];
-    // Don't send the raw password back — mask it
-    if (row.smtp_pass) row.smtp_pass = '••••••••';
+    // Decrypt SMTP password for internal use, then mask it before sending to frontend
+    if (row.smtp_pass) {
+      row.smtp_pass = '••••••••'; // Never send raw/decrypted password to frontend
+    }
     res.json({ settings: row });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -42,12 +45,13 @@ router.put('/', async (req, res) => {
     // Strip spaces from app password (Gmail shows it with spaces — users often copy them)
     const cleanPass = smtp_pass && smtp_pass !== '••••••••'
       ? smtp_pass.replace(/\s/g, '')
-      : smtp_pass;
+      : null;
+
+    // Encrypt the password before storing
+    const encryptedPass = cleanPass ? encrypt(cleanPass) : null;
 
     // Only update smtp_pass if a real value (not the mask) was sent
-    const passSql = cleanPass && cleanPass !== '••••••••'
-      ? `, smtp_pass = $19`
-      : '';
+    const passSql = encryptedPass ? `, smtp_pass = $19` : '';
 
     const params = [
       company_name, company_email, company_phone, company_address,
@@ -58,7 +62,7 @@ router.put('/', async (req, res) => {
       req.admin_id,
     ];
 
-    if (cleanPass && cleanPass !== '••••••••') params.splice(18, 0, cleanPass);
+    if (encryptedPass) params.splice(18, 0, encryptedPass);
 
     // pt_reg_number and state handled separately to keep param count manageable
     await pool.query(
@@ -108,8 +112,8 @@ router.post('/test-smtp', async (req, res) => {
       return res.status(400).json({ error: 'SMTP host, user and password are required' });
     }
 
-    // Strip spaces — Gmail app passwords are displayed with spaces (e.g. "abcd efgh ijkl mnop")
-    // but must be entered without them
+    // Strip spaces — Gmail app passwords are displayed with spaces
+    // Also support when user is re-testing with a freshly-typed password (not encrypted yet)
     smtp_pass = smtp_pass.replace(/\s/g, '');
     smtp_port = parseInt(smtp_port) || 587;
 

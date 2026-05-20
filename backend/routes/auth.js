@@ -5,6 +5,7 @@ const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
 const router     = express.Router();
 const { pool, auditLog } = require('../database');
+const { decrypt } = require('../lib/crypto');
 
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
 router.post('/admin-signup', async (req, res) => {
@@ -159,7 +160,8 @@ router.post('/forgot-password', async (req, res) => {
     const smtpHost = admin.smtp_host || process.env.SMTP_HOST;
     const smtpPort = parseInt(admin.smtp_port || process.env.SMTP_PORT || 587);
     const smtpUser = admin.smtp_user || process.env.SMTP_USER;
-    const smtpPass = admin.smtp_pass || process.env.SMTP_PASS;
+    // Decrypt stored SMTP password (backwards-compatible with plaintext)
+    const smtpPass = admin.smtp_pass ? decrypt(admin.smtp_pass) : process.env.SMTP_PASS;
     const smtpFrom = admin.smtp_from || smtpUser;
 
     if (!smtpHost || !smtpUser || !smtpPass) {

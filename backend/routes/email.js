@@ -6,6 +6,7 @@ const { pool }    = require('../database');
 const authCheck   = require('../middleware/auth');
 const { getDefaultConfig } = require('../lib/payrollEngine');
 const { renderPayslipPDF } = require('../lib/pdfTemplates');
+const { decrypt } = require('../lib/crypto');
 
 router.use(authCheck);
 
@@ -57,7 +58,8 @@ router.post('/send', async (req, res) => {
     const smtpHost = admin.smtp_host || process.env.SMTP_HOST;
     const smtpPort = admin.smtp_port || process.env.SMTP_PORT;
     const smtpUser = admin.smtp_user || process.env.SMTP_USER;
-    const smtpPass = admin.smtp_pass || process.env.SMTP_PASS;
+    // Decrypt stored SMTP password (falls back gracefully if stored as plaintext)
+    const smtpPass = admin.smtp_pass ? decrypt(admin.smtp_pass) : process.env.SMTP_PASS;
 
     const smtpConfigured = !!(smtpHost && smtpUser && smtpPass);
 

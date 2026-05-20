@@ -280,9 +280,6 @@ export default function EmployeesPage() {
           <Button variant="outline" className="h-9 border-green-300 text-green-700 hover:bg-green-50" onClick={exportExcel}>
             <FileSpreadsheet size={14} className="mr-1.5" /> Export Excel
           </Button>
-          <Button variant="outline" className="h-9" onClick={() => setUploadOpen(true)}>
-            <Upload size={14} className="mr-1.5" /> Import
-          </Button>
           <Button className="h-9 bg-orange-600 hover:bg-orange-700 text-white" onClick={openAdd}>
             <Plus size={14} className="mr-1.5" /> Add Employee
           </Button>
