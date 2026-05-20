@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileText, Search, Calendar, CalendarRange } from 'lucide-react';
+import { Download, FileText, Search, Calendar, CalendarRange, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,15 @@ const RANGE_REPORT_IDS = new Set([
   'cost-to-company','payslip-audit-trail',
 ]);
 
+// Reports that also have an Excel download
+const EXCEL_REPORT_MAP = {
+  'pf-report':               'pf-ecr',
+  'esi-report':              'esi-contribution',
+  'professional-tax-report': 'professional-tax',
+  'bank-advice':             'bank-advice',
+  'salary-register':         'salary-register',
+};
+
 const CATEGORIES = [
   {
     label: 'Payroll Reports',
@@ -24,18 +33,18 @@ const CATEGORIES = [
       { id: 'monthly-payroll-summary',   label: 'Monthly Payroll Summary',     desc: 'Total salaries paid for selected month' },
       { id: 'quarterly-payroll-summary', label: 'Quarterly Payroll Summary',   desc: 'Q1–Q4 salary breakdown — select date range' },
       { id: 'annual-payroll-summary',    label: 'Annual Payroll Summary',      desc: 'Full year salary report — select date range' },
-      { id: 'salary-register',           label: 'Salary Register',             desc: 'Detailed payroll register with all employees' },
-      { id: 'bank-advice',               label: 'Bank Advice / Transfer List', desc: 'Employee bank transfer details' },
+      { id: 'salary-register',           label: 'Salary Register',             desc: 'Detailed payroll register — PDF & Excel download' },
+      { id: 'bank-advice',               label: 'Bank Advice / Transfer List', desc: 'Employee bank transfer details — PDF & Excel for bulk upload' },
     ],
   },
   {
     label: 'Statutory & Compliance',
     reports: [
-      { id: 'pf-report',               label: 'PF Contribution Report',    desc: 'Employee & employer PF contributions — supports date range' },
-      { id: 'esi-report',              label: 'ESI Contribution Report',   desc: 'Employee & employer ESI deductions — supports date range' },
-      { id: 'professional-tax-report', label: 'Professional Tax Report',   desc: 'State professional tax deductions — supports date range' },
+      { id: 'pf-report',               label: 'PF Contribution Report',    desc: 'PF contributions — PDF summary + Excel ECR for EPFO portal upload' },
+      { id: 'esi-report',              label: 'ESI Contribution Report',   desc: 'ESI deductions — PDF summary + Excel for ESIC portal' },
+      { id: 'professional-tax-report', label: 'Professional Tax Report',   desc: 'PT deductions — PDF summary + Excel with state slab reference' },
       { id: 'tds-report',              label: 'TDS Report',                desc: 'Tax deducted at source summary — supports date range' },
-      { id: 'statutory-compliance',    label: 'Compliance Checklist',      desc: 'PF/ESI/PT filing status — supports date range' },
+      { id: 'statutory-compliance',    label: 'Compliance Checklist',      desc: 'PF/ESI/PT/TDS filing status — supports date range' },
     ],
   },
   {
@@ -89,15 +98,24 @@ export default function ReportsPage() {
     ? allReports.filter(r => r.label.toLowerCase().includes(search.toLowerCase()) || r.desc.toLowerCase().includes(search.toLowerCase()))
     : null;
 
-  const download = async (id, label) => {
-    setLoading(l => ({ ...l, [id]: true }));
+  const download = async (id, label, format = 'pdf') => {
+    const loadKey = `${id}_${format}`;
+    setLoading(l => ({ ...l, [loadKey]: true }));
     try {
-      const isRange = useRange && RANGE_REPORT_IDS.has(id);
-      let url;
-      if (isRange) {
-        url = `/api/reports/${id}?format=pdf&from_month=${fromMonth}&from_year=${fromYear}&to_month=${toMonth}&to_year=${toYear}`;
+      let url, suffix;
+      if (format === 'excel') {
+        const excelId = EXCEL_REPORT_MAP[id];
+        url    = `/api/reports/excel/${excelId}?month=${month}&year=${year}`;
+        suffix = `${year}_${String(month).padStart(2,'0')}`;
       } else {
-        url = `/api/reports/${id}?format=pdf&month=${month}&year=${year}`;
+        const isRange = useRange && RANGE_REPORT_IDS.has(id);
+        if (isRange) {
+          url    = `/api/reports/${id}?from_month=${fromMonth}&from_year=${fromYear}&to_month=${toMonth}&to_year=${toYear}`;
+          suffix = `${fromYear}_${String(fromMonth).padStart(2,'0')}_to_${toYear}_${String(toMonth).padStart(2,'0')}`;
+        } else {
+          url    = `/api/reports/${id}?month=${month}&year=${year}`;
+          suffix = `${year}_${String(month).padStart(2,'0')}`;
+        }
       }
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${localStorage.getItem('payslip_token')}` },
@@ -106,17 +124,15 @@ export default function ReportsPage() {
       const blob = await res.blob();
       const dlUrl = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      const suffix = isRange
-        ? `${fromYear}_${String(fromMonth).padStart(2,'0')}_to_${toYear}_${String(toMonth).padStart(2,'0')}`
-        : `${year}_${String(month).padStart(2,'0')}`;
-      a.href = dlUrl; a.download = `${label.replace(/\s+/g,'_')}_${suffix}.pdf`;
+      const ext  = format === 'excel' ? 'xlsx' : 'pdf';
+      a.href = dlUrl; a.download = `${label.replace(/\s+/g,'_')}_${suffix}.${ext}`;
       document.body.appendChild(a); a.click();
       URL.revokeObjectURL(dlUrl); document.body.removeChild(a);
-      toast.success(`${label} downloaded`);
+      toast.success(`${label} ${format === 'excel' ? 'Excel' : 'PDF'} downloaded`);
     } catch {
       toast.error('Error generating report');
     } finally {
-      setLoading(l => ({ ...l, [id]: false }));
+      setLoading(l => ({ ...l, [loadKey]: false }));
     }
   };
 
@@ -124,14 +140,19 @@ export default function ReportsPage() {
 
   const ReportCard = ({ r }) => {
     const supportsRange = RANGE_REPORT_IDS.has(r.id);
+    const hasExcel      = !!EXCEL_REPORT_MAP[r.id];
+    const pdfKey        = `${r.id}_pdf`;
+    const xlsKey        = `${r.id}_excel`;
     return (
       <Card>
         <CardContent className="flex items-center justify-between py-4 px-5 gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <div className={`mt-0.5 p-1.5 rounded shrink-0 ${supportsRange ? 'bg-blue-50' : 'bg-slate-100'}`}>
-              {supportsRange
-                ? <CalendarRange size={14} className="text-blue-500" />
-                : <FileText size={14} className="text-slate-500" />
+            <div className={`mt-0.5 p-1.5 rounded shrink-0 ${hasExcel ? 'bg-green-50' : supportsRange ? 'bg-blue-50' : 'bg-slate-100'}`}>
+              {hasExcel
+                ? <FileSpreadsheet size={14} className="text-green-600" />
+                : supportsRange
+                  ? <CalendarRange size={14} className="text-blue-500" />
+                  : <FileText size={14} className="text-slate-500" />
               }
             </div>
             <div className="min-w-0">
@@ -143,15 +164,28 @@ export default function ReportsPage() {
             {supportsRange && useRange && (
               <span className="text-xs bg-blue-50 text-blue-600 border border-blue-100 rounded px-2 py-0.5 whitespace-nowrap">Range</span>
             )}
+            {hasExcel && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={loading[xlsKey]}
+                onClick={() => download(r.id, r.label, 'excel')}
+                className="h-8 border-green-300 text-green-700 hover:bg-green-50"
+                title="Download Excel — suitable for government portal upload"
+              >
+                <FileSpreadsheet size={13} className="mr-1" />
+                {loading[xlsKey] ? 'Generating…' : 'Excel'}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
-              disabled={loading[r.id]}
-              onClick={() => download(r.id, r.label)}
+              disabled={loading[pdfKey]}
+              onClick={() => download(r.id, r.label, 'pdf')}
               className="h-8"
             >
               <Download size={13} className="mr-1" />
-              {loading[r.id] ? 'Generating…' : 'PDF'}
+              {loading[pdfKey] ? 'Generating…' : 'PDF'}
             </Button>
           </div>
         </CardContent>
