@@ -145,7 +145,12 @@ export default function LoginPage() {
                     <Input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@company.com" required />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700">Password</label>
+                      <button type="button" onClick={() => navigate('/forgot-password')} className="text-xs hover:underline" style={{ color: '#1A7A4A' }}>
+                        Forgot password?
+                      </button>
+                    </div>
                     <Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="••••••••" required />
                   </div>
                   <Button type="submit" disabled={loading} className="w-full h-10 text-white" style={{ background: '#1A7A4A' }}>

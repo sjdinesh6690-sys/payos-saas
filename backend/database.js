@@ -124,6 +124,10 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS pt_reg_number VARCHAR(30)`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS state VARCHAR(50)`);
 
+    // Password reset tokens
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token VARCHAR(128)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
+
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (

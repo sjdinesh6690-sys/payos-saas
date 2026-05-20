@@ -6,6 +6,8 @@ import { Toaster } from 'sonner';
 import LandingPage            from '@/pages/LandingPage';
 import LoginPage              from '@/pages/LoginPage';
 import RegisterPage           from '@/pages/RegisterPage';
+import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage      from '@/pages/ResetPasswordPage';
 import OnboardingPage         from '@/pages/OnboardingPage';
 import EmployeePayslipsPage   from '@/pages/EmployeePayslipsPage';
 import PayrollConfigPage      from '@/pages/PayrollConfigPage';
@@ -35,8 +37,10 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
 
           {/* ── Auth ─────────────────────────────────────────────── */}
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login"           element={<LoginPage />} />
+          <Route path="/register"        element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
           {/* ── Onboarding (shown after first login) ─────────────── */}
           <Route path="/onboarding" element={<OnboardingPage />} />
