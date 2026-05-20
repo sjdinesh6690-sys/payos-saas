@@ -265,7 +265,10 @@ export default function EmployeesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Employees</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white" style={{ background: '#1A7A4A' }}>STEP 1 OF 4</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">① Add Employees</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {employees.length} {statusFilter === 'inactive' ? 'former' : statusFilter === 'active' ? 'active' : 'total'} · {filtered.length} shown
             {selected.size > 0 && ` · ${selected.size} selected`}

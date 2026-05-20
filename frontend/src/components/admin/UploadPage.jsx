@@ -450,7 +450,10 @@ export default function UploadPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: 0, marginBottom: 6 }}>Import Employees</h1>
+        <span style={{ display:'inline-block', padding:'2px 10px', borderRadius:999, fontSize:11, fontWeight:700, color:'white', background:'#1A7A4A', marginBottom:6 }}>
+          STEP 1 &amp; 2 OF 4
+        </span>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: 0, marginBottom: 6 }}>① Add Employees &amp; ② Update Salaries</h1>
         <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>
           Add multiple employees at once. Type directly in the grid below, or upload an Excel / CSV file — any format works.
           {employees.length > 0 && <span style={{ color: G, fontWeight: 600, marginLeft: 6 }}>You already have {employees.length} employees.</span>}

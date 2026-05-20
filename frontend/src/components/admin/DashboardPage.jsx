@@ -147,18 +147,141 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Empty state banner */}
-      {isEmpty && (
-        <div className="rounded-xl px-6 py-5 flex items-center justify-between gap-4" style={{ background: '#FFF1ED', border: '1px solid #FDD5C9' }}>
-          <div>
-            <p className="font-semibold" style={{ color: '#7A2E0E' }}>Get started — import your employee data</p>
-            <p className="text-sm mt-0.5" style={{ color: '#C2410C' }}>Upload a CSV file with employee details to start generating payslips.</p>
-          </div>
-          <Button className="text-white shrink-0" style={{ background: '#E85C2F' }} onClick={() => navigate('/admin/upload')}>
-            <Upload size={14} className="mr-1.5" /> Upload CSV
-          </Button>
+      {/* ── Monthly Workflow Guide — always visible ─────────────────────────── */}
+      <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+        {/* Header */}
+        <div className="px-5 py-3 flex items-center gap-2" style={{ background: '#1A7A4A' }}>
+          <span className="text-white font-bold text-sm">📋 Monthly Payroll Steps — Follow This Order Every Month</span>
         </div>
-      )}
+
+        {/* Steps row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 bg-white divide-x divide-y lg:divide-y-0 divide-slate-100">
+          {/* Step 1 — Add Employees */}
+          {(() => {
+            const done = employees.length > 0;
+            const isNext = !done;
+            return (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/employees')}
+                className="flex flex-col items-start gap-2 p-4 text-left hover:bg-green-50 transition-all group"
+                style={{ background: isNext ? '#F0FDF4' : 'white' }}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                    style={{ background: done ? '#16a34a' : isNext ? '#1A7A4A' : '#cbd5e1' }}>
+                    {done ? '✓' : '1'}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide" style={{ color: done ? '#16a34a' : isNext ? '#1A7A4A' : '#94a3b8' }}>
+                    {done ? 'Done' : 'Do This First'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">① Add Employees</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Enter all staff names, IDs, department & salary</p>
+                  <p className="text-xs font-semibold mt-1" style={{ color: '#1A7A4A' }}>
+                    {employees.length} employee{employees.length !== 1 ? 's' : ''} added
+                  </p>
+                </div>
+              </button>
+            );
+          })()}
+
+          {/* Step 2 — Upload Salaries */}
+          {(() => {
+            const step1Done = employees.length > 0;
+            const done = step1Done; // If employees exist, salaries are likely configured
+            const isNext = step1Done && thisMonthSlips.length === 0;
+            return (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/upload')}
+                className="flex flex-col items-start gap-2 p-4 text-left hover:bg-blue-50 transition-all"
+                style={{ background: isNext ? '#EFF6FF' : 'white' }}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                    style={{ background: done ? '#3b82f6' : isNext ? '#1d4ed8' : '#cbd5e1' }}>
+                    2
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide" style={{ color: isNext ? '#1d4ed8' : '#94a3b8' }}>
+                    {isNext ? 'Do This Next' : 'Step 2'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">② Upload Salaries</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Import CSV/Excel with this month's salary data</p>
+                  <p className="text-xs font-semibold mt-1 text-blue-600">
+                    Update salaries if changed this month
+                  </p>
+                </div>
+              </button>
+            );
+          })()}
+
+          {/* Step 3 — Generate & Send */}
+          {(() => {
+            const step2Done = employees.length > 0;
+            const done = thisMonthSlips.length > 0 && emailedCount === thisMonthSlips.length;
+            const inProgress = thisMonthSlips.length > 0 && emailedCount < thisMonthSlips.length;
+            const isNext = step2Done && thisMonthSlips.length === 0;
+            return (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/send')}
+                className="flex flex-col items-start gap-2 p-4 text-left hover:bg-orange-50 transition-all"
+                style={{ background: isNext ? '#FFF7ED' : 'white' }}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                    style={{ background: done ? '#16a34a' : inProgress ? '#f97316' : isNext ? '#ea580c' : '#cbd5e1' }}>
+                    {done ? '✓' : '3'}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide" style={{ color: isNext ? '#ea580c' : inProgress ? '#f97316' : '#94a3b8' }}>
+                    {done ? 'Done' : inProgress ? 'In Progress' : isNext ? 'Do This Next' : 'Step 3'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">③ Generate &amp; Send</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Create payslips and email them to staff</p>
+                  <p className="text-xs font-semibold mt-1" style={{ color: '#ea580c' }}>
+                    {thisMonthSlips.length > 0
+                      ? `${thisMonthSlips.length} payslips · ${emailedCount} emailed`
+                      : 'No payslips yet this month'}
+                  </p>
+                </div>
+              </button>
+            );
+          })()}
+
+          {/* Step 4 — Download Reports */}
+          {(() => {
+            const done = thisMonthSlips.length > 0;
+            return (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/reports')}
+                className="flex flex-col items-start gap-2 p-4 text-left hover:bg-purple-50 transition-all"
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                    style={{ background: done ? '#7c3aed' : '#cbd5e1' }}>
+                    4
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Step 4</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">④ Download Reports</p>
+                  <p className="text-xs text-slate-500 mt-0.5">PF, ESI, Bank Advice, Salary Register</p>
+                  <p className="text-xs font-semibold mt-1 text-purple-600">
+                    {done ? 'Reports ready to download' : 'Generate payslips first'}
+                  </p>
+                </div>
+              </button>
+            );
+          })()}
+        </div>
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

@@ -713,9 +713,14 @@ export default function SendPage() {
       />
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Generate & Send Payslips</h1>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white" style={{ background: '#1A7A4A' }}>
+            STEP 3 OF 4
+          </span>
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900">③ Generate &amp; Send Payslips</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Step 1: Select month → Step 2: Mark exceptions → Step 3: Preview → Step 4: Generate → Step 5: Send emails
+          Select month → Preview salaries → Generate payslips → Email to staff
         </p>
       </div>
 

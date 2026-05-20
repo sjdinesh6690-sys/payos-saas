@@ -8,19 +8,25 @@ router.use(authCheck);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+// Safe number parse — fixes PostgreSQL NUMERIC returning as strings
+const n = (v) => parseFloat(v) || 0;
+
 // Derive statutory deductions from gross salary
 const derive = (salary) => {
-  const gross = salary || 0;
-  const basic = gross * 0.5;
-  const pf    = Math.round(basic * 0.12);
-  const pfEmp = Math.round(basic * 0.12);
-  const esi   = gross <= 21000 ? Math.round(gross * 0.0075) : 0;
+  const gross  = n(salary);           // ← parseFloat fix
+  const basic  = gross * 0.5;
+  const pf     = Math.round(basic * 0.12);
+  const pfEmp  = Math.round(basic * 0.12);
+  const esi    = gross <= 21000 ? Math.round(gross * 0.0075) : 0;
   const esiEmp = gross <= 21000 ? Math.round(gross * 0.0325) : 0;
-  const pt    = gross >= 15000 ? 200 : gross >= 10000 ? 150 : 0;
-  const tds   = gross > 50000 ? Math.round(gross * 0.1) : 0;
-  const net   = gross - pf - esi - pt - tds;
+  const pt     = gross >= 15000 ? 200 : gross >= 10000 ? 150 : 0;
+  const tds    = gross > 50000 ? Math.round(gross * 0.1) : 0;
+  const net    = gross - pf - esi - pt - tds;
   return { gross, pf, pfEmp, esi, esiEmp, pt, tds, net };
 };
+
+// Currency formatter
+const fmt = (v) => `₹${n(v).toLocaleString('en-IN')}`;
 
 // PDF boilerplate
 const startPDF = (res, title, subtitle, filename) => {
@@ -43,42 +49,44 @@ const row = (doc, label, value) => {
   doc.text(value, { align: 'right' });
 };
 
-// Fetch payslips for current month
-const getThisMonth = async (admin_id) => {
+// Fetch payslips for a given month/year (falls back to current month)
+const getPayslips = async (admin_id, month, year) => {
   const now   = new Date();
-  const month = now.getMonth() + 1;
-  const year  = now.getFullYear();
+  const m     = parseInt(month) || (now.getMonth() + 1);
+  const y     = parseInt(year)  || now.getFullYear();
   const result = await pool.query(
     'SELECT * FROM payslips WHERE admin_id = $1 AND month = $2 AND year = $3',
-    [admin_id, month, year]
+    [admin_id, m, y]
   );
-  return result.rows;
+  return { rows: result.rows, month: m, year: y };
 };
+
+// Month label helper
+const monthLabel = (m, y) =>
+  new Date(parseInt(y), parseInt(m) - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
 // GET /api/analytics/salary-cost-analysis
 router.get('/salary-cost-analysis', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const now     = new Date();
-    const doc     = startPDF(res, 'SALARY COST ANALYSIS', 'Total Cost to Company Report', 'salary_cost_analysis.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label = monthLabel(month, year);
+    const doc   = startPDF(res, 'SALARY COST ANALYSIS', 'Total Cost to Company Report', 'salary_cost_analysis.pdf');
 
     if (!records.length) {
-      doc.text('No payslips found for the current month.'); doc.end(); return;
+      doc.text(`No payslips found for ${label}.`); doc.end(); return;
     }
 
     let totGross = 0, totPF = 0, totPFEmp = 0, totESI = 0, totESIEmp = 0, totPT = 0, totTDS = 0;
     records.forEach(p => {
-      const d = derive(p.salary);
+      const d = derive(n(p.gross_salary || p.salary));
       totGross += d.gross; totPF += d.pf; totPFEmp += d.pfEmp;
       totESI += d.esi; totESIEmp += d.esiEmp; totPT += d.pt; totTDS += d.tds;
     });
-    const totalCTC  = totGross + totPFEmp + totESIEmp;
-    const fmt       = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const monthName = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const totalCTC = totGross + totPFEmp + totESIEmp;
 
-    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${monthName}    Employees: ${records.length}`).moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    Employees: ${records.length}`).moveDown(0.5);
     line(doc);
 
     doc.fontSize(11).fillColor('#333').text('EMPLOYEE SALARY', { underline: true }).moveDown(0.3);
@@ -112,24 +120,23 @@ router.get('/salary-cost-analysis', async (req, res) => {
 // GET /api/analytics/department-performance
 router.get('/department-performance', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'DEPARTMENT PERFORMANCE', 'Department-wise Salary & Cost Analysis', 'department_performance.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label = monthLabel(month, year);
+    const doc   = startPDF(res, 'DEPARTMENT PERFORMANCE', 'Department-wise Salary & Cost Analysis', 'department_performance.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
     const depts = {};
     records.forEach(p => {
       const dept = p.department || 'General';
       if (!depts[dept]) depts[dept] = { count: 0, totalGross: 0, totalCTC: 0 };
-      const d = derive(p.salary);
+      const d = derive(n(p.gross_salary || p.salary));
       depts[dept].count++;
       depts[dept].totalGross += d.gross;
       depts[dept].totalCTC  += d.gross + d.pfEmp + d.esiEmp;
     });
 
-    const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
-
-    doc.fontSize(12).fillColor('#1A7A4A').text('DEPARTMENT BREAKDOWN').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    DEPARTMENT BREAKDOWN`).moveDown(0.5);
 
     Object.entries(depts).sort((a, b) => b[1].totalGross - a[1].totalGross).forEach(([dept, data]) => {
       line(doc);
@@ -148,16 +155,17 @@ router.get('/department-performance', async (req, res) => {
 // GET /api/analytics/top-earners
 router.get('/top-earners', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'TOP EARNERS REPORT', 'Top 10 Highest Paid Employees', 'top_earners.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label  = monthLabel(month, year);
+    const doc    = startPDF(res, 'TOP EARNERS REPORT', 'Top 10 Highest Paid Employees', 'top_earners.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
-    const sorted  = [...records].sort((a, b) => (b.salary || 0) - (a.salary || 0)).slice(0, 10);
-    const totAll  = records.reduce((s, p) => s + (p.salary || 0), 0);
-    const totTop  = sorted.reduce((s, p)  => s + (p.salary || 0), 0);
-    const fmt     = (n) => `₹${n.toLocaleString('en-IN')}`;
+    const sorted = [...records].sort((a, b) => n(b.gross_salary || b.salary) - n(a.gross_salary || a.salary)).slice(0, 10);
+    const totAll = records.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+    const totTop = sorted.reduce((s, p)  => s + n(p.gross_salary || p.salary), 0);
 
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}`).moveDown(0.5);
     doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('RANK', 55, doc.y, { width: 35, continued: true });
     doc.text('EMPLOYEE ID', { width: 90, continued: true });
@@ -171,14 +179,14 @@ router.get('/top-earners', async (req, res) => {
       doc.text(String(i + 1).padStart(2, '0'), 55, doc.y, { width: 35, continued: true });
       doc.text(p.employee_id || '—', { width: 90, continued: true });
       doc.text((p.employee_name || '—').substring(0, 25), { width: 180, continued: true });
-      doc.text(fmt(p.salary || 0), { align: 'right' });
+      doc.text(fmt(n(p.gross_salary || p.salary)), { align: 'right' });
     });
 
     line(doc);
     doc.fontSize(11);
     row(doc, 'Total Salary (Top 10)', fmt(totTop));
     row(doc, 'Total Payroll (All)', fmt(totAll));
-    row(doc, 'Top 10 share of payroll', `${((totTop / totAll) * 100).toFixed(1)}%`);
+    row(doc, 'Top 10 share of payroll', totAll > 0 ? `${((totTop / totAll) * 100).toFixed(1)}%` : 'N/A');
 
     doc.end();
   } catch (err) { if (!res.headersSent) res.status(500).json({ error: err.message }); }
@@ -187,22 +195,22 @@ router.get('/top-earners', async (req, res) => {
 // GET /api/analytics/deduction-analytics
 router.get('/deduction-analytics', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'DEDUCTION ANALYTICS', 'Where Employee Salary Goes — Full Breakdown', 'deduction_analytics.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label = monthLabel(month, year);
+    const doc   = startPDF(res, 'DEDUCTION ANALYTICS', 'Where Employee Salary Goes — Full Breakdown', 'deduction_analytics.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
     let totGross = 0, totPF = 0, totESI = 0, totPT = 0, totTDS = 0, totNet = 0;
     records.forEach(p => {
-      const d = derive(p.salary);
+      const d = derive(n(p.gross_salary || p.salary));
       totGross += d.gross; totPF += d.pf; totESI += d.esi;
       totPT += d.pt; totTDS += d.tds; totNet += d.net;
     });
     const totDed = totPF + totESI + totPT + totTDS;
-    const fmt    = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const pct    = (n) => `${((n / totGross) * 100).toFixed(1)}% of gross`;
+    const pct    = (v) => totGross > 0 ? `${((v / totGross) * 100).toFixed(1)}% of gross` : '0%';
 
-    doc.fontSize(12).fillColor('#1A7A4A').text('DEDUCTION SUMMARY').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    DEDUCTION SUMMARY`).moveDown(0.5);
     line(doc);
     row(doc, 'Total Gross Salary', fmt(totGross));
     doc.moveDown(0.3);
@@ -219,7 +227,7 @@ router.get('/deduction-analytics', async (req, res) => {
     doc.fillColor('#333').moveDown(0.5);
 
     doc.fontSize(10).text(`Note: ESI applies only to employees earning ≤ ₹21,000/month (${
-      records.filter(p => (p.salary || 0) <= 21000).length} of ${records.length} employees).`);
+      records.filter(p => n(p.gross_salary || p.salary) <= 21000).length} of ${records.length} employees).`);
 
     doc.end();
   } catch (err) { if (!res.headersSent) res.status(500).json({ error: err.message }); }
@@ -228,26 +236,24 @@ router.get('/deduction-analytics', async (req, res) => {
 // GET /api/analytics/cash-flow-forecast
 router.get('/cash-flow-forecast', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'CASH FLOW FORECAST', 'Payment Schedule & Upcoming Liabilities', 'cash_flow_forecast.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label    = monthLabel(month, year);
+    const nextDate = new Date(parseInt(year), parseInt(month), 1); // first of next month
+    const nextLabel = nextDate.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const doc      = startPDF(res, 'CASH FLOW FORECAST', 'Payment Schedule & Upcoming Liabilities', 'cash_flow_forecast.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
-    let totGross = 0, totPFEmp = 0, totESIEmp = 0, totPT = 0, totTDS = 0;
+    let totGross = 0, totPFEmp = 0, totESIEmp = 0, totPT = 0, totTDS = 0, totPF = 0, totESI = 0;
     records.forEach(p => {
-      const d = derive(p.salary);
-      totGross += d.gross; totPFEmp += d.pfEmp; totESIEmp += d.esiEmp; totPT += d.pt; totTDS += d.tds;
+      const d = derive(n(p.gross_salary || p.salary));
+      totGross += d.gross; totPFEmp += d.pfEmp; totESIEmp += d.esiEmp;
+      totPT += d.pt; totTDS += d.tds; totPF += d.pf; totESI += d.esi;
     });
-    const totPF      = records.reduce((s, p) => s + derive(p.salary).pf,  0);
-    const totPFTotal = totPF + totPFEmp;
-    const totESI     = records.reduce((s, p) => s + derive(p.salary).esi, 0);
+    const totPFTotal  = totPF + totPFEmp;
     const totESITotal = totESI + totESIEmp;
 
-    const fmt          = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const nextMonthName = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
-      .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-
-    doc.fontSize(12).fillColor('#1A7A4A').text(`Payments Due — ${nextMonthName}`).moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Salary Period: ${label}    Payments Due: ${nextLabel}`).moveDown(0.5);
     line(doc);
 
     const schedule = [
@@ -273,13 +279,11 @@ router.get('/cash-flow-forecast', async (req, res) => {
     doc.fillColor('#333').moveDown(1);
 
     doc.fontSize(10).text('CASH FLOW TIPS:', { underline: true }).moveDown(0.3);
-    const tips = [
-      'Keep 2 months of payroll as reserve for smooth operations',
-      'PF & ESI payments attract penalty if delayed — pay on time',
-      'TDS must be deposited by 7th of next month to avoid interest',
-      'Plan salary disbursal 2–3 days before month end for banking delays',
-    ];
-    tips.forEach(t => doc.text(`• ${t}`));
+    ['Keep 2 months of payroll as reserve for smooth operations',
+     'PF & ESI payments attract penalty if delayed — pay on time',
+     'TDS must be deposited by 7th of next month to avoid interest',
+     'Plan salary disbursal 2–3 days before month end for banking delays',
+    ].forEach(t => doc.text(`• ${t}`));
 
     doc.end();
   } catch (err) { if (!res.headersSent) res.status(500).json({ error: err.message }); }
@@ -288,21 +292,21 @@ router.get('/cash-flow-forecast', async (req, res) => {
 // GET /api/analytics/tax-planning
 router.get('/tax-planning', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'TAX PLANNING REPORT', 'Tax Liability Analysis & Saving Opportunities', 'tax_planning.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label = monthLabel(month, year);
+    const doc   = startPDF(res, 'TAX PLANNING REPORT', 'Tax Liability Analysis & Saving Opportunities', 'tax_planning.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
     let totPF = 0, totPFEmp = 0, totESI = 0, totESIEmp = 0, totPT = 0, totTDS = 0, totGross = 0;
     records.forEach(p => {
-      const d = derive(p.salary);
+      const d = derive(n(p.gross_salary || p.salary));
       totGross += d.gross; totPF += d.pf; totPFEmp += d.pfEmp;
       totESI += d.esi; totESIEmp += d.esiEmp; totPT += d.pt; totTDS += d.tds;
     });
     const totTax = totPF + totPFEmp + totESI + totESIEmp + totPT + totTDS;
-    const fmt    = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1A7A4A').text('MONTHLY TAX LIABILITY').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    MONTHLY TAX LIABILITY`).moveDown(0.5);
     line(doc);
     doc.fillColor('#333').fontSize(11);
     row(doc, 'PF (Employee 12%)', fmt(totPF));
@@ -318,14 +322,13 @@ router.get('/tax-planning', async (req, res) => {
     doc.fillColor('#333').moveDown(1);
 
     doc.fontSize(11).text('TAX PLANNING RECOMMENDATIONS', { underline: true }).moveDown(0.5);
-    const recs = [
+    [
       ['PF Optimisation', 'PF is 12% of basic (usually 50% of gross). Review basic structure if eligible for EPFO exemption.'],
-      ['ESI Boundary', `${records.filter(p => (p.salary||0) <= 21000).length} employee(s) below ₹21,000 threshold. Plan increments carefully to avoid sudden ESI liability change.`],
+      ['ESI Boundary', `${records.filter(p => n(p.gross_salary || p.salary) <= 21000).length} employee(s) below ₹21,000 threshold. Plan increments carefully to avoid sudden ESI liability change.`],
       ['Professional Tax', 'PT is state-specific. Confirm correct state slab is applied for each employee location.'],
       ['TDS / Form 16', 'Deduct TDS accurately and issue Form 16 by June 15 each year. Late issuance attracts penalty.'],
-    ];
-    recs.forEach(([title, text]) => {
-      doc.fontSize(10).fillColor('#1A7A4A').text(`▸ ${title}:`, { continued: false });
+    ].forEach(([title, text]) => {
+      doc.fontSize(10).fillColor('#1A7A4A').text(`▸ ${title}:`);
       doc.fillColor('#333').text(`  ${text}`).moveDown(0.4);
     });
 
@@ -336,12 +339,13 @@ router.get('/tax-planning', async (req, res) => {
 // GET /api/analytics/salary-distribution
 router.get('/salary-distribution', async (req, res) => {
   try {
-    const records  = await getThisMonth(req.admin_id);
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label    = monthLabel(month, year);
     const doc      = startPDF(res, 'SALARY DISTRIBUTION', 'Salary Range Analysis', 'salary_distribution.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
-    const salaries = records.map(p => p.salary || 0);
+    const salaries = records.map(p => n(p.gross_salary || p.salary));
     const buckets  = [
       { label: 'Below ₹15,000',         min: 0,      max: 14999    },
       { label: '₹15,000 – ₹25,000',     min: 15000,  max: 25000    },
@@ -349,14 +353,13 @@ router.get('/salary-distribution', async (req, res) => {
       { label: '₹50,001 – ₹1,00,000',   min: 50001,  max: 100000   },
       { label: 'Above ₹1,00,000',        min: 100001, max: Infinity },
     ];
-    const fmt = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1A7A4A').text('SALARY DISTRIBUTION BREAKDOWN').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    SALARY DISTRIBUTION BREAKDOWN`).moveDown(0.5);
     line(doc);
     doc.fillColor('#333').fontSize(10);
 
     buckets.forEach(b => {
-      const group = records.filter(p => (p.salary || 0) >= b.min && (p.salary || 0) <= b.max);
+      const group = salaries.filter(s => s >= b.min && s <= b.max);
       const count  = group.length;
       const pct    = ((count / records.length) * 100).toFixed(1);
       const bar    = '█'.repeat(Math.round(count / records.length * 30));
@@ -367,7 +370,7 @@ router.get('/salary-distribution', async (req, res) => {
     const sorted = [...salaries].sort((a, b) => a - b);
     const mid    = Math.floor(sorted.length / 2);
     const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-    const avg    = salaries.reduce((s, n) => s + n, 0) / salaries.length;
+    const avg    = salaries.reduce((s, v) => s + v, 0) / salaries.length;
 
     doc.moveDown(0.5).fontSize(11);
     row(doc, 'Lowest Salary',   fmt(Math.min(...salaries)));
@@ -387,7 +390,7 @@ router.get('/employee-turnover', async (req, res) => {
       'SELECT year, month, COUNT(DISTINCT employee_id)::int AS count FROM payslips WHERE admin_id = $1 GROUP BY year, month ORDER BY year DESC, month DESC LIMIT 6',
       [req.admin_id]
     );
-    const rows = allResult.rows.reverse(); // oldest first
+    const rows = allResult.rows.reverse();
     const doc  = startPDF(res, 'EMPLOYEE TURNOVER REPORT', 'Headcount Trends & Retention Metrics', 'employee_turnover.pdf');
 
     if (!rows.length) { doc.text('No payslip history found.'); doc.end(); return; }
@@ -397,7 +400,7 @@ router.get('/employee-turnover', async (req, res) => {
 
     let prev = 0;
     rows.forEach(r => {
-      const count  = r.count;
+      const count  = parseInt(r.count) || 0;
       const change = prev ? count - prev : 0;
       const arrow  = change > 0 ? '▲' : change < 0 ? '▼' : '—';
       const label  = new Date(r.year, r.month - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
@@ -406,8 +409,8 @@ router.get('/employee-turnover', async (req, res) => {
       prev = count;
     });
 
-    const firstCount = rows[0].count;
-    const lastCount  = rows[rows.length - 1].count;
+    const firstCount = parseInt(rows[0].count) || 0;
+    const lastCount  = parseInt(rows[rows.length - 1].count) || 0;
     const netChange  = lastCount - firstCount;
 
     line(doc);
@@ -423,25 +426,25 @@ router.get('/employee-turnover', async (req, res) => {
 // GET /api/analytics/departmental-comparison
 router.get('/departmental-comparison', async (req, res) => {
   try {
-    const records = await getThisMonth(req.admin_id);
-    const doc     = startPDF(res, 'DEPARTMENTAL COMPARISON', 'Headcount, Salary & Cost by Department', 'departmental_comparison.pdf');
+    const { rows: records, month, year } = await getPayslips(req.admin_id, req.query.month, req.query.year);
+    const label = monthLabel(month, year);
+    const doc   = startPDF(res, 'DEPARTMENTAL COMPARISON', 'Headcount, Salary & Cost by Department', 'departmental_comparison.pdf');
 
-    if (!records.length) { doc.text('No payslips for current month.'); doc.end(); return; }
+    if (!records.length) { doc.text(`No payslips for ${label}.`); doc.end(); return; }
 
     const depts = {};
     records.forEach(p => {
       const dept = p.department || 'General';
       if (!depts[dept]) depts[dept] = { count: 0, totalGross: 0, totalCTC: 0 };
-      const d = derive(p.salary);
+      const d = derive(n(p.gross_salary || p.salary));
       depts[dept].count++;
       depts[dept].totalGross += d.gross;
       depts[dept].totalCTC  += d.gross + d.pfEmp + d.esiEmp;
     });
 
     const totGross = Object.values(depts).reduce((s, d) => s + d.totalGross, 0);
-    const fmt      = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-    doc.fontSize(12).fillColor('#1A7A4A').text('DEPARTMENT COMPARISON TABLE').moveDown(0.5);
+    doc.fontSize(12).fillColor('#1A7A4A').text(`Period: ${label}    DEPARTMENT COMPARISON TABLE`).moveDown(0.5);
     line(doc);
 
     doc.fontSize(9).fillColor('#1A7A4A');
@@ -458,7 +461,7 @@ router.get('/departmental-comparison', async (req, res) => {
          .text(String(d.count),       { width: 40,  continued: true, align: 'right' })
          .text(fmt(d.totalGross),     { width: 130, continued: true, align: 'right' })
          .text(fmt(d.totalCTC),       { width: 130, continued: true, align: 'right' })
-         .text(`${((d.totalGross / totGross) * 100).toFixed(1)}%`, { align: 'right' });
+         .text(totGross > 0 ? `${((d.totalGross / totGross) * 100).toFixed(1)}%` : '0%', { align: 'right' });
     });
 
     doc.end();
@@ -479,33 +482,32 @@ router.get('/month-comparison', async (req, res) => {
       pool.query('SELECT * FROM payslips WHERE admin_id = $1 AND month = $2 AND year = $3', [req.admin_id, lm, ly]),
     ]);
 
-    const thisM = thisResult.rows;
-    const lastM = lastResult.rows;
-    const doc   = startPDF(res, 'MONTH vs MONTH', 'This Month vs Last Month Comparison', 'month_comparison.pdf');
+    const doc = startPDF(res, 'MONTH vs MONTH', 'This Month vs Last Month Comparison', 'month_comparison.pdf');
 
     const stats = (list) => {
       let gross = 0, pf = 0, esi = 0, pt = 0, tds = 0;
-      list.forEach(p => { const d = derive(p.salary); gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds; });
+      list.forEach(p => {
+        const d = derive(n(p.gross_salary || p.salary));
+        gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds;
+      });
       return { employees: list.length, gross, pf, esi, pt, tds };
     };
 
-    const T    = stats(thisM);
-    const L    = stats(lastM);
-    const fmt  = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const pct  = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
-
-    const thisName = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-    const lastName = new Date(ly, lm - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const T        = stats(thisResult.rows);
+    const L        = stats(lastResult.rows);
+    const pct      = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
+    const thisName = monthLabel(cm, cy);
+    const lastName = monthLabel(lm, ly);
 
     doc.fontSize(10).fillColor('#333');
-    doc.text(`${lastName.padEnd(30)} →  ${thisName}`, 55, doc.y, { align: 'center' }).moveDown(0.5);
+    doc.text(`${lastName}  →  ${thisName}`, 55, doc.y, { align: 'center' }).moveDown(0.5);
     line(doc);
 
     doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
     doc.text(lastName, { width: 130, continued: true, align: 'right' });
     doc.text(thisName, { width: 130, continued: true, align: 'right' });
-    doc.text('CHANGE',  { align: 'right' });
+    doc.text('CHANGE', { align: 'right' });
     doc.fillColor('#333');
     line(doc);
 
@@ -549,19 +551,21 @@ router.get('/quarter-comparison', async (req, res) => {
 
     const stats = (list) => {
       let gross = 0, pf = 0, esi = 0, pt = 0, tds = 0;
-      list.forEach(p => { const d = derive(p.salary); gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds; });
+      list.forEach(p => {
+        const d = derive(n(p.gross_salary || p.salary));
+        gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds;
+      });
       return { employees: [...new Set(list.map(p => p.employee_id))].length, gross, pf, esi, pt, tds };
     };
 
     const T   = stats(thisResult.rows);
     const L   = stats(lastResult.rows);
-    const fmt  = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const pct  = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
+    const pct = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
 
     doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
-    doc.text(`Q${pq} ${py}`,  { width: 130, continued: true, align: 'right' });
-    doc.text(`Q${qNow} ${cy}`,{ width: 130, continued: true, align: 'right' });
+    doc.text(`Q${pq} ${py}`,   { width: 130, continued: true, align: 'right' });
+    doc.text(`Q${qNow} ${cy}`, { width: 130, continued: true, align: 'right' });
     doc.text('CHANGE', { align: 'right' });
     doc.fillColor('#333');
     line(doc);
@@ -600,14 +604,16 @@ router.get('/year-comparison', async (req, res) => {
 
     const stats = (list) => {
       let gross = 0, pf = 0, esi = 0, pt = 0, tds = 0;
-      list.forEach(p => { const d = derive(p.salary); gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds; });
+      list.forEach(p => {
+        const d = derive(n(p.gross_salary || p.salary));
+        gross += d.gross; pf += d.pf; esi += d.esi; pt += d.pt; tds += d.tds;
+      });
       return { employees: [...new Set(list.map(p => p.employee_id))].length, gross, pf, esi, pt, tds };
     };
 
     const T   = stats(thisResult.rows);
     const L   = stats(lastResult.rows);
-    const fmt  = (n) => `₹${n.toLocaleString('en-IN')}`;
-    const pct  = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
+    const pct = (a, b) => b === 0 ? 'N/A' : `${a >= b ? '▲' : '▼'} ${Math.abs(((a - b) / b) * 100).toFixed(1)}%`;
 
     doc.fontSize(9).fillColor('#1A7A4A');
     doc.text('METRIC', 55, doc.y, { width: 160, continued: true });
