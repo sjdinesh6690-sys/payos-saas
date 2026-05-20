@@ -579,16 +579,37 @@ export default function SendPage() {
                 </div>
               </div>
 
-              <Button
+              <button
                 onClick={generate}
                 disabled={genLoading || selectedCount === 0}
-                className="w-full text-white h-11 text-base font-semibold" style={{ background: '#E85C2F' }}
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  background: genLoading || selectedCount === 0 ? '#CBD5E1' : 'linear-gradient(135deg, #F97316, #EA580C)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: genLoading || selectedCount === 0 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  boxShadow: genLoading || selectedCount === 0 ? 'none' : '0 4px 14px rgba(234,88,12,0.35)',
+                  transition: 'all 0.15s ease',
+                  letterSpacing: '0.01em',
+                }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #EA580C, #C2410C)'; }}
+                onMouseLeave={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'linear-gradient(135deg, #F97316, #EA580C)'; }}
               >
-                <FileText size={16} className="mr-2" />
+                <FileText size={18} />
                 {genLoading
-                  ? 'Generating…'
-                  : `Generate ${selectedCount} Payslips — ${MONTHS[month]} ${year}`}
-              </Button>
+                  ? '⏳ Generating Payslips…'
+                  : selectedCount === 0
+                    ? 'Select employees above to generate'
+                    : `🚀 Generate ${selectedCount} Payslips — ${MONTHS[month]} ${year}`}
+              </button>
             </>
           )}
         </CardContent>
