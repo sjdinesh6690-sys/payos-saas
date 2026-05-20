@@ -6,7 +6,6 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  cacheDir: '/tmp/vite-payslip-cache',
   plugins: [react()],
   resolve: {
     alias: {
