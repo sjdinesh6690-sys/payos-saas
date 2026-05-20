@@ -202,8 +202,29 @@ function downloadTemplate(employees, config) {
     return [...core, ...breakdown];
   });
 
-  // Style the sheet
-  const ws = XLSX.utils.aoa_to_sheet([allHeaders, ...dataRows]);
+  // Build the sheet — add empty rows at bottom for new entries
+  const EXTRA_ROWS = 20; // blank rows users can fill in
+  const emptyDataRow = coreHeaders.map(() => '');
+  const allRows = [allHeaders, ...dataRows, ...Array(EXTRA_ROWS).fill(emptyDataRow)];
+  const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+  // ── Add Excel formulas so gross_salary auto-calculates yearly_ctc ──────────
+  // Column indices (0-based): gross_salary=2 (C), yearly_ctc=3 (D)
+  const grossCol  = 'C'; // gross_salary
+  const ctcCol    = 'D'; // yearly_ctc
+  const totalRows = dataRows.length + EXTRA_ROWS;
+  for (let ri = 0; ri < totalRows; ri++) {
+    const rowNum = ri + 2; // Excel row number (row 1 = header)
+    const ctcCell = `${ctcCol}${rowNum}`;
+    const grossRef = `${grossCol}${rowNum}`;
+    // Set yearly_ctc cell to formula: =C2*12 (or 0 if gross is blank)
+    ws[ctcCell] = {
+      t: 'n',
+      f: `IF(${grossRef}="","",${grossRef}*12)`,
+      v: ws[ctcCell]?.v ?? 0,
+      z: '#,##0',
+    };
+  }
 
   // Column widths
   const coreWidths = [12, 22, 16, 16, 18, 28, 16, 22, 14, 16];
@@ -219,9 +240,9 @@ function downloadTemplate(employees, config) {
       ['Column', 'Description', 'Required?'],
       ['employee_id',        'Unique employee ID (e.g. EMP001)',                'YES'],
       ['employee_name',      'Full name',                                       'YES'],
-      ['gross_salary',       'Monthly gross pay in ₹ (before deductions)',      'YES — or provide yearly_ctc'],
-      ['yearly_ctc',         'Annual CTC in ₹ — auto-derived if left blank',    'Optional (gross × 12)'],
-      ['net_salary_monthly', 'Monthly take-home — system auto-calculates this', 'Optional'],
+      ['gross_salary',       'Monthly gross pay in ₹ (before deductions)',                          'YES — or provide yearly_ctc'],
+      ['yearly_ctc',         'Auto-calculated from gross (formula: gross × 12) — do not edit',     'Auto (formula)'],
+      ['net_salary_monthly', 'Monthly take-home — system calculates this when imported',            'Optional'],
       ['email',              'Email for sending payslips',                      'Optional'],
       ['department',         'Department name',                                 'Optional'],
       ['designation',        'Job title',                                       'Optional'],

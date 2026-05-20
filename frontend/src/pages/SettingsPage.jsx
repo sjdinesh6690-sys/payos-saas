@@ -551,6 +551,12 @@ export default function SettingsPage() {
                     <div className="relative">
                       <input type={showPass ? 'text' : 'password'} value={form.smtp_pass}
                         onChange={e => set('smtp_pass', e.target.value)}
+                        onPaste={e => {
+                          // Auto-strip spaces when pasting — Google shows "abcd efgh ijkl mnop" with spaces
+                          e.preventDefault();
+                          const pasted = (e.clipboardData || window.Clipboard).getData('text');
+                          set('smtp_pass', pasted.replace(/\s/g, ''));
+                        }}
                         placeholder={provider.id === 'gmail' ? 'Paste the 16-letter app password here' : 'Paste your password here'}
                         className={`${inp} pr-10`} />
                       <button onClick={() => setShowPass(!showPass)}
@@ -558,6 +564,11 @@ export default function SettingsPage() {
                         {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {provider.id === 'gmail' && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        ⚠️ Google shows the password with spaces (e.g. "abcd efgh ijkl mnop") — spaces are automatically removed when you paste.
+                      </p>
+                    )}
                   </Field>
 
                   {/* Advanced — hidden by default */}

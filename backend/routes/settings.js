@@ -39,8 +39,13 @@ router.put('/', async (req, res) => {
       pan_number, tan_number, epfo_code, esic_code, pt_reg_number, state,
     } = req.body;
 
+    // Strip spaces from app password (Gmail shows it with spaces — users often copy them)
+    const cleanPass = smtp_pass && smtp_pass !== '••••••••'
+      ? smtp_pass.replace(/\s/g, '')
+      : smtp_pass;
+
     // Only update smtp_pass if a real value (not the mask) was sent
-    const passSql = smtp_pass && smtp_pass !== '••••••••'
+    const passSql = cleanPass && cleanPass !== '••••••••'
       ? `, smtp_pass = $19`
       : '';
 
@@ -53,7 +58,7 @@ router.put('/', async (req, res) => {
       req.admin_id,
     ];
 
-    if (smtp_pass && smtp_pass !== '••••••••') params.splice(18, 0, smtp_pass);
+    if (cleanPass && cleanPass !== '••••••••') params.splice(18, 0, cleanPass);
 
     // pt_reg_number and state handled separately to keep param count manageable
     await pool.query(
@@ -96,18 +101,27 @@ router.put('/', async (req, res) => {
 // POST /api/settings/test-smtp — send a test email
 router.post('/test-smtp', async (req, res) => {
   try {
-    const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, test_to } = req.body;
+    const { smtp_host, smtp_user, smtp_from, test_to } = req.body;
+    let { smtp_port, smtp_pass } = req.body;
 
     if (!smtp_host || !smtp_user || !smtp_pass) {
       return res.status(400).json({ error: 'SMTP host, user and password are required' });
     }
 
+    // Strip spaces — Gmail app passwords are displayed with spaces (e.g. "abcd efgh ijkl mnop")
+    // but must be entered without them
+    smtp_pass = smtp_pass.replace(/\s/g, '');
+    smtp_port = parseInt(smtp_port) || 587;
+
     const transporter = nodemailer.createTransporter({
-      host:   smtp_host,
-      port:   parseInt(smtp_port) || 587,
-      secure: parseInt(smtp_port) === 465,
-      auth:   { user: smtp_user, pass: smtp_pass },
-      tls:    { rejectUnauthorized: false },
+      host:       smtp_host,
+      port:       smtp_port,
+      secure:     smtp_port === 465,
+      requireTLS: smtp_port !== 465,    // Force STARTTLS on 587/other ports
+      auth:       { user: smtp_user, pass: smtp_pass },
+      tls:        { rejectUnauthorized: false },
+      connectionTimeout: 10000,
+      greetingTimeout:   10000,
     });
 
     await transporter.verify();
@@ -126,7 +140,16 @@ router.post('/test-smtp', async (req, res) => {
 
     res.json({ message: `Test email sent to ${toAddr}` });
   } catch (err) {
-    res.status(400).json({ error: `SMTP test failed: ${err.message}` });
+    // Provide user-friendly error messages for common failures
+    let message = err.message || 'Connection failed';
+    if (/Invalid login|Username and Password not accepted|535/i.test(message)) {
+      message = 'Login failed — wrong password. For Gmail: make sure you used an App Password (not your normal Gmail password). Remove any spaces from the app password before pasting.';
+    } else if (/ECONNREFUSED|ECONNRESET|ETIMEDOUT|connect/i.test(message)) {
+      message = 'Could not connect to the mail server — check your SMTP host and port.';
+    } else if (/EAUTH|authentication/i.test(message)) {
+      message = 'Authentication failed — check your email and password. For Gmail, you must use an App Password (not your normal login password).';
+    }
+    res.status(400).json({ error: message });
   }
 });
 
