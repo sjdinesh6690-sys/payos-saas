@@ -5,7 +5,7 @@ const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const path        = require('path');
 const fs          = require('fs');
-const { initDB }  = require('./database');
+const { initDB, pool } = require('./database');
 
 const app = express();
 
@@ -90,9 +90,31 @@ initDB().then(async () => {
   app.use('/api/admin-profile',  require('./routes/admin-profile'));
   app.use('/api/settings',       require('./routes/settings'));
   app.use('/api/ai',             require('./routes/ai'));
+  app.use('/api/errors',         require('./routes/errors'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));
+
+  // ── Global Express error handler ─────────────────────────────────────────
+  // Catches any error thrown in a route (next(err) or throw inside async)
+  // eslint-disable-next-line no-unused-vars
+  app.use(async (err, req, res, next) => {
+    const msg   = err.message || 'Internal server error';
+    const stack = err.stack   || '';
+    console.error('Express error:', msg);
+
+    // Save to our own error_logs table
+    try {
+      await pool.query(
+        `INSERT INTO error_logs (source, severity, message, stack, url, user_agent)
+         VALUES ('backend','error',$1,$2,$3,$4)`,
+        [msg.slice(0, 1000), stack.slice(0, 4000),
+         req.originalUrl, req.headers['user-agent'] || null]
+      );
+    } catch (_) { /* don't break if DB write fails */ }
+
+    res.status(err.status || 500).json({ error: msg });
+  });
 
   // Serve frontend build if it exists
   const DIST = path.join(__dirname, '../frontend/dist');
@@ -118,5 +140,23 @@ initDB().then(async () => {
   process.exit(1);
 });
 
-process.on('uncaughtException',  (err) => console.error('Uncaught:', err));
-process.on('unhandledRejection', (err) => console.error('Unhandled:', err));
+process.on('uncaughtException',  async (err) => {
+  console.error('Uncaught:', err);
+  try {
+    await pool.query(
+      `INSERT INTO error_logs (source, severity, message, stack)
+       VALUES ('backend','error',$1,$2)`,
+      [String(err.message).slice(0, 1000), String(err.stack || '').slice(0, 4000)]
+    );
+  } catch (_) {}
+});
+process.on('unhandledRejection', async (err) => {
+  console.error('Unhandled:', err);
+  try {
+    await pool.query(
+      `INSERT INTO error_logs (source, severity, message, stack)
+       VALUES ('backend','error',$1,$2)`,
+      [String(err?.message || err).slice(0, 1000), String(err?.stack || '').slice(0, 4000)]
+    );
+  } catch (_) {}
+});

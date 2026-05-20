@@ -6,6 +6,60 @@ const nodemailer = require('nodemailer');
 const router     = express.Router();
 const { pool, auditLog } = require('../database');
 const { decrypt } = require('../lib/crypto');
+<<<<<<< Updated upstream
+=======
+
+// ── helper: send verification email ──────────────────────────────────────────
+async function sendVerificationEmail(email, companyName, verifyToken, req) {
+  const appUrl    = process.env.APP_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  const verifyUrl = `${appUrl}/verify-email?token=${verifyToken}`;
+
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = parseInt(process.env.SMTP_PORT || 587);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpFrom = process.env.SMTP_FROM || smtpUser;
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    console.log(`[verify-email] No system SMTP configured. Verify URL: ${verifyUrl}`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost, port: smtpPort,
+    secure: smtpPort === 465, requireTLS: smtpPort !== 465,
+    auth: { user: smtpUser, pass: smtpPass.replace(/\s/g, '') },
+    tls: { rejectUnauthorized: false }, connectionTimeout: 10000,
+  });
+
+  await transporter.sendMail({
+    from:    `"PayLeef" <${smtpFrom}>`,
+    to:      email,
+    subject: 'Verify your PayLeef account',
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#16a34a;">Leef</span>
+        </div>
+        <h2 style="color:#0f172a;margin-bottom:8px;">Verify your email address</h2>
+        <p style="color:#475569;margin-bottom:24px;">
+          Hi${companyName ? ' ' + companyName : ''},<br/>
+          Thanks for signing up! Click the button below to verify your email and activate your account.
+        </p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${verifyUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:16px;">
+            ✓ Verify My Email
+          </a>
+        </div>
+        <p style="color:#94a3b8;font-size:13px;margin-top:24px;">
+          This link expires in <strong>24 hours</strong>. If you didn't create this account, ignore this email.
+        </p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+        <p style="color:#94a3b8;font-size:12px;">Or copy this link:<br/><a href="${verifyUrl}" style="color:#16a34a;">${verifyUrl}</a></p>
+      </div>`,
+  });
+}
+>>>>>>> Stashed changes
 
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
 router.post('/admin-signup', async (req, res) => {
@@ -21,30 +75,98 @@ router.post('/admin-signup', async (req, res) => {
     if (existing.rows.length > 0)
       return res.status(400).json({ error: 'An account with this email already exists' });
 
-    const hash = await bcrypt.hash(password, 12);
-    const now  = new Date();
-    const trialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const hash        = await bcrypt.hash(password, 12);
+    const now         = new Date();
+    const trialEnd    = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExp   = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     const result = await pool.query(`
       INSERT INTO admins
         (email, password, company_name, onboarding_completed, plan, status,
-         company_industry, company_size, last_active, trial_start_date, trial_end_date, trial_days, created_at)
-      VALUES ($1,$2,$3,false,'starter','active','','',$4,$5,$6,30,$7)
-      RETURNING id, email, company_name, onboarding_completed
-    `, [email.toLowerCase(), hash, company_name, now, now, trialEnd, now]);
+         company_industry, company_size, last_active,
+         trial_start_date, trial_end_date, trial_days, created_at,
+         email_verified, email_verify_token, email_verify_expires)
+      VALUES ($1,$2,$3,false,'starter','active','','',$4,$5,$6,30,$7,false,$8,$9)
+      RETURNING id, email, company_name
+    `, [email.toLowerCase(), hash, company_name, now, now, trialEnd, now, verifyToken, verifyExp]);
 
     const admin = result.rows[0];
-    const token = jwt.sign(
-      { admin_id: admin.id, email: admin.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
-    );
+
+    // Send verification email — non-blocking, don't fail signup if SMTP not set
+    sendVerificationEmail(email.toLowerCase(), company_name, verifyToken, req)
+      .catch(err => console.error('[verify-email] Send failed:', err.message));
 
     await auditLog(admin.id, 'admin_signup', 'admins', admin.id, { company_name }, req.ip);
-    res.json({ token, message: 'Account created!', onboarding_completed: false });
+
+    res.json({
+      needs_verification: true,
+      email: email.toLowerCase(),
+      message: 'Account created! Please check your email to verify your account.',
+    });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
+  }
+});
+
+// ── VERIFY EMAIL ──────────────────────────────────────────────────────────────
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Verification token missing' });
+
+    const result = await pool.query(
+      'SELECT id, email, email_verified FROM admins WHERE email_verify_token = $1 AND email_verify_expires > NOW()',
+      [token]
+    );
+    const admin = result.rows[0];
+
+    if (!admin) return res.status(400).json({ error: 'Verification link is invalid or has expired. Please request a new one.' });
+    if (admin.email_verified) return res.json({ message: 'Email already verified. You can log in.' });
+
+    await pool.query(
+      'UPDATE admins SET email_verified = true, email_verify_token = NULL, email_verify_expires = NULL WHERE id = $1',
+      [admin.id]
+    );
+    await auditLog(admin.id, 'email_verified', 'admins', admin.id, null, req.ip);
+    res.json({ message: 'Email verified successfully! You can now log in.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Verification failed. Please try again.' });
+  }
+});
+
+// ── RESEND VERIFICATION ───────────────────────────────────────────────────────
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const result = await pool.query(
+      'SELECT id, company_name, email_verified FROM admins WHERE email = $1',
+      [email.toLowerCase()]
+    );
+    const admin = result.rows[0];
+
+    // Always return success to prevent enumeration
+    if (!admin || admin.email_verified) {
+      return res.json({ message: 'If this email exists and is unverified, a new link has been sent.' });
+    }
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExp   = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE admins SET email_verify_token = $1, email_verify_expires = $2 WHERE id = $3',
+      [verifyToken, verifyExp, admin.id]
+    );
+
+    sendVerificationEmail(email.toLowerCase(), admin.company_name, verifyToken, req)
+      .catch(err => console.error('[resend-verify] Send failed:', err.message));
+
+    res.json({ message: 'Verification email sent! Please check your inbox.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to resend. Please try again.' });
   }
 });
 
@@ -64,6 +186,15 @@ router.post('/admin-login', async (req, res) => {
 
     const match = await bcrypt.compare(password, admin.password);
     if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+    // Block login if email not verified (only enforce if column exists — backward compat)
+    if (admin.email_verified === false) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in.',
+        needs_verification: true,
+        email: admin.email,
+      });
+    }
 
     // Update last_active
     await pool.query('UPDATE admins SET last_active = NOW() WHERE id = $1', [admin.id]);
@@ -170,7 +301,11 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ message: 'If this email exists, a reset link has been sent.' });
     }
 
+<<<<<<< Updated upstream
     const transporter = nodemailer.createTransporter({
+=======
+    const transporter = nodemailer.createTransport({
+>>>>>>> Stashed changes
       host:               smtpHost,
       port:               smtpPort,
       secure:             smtpPort === 465,

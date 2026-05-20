@@ -65,7 +65,7 @@ router.post('/send', async (req, res) => {
 
     let transporter = null;
     if (smtpConfigured) {
-      transporter = nodemailer.createTransporter({
+      transporter = nodemailer.createTransport({
         host:   smtpHost,
         port:   parseInt(smtpPort) || 587,
         secure: parseInt(smtpPort) === 465,

@@ -117,7 +117,11 @@ router.post('/test-smtp', async (req, res) => {
     smtp_pass = smtp_pass.replace(/\s/g, '');
     smtp_port = parseInt(smtp_port) || 587;
 
+<<<<<<< Updated upstream
     const transporter = nodemailer.createTransporter({
+=======
+    const transporter = nodemailer.createTransport({
+>>>>>>> Stashed changes
       host:       smtp_host,
       port:       smtp_port,
       secure:     smtp_port === 465,

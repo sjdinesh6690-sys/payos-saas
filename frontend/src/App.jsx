@@ -6,8 +6,16 @@ import { Toaster } from 'sonner';
 import LandingPage            from '@/pages/LandingPage';
 import LoginPage              from '@/pages/LoginPage';
 import RegisterPage           from '@/pages/RegisterPage';
+<<<<<<< Updated upstream
 import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
 import ResetPasswordPage      from '@/pages/ResetPasswordPage';
+=======
+import VerifyEmailPage        from '@/pages/VerifyEmailPage';
+import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage      from '@/pages/ResetPasswordPage';
+import TermsPage              from '@/pages/TermsPage';
+import PrivacyPage            from '@/pages/PrivacyPage';
+>>>>>>> Stashed changes
 import OnboardingPage         from '@/pages/OnboardingPage';
 import EmployeePayslipsPage   from '@/pages/EmployeePayslipsPage';
 import PayrollConfigPage      from '@/pages/PayrollConfigPage';
@@ -26,6 +34,7 @@ import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
 import SuperAdminLayout       from '@/pages/super-admin/SuperAdminLayout';
 import SuperDashboardPage     from '@/pages/super-admin/SuperDashboardPage';
 import SuperClientsPage       from '@/pages/super-admin/SuperClientsPage';
+import ErrorMonitorPage       from '@/pages/super-admin/ErrorMonitorPage';
 
 export default function App() {
   return (
@@ -37,10 +46,20 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
 
           {/* ── Auth ─────────────────────────────────────────────── */}
+<<<<<<< Updated upstream
           <Route path="/login"           element={<LoginPage />} />
           <Route path="/register"        element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password"  element={<ResetPasswordPage />} />
+=======
+          <Route path="/login"            element={<LoginPage />} />
+          <Route path="/register"         element={<RegisterPage />} />
+          <Route path="/verify-email"     element={<VerifyEmailPage />} />
+          <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
+          <Route path="/reset-password"   element={<ResetPasswordPage />} />
+          <Route path="/terms"            element={<TermsPage />} />
+          <Route path="/privacy"          element={<PrivacyPage />} />
+>>>>>>> Stashed changes
 
           {/* ── Onboarding (shown after first login) ─────────────── */}
           <Route path="/onboarding" element={<OnboardingPage />} />
@@ -69,6 +88,7 @@ export default function App() {
             <Route path="dashboard" element={<SuperDashboardPage />} />
             <Route path="clients"   element={<SuperClientsPage />} />
             <Route path="analytics" element={<SuperDashboardPage />} />
+            <Route path="errors"    element={<ErrorMonitorPage />} />
           </Route>
 
           {/* ── Legacy redirects ──────────────────────────────────── */}

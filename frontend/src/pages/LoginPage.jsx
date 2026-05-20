@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Mail, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -22,11 +22,14 @@ export default function LoginPage() {
   const [empEmail, setEmpEmail]           = useState('');
   const [error, setError]                 = useState('');
   const [loading, setLoading]             = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resending, setResending]         = useState(false);
+  const [resendMsg, setResendMsg]         = useState('');
   const navigate = useNavigate();
 
   const loginAdmin = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); setUnverifiedEmail(''); setResendMsg(''); setLoading(true);
     try {
       const res  = await fetch('/api/auth/admin-login', {
         method: 'POST',
@@ -38,9 +41,24 @@ export default function LoginPage() {
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employer');
         navigate(data.onboarding_completed === false ? '/onboarding' : '/admin/dashboard');
+      } else if (data.needs_verification) {
+        setUnverifiedEmail(data.email || adminEmail);
       } else { setError(data.error || 'Login failed'); }
     } catch { setError('Cannot connect to server.'); }
     finally { setLoading(false); }
+  };
+
+  const handleResendFromLogin = async () => {
+    setResending(true); setResendMsg('');
+    try {
+      const res  = await fetch('/api/auth/resend-verification', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      });
+      const data = await res.json();
+      setResendMsg(data.message || 'Verification email sent!');
+    } catch { setResendMsg('Failed to resend. Please try again.'); }
+    finally { setResending(false); }
   };
 
   const loginEmployee = async (e) => {
@@ -135,6 +153,25 @@ export default function LoginPage() {
               {error && (
                 <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                   <AlertCircle size={14} /> {error}
+                </div>
+              )}
+
+              {unverifiedEmail && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 text-sm space-y-2">
+                  <div className="flex items-center gap-2 text-amber-800 font-semibold">
+                    <Mail size={15} className="shrink-0" /> Email not verified
+                  </div>
+                  <p className="text-amber-700 text-xs leading-relaxed">
+                    We sent a verification link to <strong>{unverifiedEmail}</strong>. Please check your inbox and click the link to activate your account.
+                  </p>
+                  {resendMsg && (
+                    <p className="text-green-700 text-xs bg-green-50 border border-green-200 rounded px-2 py-1">{resendMsg}</p>
+                  )}
+                  <button onClick={handleResendFromLogin} disabled={resending}
+                    className="flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 disabled:opacity-50">
+                    <RefreshCw size={12} className={resending ? 'animate-spin' : ''} />
+                    {resending ? 'Sending…' : 'Resend verification email'}
+                  </button>
                 </div>
               )}
 

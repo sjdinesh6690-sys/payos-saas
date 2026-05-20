@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, ShieldCheck, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, BarChart3, AlertTriangle } from 'lucide-react';
 
 const RupeeLeaf = ({ size = 20 }) => (
   <svg viewBox="0 0 20 24" fill="none" style={{ width: size, height: size }}>
@@ -15,6 +15,7 @@ const NAV = [
   { path: '/super-admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/super-admin/clients',   icon: Users,           label: 'Clients' },
   { path: '/super-admin/analytics', icon: BarChart3,       label: 'Analytics' },
+  { path: '/super-admin/errors',    icon: AlertTriangle,   label: 'Error Monitor' },
 ];
 
 export default function SuperAdminLayout() {

@@ -128,6 +128,18 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token VARCHAR(128)`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
 
+<<<<<<< Updated upstream
+=======
+    // Email verification
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verify_token VARCHAR(128)`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verify_expires TIMESTAMPTZ`);
+
+    // Logo URL and brand color (branding)
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS brand_color VARCHAR(20) DEFAULT '#1B4F8A'`);
+
+>>>>>>> Stashed changes
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (
@@ -151,6 +163,23 @@ async function initDB() {
         details    JSONB,
         ip_address VARCHAR(50),
         created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // error logs — self-hosted error monitoring (no Sentry needed)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS error_logs (
+        id          SERIAL PRIMARY KEY,
+        source      VARCHAR(20)  NOT NULL DEFAULT 'backend', -- 'backend' | 'frontend'
+        severity    VARCHAR(20)  NOT NULL DEFAULT 'error',   -- 'error' | 'warning' | 'info'
+        message     TEXT         NOT NULL,
+        stack       TEXT,
+        url         TEXT,                -- page URL (frontend) or route (backend)
+        user_agent  TEXT,
+        admin_id    INTEGER REFERENCES admins(id) ON DELETE SET NULL,
+        context     JSONB,              -- extra info: component, action, etc.
+        resolved    BOOLEAN      DEFAULT FALSE,
+        created_at  TIMESTAMPTZ  DEFAULT NOW()
       )
     `);
 
