@@ -112,6 +112,10 @@ async function initDB() {
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS pan_number VARCHAR(20)`);
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS uan_number VARCHAR(20)`);
 
+    // Salary breakdown — yearly CTC and net salary
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS yearly_ctc NUMERIC(14,2)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS net_salary_monthly NUMERIC(12,2)`);
+
     // Add company statutory registration numbers to admins
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS pan_number VARCHAR(30)`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS tan_number VARCHAR(30)`);

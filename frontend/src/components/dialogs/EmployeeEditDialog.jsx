@@ -6,20 +6,20 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 const EMPTY = {
-  employee_id: '',
-  employee_name: '',
-  email: '',
-  salary: '',
-  department: '',
-  designation: '',
-  phone: '',
-  date_of_joining: '',
-  pan_number: '',
-  uan_number: '',
-  bank_name: '',
-  bank_account_number: '',
-  ifsc_code: '',
+  employee_id: '', employee_name: '', email: '',
+  salary: '', yearly_ctc: '', net_salary_monthly: '',
+  department: '', designation: '', phone: '', date_of_joining: '',
+  pan_number: '', uan_number: '', bank_name: '', bank_account_number: '', ifsc_code: '',
 };
+
+// Rough net estimate: Gross minus standard PF + ESI + PT
+function estimateNet(gross) {
+  if (!gross || isNaN(gross) || gross <= 0) return null;
+  const basic = gross * 0.40;
+  const pf    = Math.min(basic * 0.12, 1800);
+  const esi   = gross <= 21000 ? gross * 0.0075 : 0;
+  return Math.max(0, Math.round(gross - pf - esi - 200));
+}
 
 export default function EmployeeEditDialog({ open, onOpenChange, employee, onSaved }) {
   const isNew = !employee;
@@ -28,15 +28,21 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
 
   useEffect(() => {
     if (employee) {
+      const gross = employee.salary != null ? String(employee.salary) : '';
+      const ctc   = employee.yearly_ctc != null
+        ? String(employee.yearly_ctc)
+        : (employee.salary ? String(Math.round(Number(employee.salary) * 12)) : '');
       setForm({
-        employee_id:     employee.employee_id     || '',
-        employee_name:   employee.employee_name   || '',
-        email:           employee.email           || '',
-        salary:              employee.salary          != null ? String(employee.salary) : '',
-        department:          employee.department      || '',
-        designation:         employee.designation     || '',
-        phone:               employee.phone           || '',
-        date_of_joining:     employee.date_of_joining || '',
+        employee_id:         employee.employee_id         || '',
+        employee_name:       employee.employee_name       || '',
+        email:               employee.email               || '',
+        salary:              gross,
+        yearly_ctc:          ctc,
+        net_salary_monthly:  employee.net_salary_monthly != null ? String(employee.net_salary_monthly) : '',
+        department:          employee.department          || '',
+        designation:         employee.designation         || '',
+        phone:               employee.phone               || '',
+        date_of_joining:     employee.date_of_joining     || '',
         pan_number:          employee.pan_number          || '',
         uan_number:          employee.uan_number          || '',
         bank_name:           employee.bank_name           || '',
@@ -49,6 +55,31 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
   }, [employee, open]);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Bidirectional: change gross → update CTC
+  const onGrossChange = (e) => {
+    const val   = e.target.value;
+    const gross = parseFloat(val);
+    setForm(f => ({
+      ...f,
+      salary:     val,
+      yearly_ctc: !isNaN(gross) && gross > 0 ? String(Math.round(gross * 12)) : f.yearly_ctc,
+    }));
+  };
+
+  // Bidirectional: change CTC → update gross
+  const onCtcChange = (e) => {
+    const val   = e.target.value;
+    const ctc   = parseFloat(val);
+    const gross = !isNaN(ctc) && ctc > 0 ? Math.round(ctc / 12) : null;
+    setForm(f => ({
+      ...f,
+      yearly_ctc: val,
+      salary:     gross ? String(gross) : f.salary,
+    }));
+  };
+
+  const estimatedNet = estimateNet(parseFloat(form.salary));
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -80,6 +111,7 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
 
         <form onSubmit={handleSave}>
           <div className="px-6 py-4 space-y-4">
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Employee ID *</label>
@@ -90,25 +122,58 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                 <Input value={form.employee_name} onChange={set('employee_name')} placeholder="John Smith" required />
               </div>
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
               <Input type="email" value={form.email} onChange={set('email')} placeholder="john@company.com" required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Gross Salary / CTC (₹) *
-                </label>
-                <Input type="number" value={form.salary} onChange={set('salary')} placeholder="e.g. 50000" required />
-                <p className="text-xs text-slate-400 mt-1">
-                  Enter the total gross pay (before deductions like PF, ESI, TDS)
-                </p>
+
+            {/* ── Salary fields ─────────────────────────────────────────────── */}
+            <div className="pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Salary Details</p>
+                <span className="text-xs text-slate-400">Enter any one — others auto-calculate</span>
               </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Gross (₹) *</label>
+                  <Input type="number" value={form.salary} onChange={onGrossChange} placeholder="50000" required min="0" />
+                  <p className="text-xs text-slate-400 mt-1">Before deductions</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Yearly CTC (₹)</label>
+                  <Input type="number" value={form.yearly_ctc} onChange={onCtcChange} placeholder="600000" min="0" />
+                  <p className="text-xs text-slate-400 mt-1">Annual package</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Net (₹)</label>
+                  <Input type="number" value={form.net_salary_monthly} onChange={set('net_salary_monthly')}
+                    placeholder={estimatedNet ? String(estimatedNet) : '44000'} min="0" />
+                  <p className="text-xs mt-1">
+                    {estimatedNet
+                      ? <span className="text-orange-600 font-medium">Est. ≈ ₹{estimatedNet.toLocaleString('en-IN')}</span>
+                      : <span className="text-slate-400">Take-home</span>}
+                  </p>
+                </div>
+              </div>
+              {estimatedNet > 0 && (
+                <div className="mt-2 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 text-xs text-orange-700">
+                  💡 Estimated net = Gross minus standard PF + ESI + PT. Actual net is calculated from your Payroll Config when generating payslips.
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone</label>
                 <Input value={form.phone} onChange={set('phone')} placeholder="+91 9876543210" />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Joining</label>
+                <Input type="date" value={form.date_of_joining} onChange={set('date_of_joining')} />
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
@@ -119,12 +184,7 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                 <Input value={form.designation} onChange={set('designation')} placeholder="Software Engineer" />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Joining</label>
-              <Input type="date" value={form.date_of_joining} onChange={set('date_of_joining')} />
-            </div>
 
-            {/* Statutory details */}
             <div className="pt-3 border-t border-slate-100">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Statutory Details</p>
               <div className="grid grid-cols-2 gap-4">
@@ -139,9 +199,8 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
               </div>
             </div>
 
-            {/* Bank details */}
             <div className="pt-3 border-t border-slate-100">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Bank Details (for Bank Advice report)</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Bank Details</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
@@ -157,11 +216,14 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                 <Input value={form.bank_account_number} onChange={set('bank_account_number')} placeholder="1234567890" />
               </div>
             </div>
+
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : isNew ? 'Add Employee' : 'Save Changes'}</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : isNew ? 'Add Employee' : 'Save Changes'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

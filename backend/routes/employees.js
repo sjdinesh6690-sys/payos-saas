@@ -39,11 +39,14 @@ router.get('/', async (req, res) => {
 // ── POST add employee ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password } = req.body;
+    const { employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly, department, designation, phone, date_of_joining, password } = req.body;
     if (!employee_id || !employee_name)
       return res.status(400).json({ error: 'employee_id and employee_name are required' });
 
-    if (isNaN(parseFloat(salary)) || parseFloat(salary) < 0)
+    // Resolve gross monthly from whichever field was provided
+    let grossMonthly = parseFloat(salary) || 0;
+    if (!grossMonthly && yearly_ctc) grossMonthly = parseFloat(yearly_ctc) / 12;
+    if (isNaN(grossMonthly) || grossMonthly < 0)
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
 
     const empId = employee_id.toUpperCase();
@@ -60,14 +63,18 @@ router.post('/', async (req, res) => {
     const rawPwd = password || empId;
     const hashedPwd = await bcrypt.hash(rawPwd, 10);
 
+    const ctc      = yearly_ctc        ? parseFloat(yearly_ctc)         : grossMonthly * 12;
+    const netMthly = net_salary_monthly ? parseFloat(net_salary_monthly) : null;
+
     const result = await pool.query(`
       INSERT INTO employees
-        (admin_id, employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        (admin_id, employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly,
+         department, designation, phone, date_of_joining, password)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *
     `, [
       req.admin_id, empId, employee_name, email,
-      parseFloat(salary) || 0,
+      grossMonthly, ctc, netMthly,
       department || '', designation || '', phone || '', date_of_joining || '',
       hashedPwd,
     ]);
@@ -142,28 +149,45 @@ router.put('/:id', async (req, res) => {
     );
     if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
-    const { employee_name, email, salary, department, designation, phone, date_of_joining,
+    const { employee_name, email, salary, yearly_ctc, net_salary_monthly, department, designation, phone, date_of_joining,
             pan_number, uan_number, bank_name, bank_account_number, ifsc_code } = req.body;
 
-    if (salary !== undefined && (isNaN(parseFloat(salary)) || parseFloat(salary) < 0))
+    if (salary !== undefined && salary !== '' && (isNaN(parseFloat(salary)) || parseFloat(salary) < 0))
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
 
     const fields = [];
     const values = [];
     let idx = 1;
 
-    if (employee_name  !== undefined) { fields.push(`employee_name = $${idx++}`);  values.push(employee_name); }
-    if (email          !== undefined) { fields.push(`email = $${idx++}`);           values.push(email); }
-    if (salary         !== undefined) { fields.push(`salary = $${idx++}`);          values.push(parseFloat(salary)); }
-    if (department     !== undefined) { fields.push(`department = $${idx++}`);      values.push(department); }
-    if (designation    !== undefined) { fields.push(`designation = $${idx++}`);     values.push(designation); }
-    if (phone          !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone); }
+    // Resolve gross monthly — from salary field or derived from CTC
+    let resolvedGross = (salary !== undefined && salary !== '') ? parseFloat(salary) : undefined;
+    if (resolvedGross === undefined && yearly_ctc !== undefined && yearly_ctc !== '')
+      resolvedGross = parseFloat(yearly_ctc) / 12;
+
+    if (employee_name   !== undefined) { fields.push(`employee_name = $${idx++}`);  values.push(employee_name); }
+    if (email           !== undefined) { fields.push(`email = $${idx++}`);           values.push(email); }
+    if (resolvedGross   !== undefined) { fields.push(`salary = $${idx++}`);          values.push(resolvedGross); }
+    if (department      !== undefined) { fields.push(`department = $${idx++}`);      values.push(department); }
+    if (designation     !== undefined) { fields.push(`designation = $${idx++}`);     values.push(designation); }
+    if (phone           !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone); }
     if (date_of_joining !== undefined) { fields.push(`date_of_joining = $${idx++}`); values.push(date_of_joining); }
-    if (pan_number          !== undefined) { fields.push(`pan_number = $${idx++}`);           values.push(pan_number || null); }
-    if (uan_number          !== undefined) { fields.push(`uan_number = $${idx++}`);           values.push(uan_number || null); }
-    if (bank_name           !== undefined) { fields.push(`bank_name = $${idx++}`);            values.push(bank_name || null); }
-    if (bank_account_number !== undefined) { fields.push(`bank_account_number = $${idx++}`);  values.push(bank_account_number || null); }
-    if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);            values.push(ifsc_code || null); }
+    if (pan_number          !== undefined) { fields.push(`pan_number = $${idx++}`);          values.push(pan_number || null); }
+    if (uan_number          !== undefined) { fields.push(`uan_number = $${idx++}`);          values.push(uan_number || null); }
+    if (bank_name           !== undefined) { fields.push(`bank_name = $${idx++}`);           values.push(bank_name || null); }
+    if (bank_account_number !== undefined) { fields.push(`bank_account_number = $${idx++}`); values.push(bank_account_number || null); }
+    if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);           values.push(ifsc_code || null); }
+
+    // Sync CTC whenever gross changes, or save explicit CTC value
+    if (yearly_ctc !== undefined) {
+      const ctcVal = yearly_ctc !== '' ? parseFloat(yearly_ctc) : (resolvedGross ? resolvedGross * 12 : null);
+      fields.push(`yearly_ctc = $${idx++}`); values.push(ctcVal);
+    } else if (resolvedGross !== undefined) {
+      fields.push(`yearly_ctc = $${idx++}`); values.push(resolvedGross * 12);
+    }
+    if (net_salary_monthly !== undefined) {
+      fields.push(`net_salary_monthly = $${idx++}`);
+      values.push(net_salary_monthly !== '' ? parseFloat(net_salary_monthly) : null);
+    }
 
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 

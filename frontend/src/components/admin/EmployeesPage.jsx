@@ -289,7 +289,7 @@ export default function EmployeesPage() {
                   { key: 'employee_name', label: 'Name' },
                   { key: 'department',    label: 'Dept / Role' },
                   { key: 'email',         label: 'Email' },
-                  { key: 'salary',        label: 'Gross Salary' },
+                  { key: 'salary',        label: 'Salary' },
                   { key: 'last_payslip',  label: 'Last Payslip' },
                   { key: 'status',        label: 'Status' },
                 ].map(col => (
@@ -341,7 +341,11 @@ export default function EmployeesPage() {
                     {emp.designation && <div className="text-xs text-slate-500 mt-0.5">{emp.designation}</div>}
                   </td>
                   <td className="px-4 py-3 text-slate-600 text-xs">{emp.email || <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">{fmt(emp.salary)}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-slate-800 text-sm">{fmt(emp.salary)}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                    {emp.yearly_ctc > 0 && <div className="text-xs text-slate-500">CTC: {fmt(emp.yearly_ctc)}/yr</div>}
+                    {emp.net_salary_monthly > 0 && <div className="text-xs text-green-700">Net: {fmt(emp.net_salary_monthly)}/mo</div>}
+                  </td>
                   <td className="px-4 py-3">
                     {lastPayslipLabel ? (
                       <div>

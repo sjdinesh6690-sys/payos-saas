@@ -54,11 +54,21 @@ router.post('/generate', async (req, res) => {
     if (genDate > maxFuture)
       return res.status(400).json({ error: 'Cannot generate payslips for future months' });
 
-    // Build employee query — only active, optionally filtered by selected IDs
-    let empQuery = `SELECT * FROM employees WHERE admin_id = $1 AND (status = 'active' OR status IS NULL)`;
-    const empParams = [req.admin_id];
+    // Build employee query:
+    // Include active employees AND inactive employees who were still
+    // employed during the target month (exit date >= first day of that month).
+    // This lets you generate a Feb payslip for someone who left in March.
+    const targetMonthStart = `${String(parseInt(year)).padStart(4,'0')}-${String(parseInt(month)).padStart(2,'0')}-01`;
+
+    let empQuery = `SELECT * FROM employees WHERE admin_id = $1 AND (
+      (status = 'active' OR status IS NULL)
+      OR
+      (status = 'inactive' AND (date_of_exit IS NULL OR date_of_exit >= $2))
+    )`;
+    const empParams = [req.admin_id, targetMonthStart];
+
     if (Array.isArray(employee_ids) && employee_ids.length > 0) {
-      empQuery += ` AND employee_id = ANY($2::text[])`;
+      empQuery += ` AND employee_id = ANY($3::text[])`;
       empParams.push(employee_ids);
     }
     empQuery += ' ORDER BY employee_name ASC';
