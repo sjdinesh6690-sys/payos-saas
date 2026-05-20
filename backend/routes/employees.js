@@ -98,8 +98,15 @@ router.post('/upload', async (req, res) => {
       await client.query('BEGIN');
       for (const row of rows) {
         const { employee_id, employee_name, email, department, designation, phone, date_of_joining } = row;
-        // Accept both 'salary' and 'gross_salary' column names
-        const salary = row.salary || row.gross_salary || row.ctc || 0;
+        // Accept multiple salary column names
+        const rawGross = row.salary || row.gross_salary || row.gross || row.ctc || 0;
+        const rawCtc   = row.yearly_ctc || row.annual_ctc || row.ctc_per_annum || 0;
+        const rawNet   = row.net_salary_monthly || row.net_salary || row.net_pay || row.take_home || 0;
+        // Resolve gross: from gross field, or derive from yearly CTC
+        let salary = parseFloat(rawGross) || 0;
+        if (!salary && rawCtc) salary = parseFloat(rawCtc) / 12;
+        const ctcVal = rawCtc ? parseFloat(rawCtc) : salary * 12;
+        const netVal = rawNet ? parseFloat(rawNet) : null;
         if (!employee_id || !employee_name) {
           skipped++;
           skippedReasons.push({ employee_id: employee_id || '?', reason: 'Missing required fields (employee_id, employee_name)' });
@@ -119,9 +126,12 @@ router.post('/upload', async (req, res) => {
         const emailVal = email ? email.toString().trim().toLowerCase() : '';
         await client.query(`
           INSERT INTO employees
-            (admin_id, employee_id, employee_name, email, salary, department, designation, phone, date_of_joining, password)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-        `, [req.admin_id, empId, employee_name.trim(), emailVal, parseFloat(salary)||0, (department||'').trim(), (designation||'').trim(), (phone||'').trim(), (date_of_joining||'').trim(), hashedPwd]);
+            (admin_id, employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly,
+             department, designation, phone, date_of_joining, password)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        `, [req.admin_id, empId, employee_name.trim(), emailVal,
+            salary, ctcVal, netVal,
+            (department||'').trim(), (designation||'').trim(), (phone||'').trim(), (date_of_joining||'').trim(), hashedPwd]);
         inserted++;
       }
       await client.query('COMMIT');

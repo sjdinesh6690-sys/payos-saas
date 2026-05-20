@@ -24,9 +24,9 @@ export default function FileUploadDialog({ open, onOpenChange, type = 'employees
 
   const isEmployees = type === 'employees';
 
-  const employeeCsvTemplate = `employee_id,employee_name,email,salary,department,designation,phone,date_of_joining
-EMP001,John Smith,john@company.com,50000,Engineering,Developer,9876543210,2024-01-15
-EMP002,Jane Doe,jane@company.com,60000,HR,Manager,9876543211,2023-06-01`;
+  const employeeCsvTemplate = `employee_id,employee_name,gross_salary,yearly_ctc,net_salary_monthly,email,department,designation,phone,date_of_joining
+EMP001,John Smith,50000,600000,,john@company.com,Engineering,Developer,9876543210,2024-01-15
+EMP002,Jane Doe,60000,720000,,jane@company.com,HR,Manager,9876543211,2023-06-01`;
 
   const payslipCsvTemplate = `employee_id,month,year,salary
 EMP001,5,2026,50000

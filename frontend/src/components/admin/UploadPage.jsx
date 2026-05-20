@@ -43,27 +43,31 @@ const G = '#1A7A4A';
 
 /* ── Column definitions ─────────────────────────────────────────────────── */
 const COLS = [
-  { key: 'employee_id',     label: 'Employee ID',     eg: 'EMP001',              req: true,  note: 'Unique ID for each employee' },
-  { key: 'employee_name',   label: 'Full Name',        eg: 'Arjun Sharma',        req: true,  note: 'Employee full name' },
-  { key: 'gross_salary',    label: 'Gross Salary (₹)', eg: '45000',               req: true,  note: 'Monthly CTC in ₹' },
-  { key: 'email',           label: 'Email',            eg: 'arjun@company.com',   req: false, note: 'Optional — for sending payslips' },
-  { key: 'department',      label: 'Department',       eg: 'Engineering',         req: false, note: 'e.g. HR, Sales, Accounts' },
-  { key: 'designation',     label: 'Designation',      eg: 'Software Engineer',   req: false, note: 'Job title' },
-  { key: 'phone',           label: 'Phone',            eg: '9876543210',          req: false, note: '10-digit mobile number' },
-  { key: 'date_of_joining', label: 'Date of Joining',  eg: '2024-01-15',          req: false, note: 'YYYY-MM-DD format' },
+  { key: 'employee_id',       label: 'Employee ID',        eg: 'EMP001',              req: true,  note: 'Unique ID for each employee' },
+  { key: 'employee_name',     label: 'Full Name',           eg: 'Arjun Sharma',        req: true,  note: 'Employee full name' },
+  { key: 'gross_salary',      label: 'Gross Salary (₹)',    eg: '45000',               req: true,  note: 'Monthly gross pay in ₹ (before deductions)' },
+  { key: 'yearly_ctc',        label: 'Yearly CTC (₹)',      eg: '540000',              req: false, note: 'Annual CTC — auto-derived if not provided (gross × 12)' },
+  { key: 'net_salary_monthly',label: 'Monthly Net (₹)',     eg: '41200',               req: false, note: 'Take-home pay — auto-calculated from Payroll Config' },
+  { key: 'email',             label: 'Email',               eg: 'arjun@company.com',   req: false, note: 'Optional — for sending payslips' },
+  { key: 'department',        label: 'Department',          eg: 'Engineering',         req: false, note: 'e.g. HR, Sales, Accounts' },
+  { key: 'designation',       label: 'Designation',         eg: 'Software Engineer',   req: false, note: 'Job title' },
+  { key: 'phone',             label: 'Phone',               eg: '9876543210',          req: false, note: '10-digit mobile number' },
+  { key: 'date_of_joining',   label: 'Date of Joining',     eg: '2024-01-15',          req: false, note: 'YYYY-MM-DD format' },
 ];
 const COL_KEYS = COLS.map(c => c.key);
 
 /* ── Smart column mapper — tries to match any column name to our fields ─── */
 const ALIASES = {
-  employee_id:     ['emp id', 'emp_id', 'employee id', 'employeeid', 'id', 'staff id', 'staff_id', 'empid', 'employee no', 'emp no'],
-  employee_name:   ['name', 'full name', 'employee name', 'staff name', 'emp name', 'fullname'],
-  gross_salary:    ['salary', 'gross', 'ctc', 'monthly ctc', 'gross salary', 'monthly salary', 'basic', 'pay', 'amount'],
-  email:           ['email', 'email id', 'email address', 'mail', 'e-mail'],
-  department:      ['dept', 'department', 'division', 'team', 'unit'],
-  designation:     ['designation', 'title', 'job title', 'role', 'position', 'post'],
-  phone:           ['phone', 'mobile', 'contact', 'mobile no', 'phone no', 'contact no', 'tel'],
-  date_of_joining: ['doj', 'joining date', 'date of joining', 'join date', 'joining', 'start date'],
+  employee_id:        ['emp id', 'emp_id', 'employee id', 'employeeid', 'id', 'staff id', 'staff_id', 'empid', 'employee no', 'emp no'],
+  employee_name:      ['name', 'full name', 'employee name', 'staff name', 'emp name', 'fullname'],
+  gross_salary:       ['salary', 'gross', 'ctc', 'monthly ctc', 'gross salary', 'monthly salary', 'basic', 'pay', 'amount', 'gross pay'],
+  yearly_ctc:         ['yearly ctc', 'annual ctc', 'annual salary', 'annual package', 'ctc per annum', 'yearly salary', 'package'],
+  net_salary_monthly: ['net salary', 'net pay', 'take home', 'take-home', 'monthly net', 'net monthly', 'in hand'],
+  email:              ['email', 'email id', 'email address', 'mail', 'e-mail'],
+  department:         ['dept', 'department', 'division', 'team', 'unit'],
+  designation:        ['designation', 'title', 'job title', 'role', 'position', 'post'],
+  phone:              ['phone', 'mobile', 'contact', 'mobile no', 'phone no', 'contact no', 'tel'],
+  date_of_joining:    ['doj', 'joining date', 'date of joining', 'join date', 'joining', 'start date'],
 };
 
 function smartMapHeader(rawHeader) {
@@ -157,10 +161,10 @@ function parseFile(file) {
 
 /* ── Download template with full salary breakdown ───────────────────────── */
 function downloadTemplate(employees, config) {
-  // Build header: core fields + breakdown columns
-  const coreHeaders = ['employee_id', 'employee_name', 'gross_salary', 'email', 'department', 'designation', 'phone', 'date_of_joining'];
+  // Core input columns — what user fills in
+  const coreHeaders = ['employee_id', 'employee_name', 'gross_salary', 'yearly_ctc', 'net_salary_monthly', 'email', 'department', 'designation', 'phone', 'date_of_joining'];
 
-  // Determine breakdown columns from config
+  // Breakdown columns from config (reference only)
   const earningCols   = config ? (config.earnings   || []).filter(c => c.enabled).sort((a,b) => a.order-b.order) : [];
   const deductionCols = config ? (config.deductions  || []).filter(c => c.enabled).sort((a,b) => a.order-b.order) : [];
   const breakdownHeaders = [
@@ -168,22 +172,22 @@ function downloadTemplate(employees, config) {
     'Total Earnings',
     ...deductionCols.map(c => `[Deduction] ${c.label}`),
     'Total Deductions',
-    'Net Salary',
+    'Net Pay (auto)',
   ];
 
   const allHeaders = [...coreHeaders, ...(config ? breakdownHeaders : [])];
 
   // Build rows
   const sampleSalaries = employees.length > 0
-    ? employees.map(e => ({ ...e, gross_salary: e.salary }))
+    ? employees.map(e => ({ ...e, gross_salary: e.salary, yearly_ctc: e.yearly_ctc || e.salary * 12, net_salary_monthly: e.net_salary_monthly || '' }))
     : [
-        { employee_id:'EMP001', employee_name:'Arjun Sharma',  gross_salary:45000, email:'arjun@company.com',  department:'Engineering', designation:'Software Engineer', phone:'9876543210', date_of_joining:'2024-01-15' },
-        { employee_id:'EMP002', employee_name:'Priya Nair',    gross_salary:52000, email:'priya@company.com',   department:'Operations',  designation:'Manager',           phone:'9876543211', date_of_joining:'2023-06-01' },
-        { employee_id:'EMP003', employee_name:'Rohan Mehta',   gross_salary:38000, email:'',                   department:'Accounts',    designation:'Accountant',        phone:'9876543212', date_of_joining:'2024-03-10' },
+        { employee_id:'EMP001', employee_name:'Arjun Sharma',  gross_salary:45000, yearly_ctc:540000, net_salary_monthly:'', email:'arjun@company.com',  department:'Engineering', designation:'Software Engineer', phone:'9876543210', date_of_joining:'2024-01-15' },
+        { employee_id:'EMP002', employee_name:'Priya Nair',    gross_salary:52000, yearly_ctc:624000, net_salary_monthly:'', email:'priya@company.com',   department:'Operations',  designation:'Manager',           phone:'9876543211', date_of_joining:'2023-06-01' },
+        { employee_id:'EMP003', employee_name:'Rohan Mehta',   gross_salary:38000, yearly_ctc:456000, net_salary_monthly:'', email:'',                   department:'Accounts',    designation:'Accountant',        phone:'9876543212', date_of_joining:'2024-03-10' },
       ];
 
   const dataRows = sampleSalaries.map(e => {
-    const core = coreHeaders.map(k => e[k] || '');
+    const core = coreHeaders.map(k => e[k] !== undefined ? e[k] : '');
     if (!config) return core;
     const { earnings = {}, deductions = {} } = calcBreakdown(e.gross_salary, config);
     const totalE = Object.values(earnings).reduce((s,v) => s+v, 0);
@@ -202,9 +206,9 @@ function downloadTemplate(employees, config) {
   const ws = XLSX.utils.aoa_to_sheet([allHeaders, ...dataRows]);
 
   // Column widths
-  const widths = coreHeaders.map((h, i) => [12,22,16,28,16,22,14,16][i] || 14);
+  const coreWidths = [12, 22, 16, 16, 18, 28, 16, 22, 14, 16];
   const bwidths = breakdownHeaders.map(() => 18);
-  ws['!cols'] = [...widths, ...bwidths].map(w => ({ wch: w }));
+  ws['!cols'] = [...coreWidths, ...bwidths].map(w => ({ wch: w }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Employees');
@@ -213,18 +217,20 @@ function downloadTemplate(employees, config) {
     // Add a legend sheet explaining each column
     const legend = [
       ['Column', 'Description', 'Required?'],
-      ['employee_id', 'Unique employee ID (e.g. EMP001)', 'YES'],
-      ['employee_name', 'Full name', 'YES'],
-      ['gross_salary', 'Total monthly CTC in ₹', 'YES'],
-      ['email', 'Email for sending payslips', 'Optional'],
-      ['department', 'Department name', 'Optional'],
-      ['designation', 'Job title', 'Optional'],
-      ['phone', '10-digit mobile number', 'Optional'],
-      ['date_of_joining', 'YYYY-MM-DD format', 'Optional'],
+      ['employee_id',        'Unique employee ID (e.g. EMP001)',                'YES'],
+      ['employee_name',      'Full name',                                       'YES'],
+      ['gross_salary',       'Monthly gross pay in ₹ (before deductions)',      'YES — or provide yearly_ctc'],
+      ['yearly_ctc',         'Annual CTC in ₹ — auto-derived if left blank',    'Optional (gross × 12)'],
+      ['net_salary_monthly', 'Monthly take-home — system auto-calculates this', 'Optional'],
+      ['email',              'Email for sending payslips',                      'Optional'],
+      ['department',         'Department name',                                 'Optional'],
+      ['designation',        'Job title',                                       'Optional'],
+      ['phone',              '10-digit mobile number',                          'Optional'],
+      ['date_of_joining',    'YYYY-MM-DD format',                               'Optional'],
       ['', '', ''],
-      ['NOTE', 'Breakdown columns (Earnings, Deductions, Net) are auto-calculated', ''],
-      ['NOTE', 'When importing, only fill: employee_id, employee_name, gross_salary', ''],
-      ['NOTE', 'The system will auto-calculate HRA, PF etc. from your Payroll Config', ''],
+      ['NOTE', 'Breakdown columns (Earnings, Deductions) are for reference only — do not edit them', ''],
+      ['NOTE', 'The system calculates actual earnings/deductions from your Payroll Config', ''],
+      ['NOTE', 'You can enter either gross_salary OR yearly_ctc — the system derives the other', ''],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(legend);
     ws2['!cols'] = [{ wch: 24 }, { wch: 60 }, { wch: 12 }];
