@@ -89,13 +89,34 @@ function EmpSearch({ employees, exclude = [], placeholder, onSelect }) {
 }
 
 // ── Preview Dialog ────────────────────────────────────────────────────────────
-function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments }) {
+function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments, onGenerateSelected }) {
+  const [localSelected, setLocalSelected] = useState(() => new Set());
+
+  // Initialise all employees as selected whenever preview data changes
+  useEffect(() => {
+    if (data?.previews) setLocalSelected(new Set(data.previews.map(p => p.employee_id)));
+  }, [data]);
+
   if (!open || !data) return null;
   const { previews = [] } = data;
 
-  const totalGross = previews.reduce((s, p) => s + (p.gross_salary || 0), 0);
-  const totalNet   = previews.reduce((s, p) => s + (p.net_salary   || 0), 0);
-  const totalDed   = previews.reduce((s, p) => s + (p.total_deductions || 0), 0);
+  const selectedPreviews = previews.filter(p => localSelected.has(p.employee_id));
+  const allChecked       = localSelected.size === previews.length;
+
+  const toggleAll = () => {
+    setLocalSelected(allChecked ? new Set() : new Set(previews.map(p => p.employee_id)));
+  };
+  const toggleOne = (empId) => {
+    setLocalSelected(prev => {
+      const next = new Set(prev);
+      next.has(empId) ? next.delete(empId) : next.add(empId);
+      return next;
+    });
+  };
+
+  const totalGross = selectedPreviews.reduce((s, p) => s + (p.gross_salary || 0), 0);
+  const totalNet   = selectedPreviews.reduce((s, p) => s + (p.net_salary   || 0), 0);
+  const totalDed   = selectedPreviews.reduce((s, p) => s + (p.total_deductions || 0), 0);
 
   const downloadExcel = () => {
     const rows = previews.map((p, idx) => {
@@ -251,32 +272,55 @@ function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments })
               📊 Payroll Preview — {MONTHS[month]} {year}
             </h2>
             <p style={{ color:'rgba(255,255,255,0.6)', fontSize:13, margin:'4px 0 0' }}>
-              Review salary details before generating. {previews.length} employees · {previews.filter(p=>p.status==='inactive').length > 0 ? `includes ${previews.filter(p=>p.status==='inactive').length} recently-left employee(s)` : 'all active'}
+              Review each employee's salary · {previews.length} employees total
+              {previews.filter(p=>p.status==='inactive').length > 0
+                ? ` · ${previews.filter(p=>p.status==='inactive').length} recently-left included`
+                : ''}
             </p>
           </div>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'#fff', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:13 }}>Close ✕</button>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:12, color:'rgba(255,255,255,0.5)' }}>
+              {localSelected.size} / {previews.length} selected
+            </span>
+            <button onClick={onClose} style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'#fff', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:13 }}>✕ Close</button>
+          </div>
+        </div>
+
+        {/* Instruction banner */}
+        <div style={{ background:'#EFF6FF', borderBottom:'1px solid #BFDBFE', padding:'10px 20px', fontSize:12, color:'#1D4ED8' }}>
+          ✅ <strong>All employees checked by default.</strong> Uncheck any employee you want to skip → then click <strong>"Generate Payslips"</strong> below.
         </div>
 
         {/* Summary bar */}
         <div style={{ display:'flex', gap:0, background:'#F8FAFC', borderBottom:'1px solid #E2E8F0' }}>
           {[
-            { label:'Employees', value: previews.length, color:'#1E293B' },
+            { label:'Selected', value: `${localSelected.size} of ${previews.length}`, color:'#1E293B' },
             { label:'Total Gross', value: fmt(totalGross), color:'#1E293B' },
             { label:'Total Deductions', value: fmt(totalDed), color:'#DC2626' },
             { label:'Total Net Pay', value: fmt(totalNet), color:'#16A34A' },
           ].map((s, i) => (
-            <div key={i} style={{ flex:1, padding:'14px 20px', borderRight: i < 3 ? '1px solid #E2E8F0' : 'none' }}>
+            <div key={i} style={{ flex:1, padding:'12px 20px', borderRight: i < 3 ? '1px solid #E2E8F0' : 'none' }}>
               <p style={{ fontSize:11, color:'#64748B', margin:0 }}>{s.label}</p>
-              <p style={{ fontSize:18, fontWeight:700, color:s.color, margin:'2px 0 0' }}>{s.value}</p>
+              <p style={{ fontSize:17, fontWeight:700, color:s.color, margin:'2px 0 0' }}>{s.value}</p>
             </div>
           ))}
         </div>
 
         {/* Table */}
-        <div style={{ overflowX:'auto', maxHeight:'50vh', overflowY:'auto' }}>
+        <div style={{ overflowX:'auto', maxHeight:'48vh', overflowY:'auto' }}>
           <table style={{ width:'100%', fontSize:12, borderCollapse:'collapse' }}>
             <thead style={{ position:'sticky', top:0, zIndex:2 }}>
               <tr style={{ background:'#1E293B', color:'#fff' }}>
+                {/* Select-all checkbox */}
+                <th style={{ padding:'10px 12px', width:36, textAlign:'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleAll}
+                    style={{ width:15, height:15, cursor:'pointer', accentColor:'#F97316' }}
+                    title={allChecked ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 {['#','Employee','Dept','Status','Gross (₹)','Earnings','Deductions','Net Pay (₹)','PF EE','ESI EE','PT','TDS','LOP Days'].map(h => (
                   <th key={h} style={{ padding:'10px 12px', textAlign: h==='#'?'center':'left', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{h}</th>
                 ))}
@@ -284,26 +328,43 @@ function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments })
             </thead>
             <tbody>
               {previews.map((p, idx) => {
-                const ded = p.deductions || {};
-                const isLeft = p.status === 'inactive';
+                const ded       = p.deductions || {};
+                const isLeft    = p.status === 'inactive';
+                const isChecked = localSelected.has(p.employee_id);
                 return (
-                  <tr key={p.employee_id} style={{ background: idx%2===0?'#fff':'#F8FAFC', borderBottom:'1px solid #F1F5F9' }}>
+                  <tr key={p.employee_id}
+                    style={{
+                      background: !isChecked ? '#FFF7F7' : idx%2===0?'#fff':'#F8FAFC',
+                      borderBottom:'1px solid #F1F5F9',
+                      opacity: isChecked ? 1 : 0.55,
+                      cursor:'pointer',
+                    }}
+                    onClick={() => toggleOne(p.employee_id)}
+                  >
+                    <td style={{ padding:'9px 12px', textAlign:'center' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleOne(p.employee_id)}
+                        style={{ width:15, height:15, cursor:'pointer', accentColor:'#F97316' }}
+                      />
+                    </td>
                     <td style={{ padding:'9px 12px', textAlign:'center', color:'#94A3B8' }}>{idx+1}</td>
                     <td style={{ padding:'9px 12px' }}>
                       <p style={{ fontWeight:600, color:'#0F172A', margin:0 }}>{p.employee_name}</p>
-                      <p style={{ fontSize:10, color:'#94A3B8', margin:0 }}>{p.employee_id}</p>
+                      <p style={{ fontSize:10, color:'#94A3B8', margin:0 }}>{p.employee_id}{p.designation ? ` · ${p.designation}` : ''}</p>
                     </td>
                     <td style={{ padding:'9px 12px', color:'#475569' }}>{p.department || '—'}</td>
                     <td style={{ padding:'9px 12px' }}>
                       {isLeft
-                        ? <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2', color:'#991B1B', padding:'2px 7px', borderRadius:20 }}>LEFT</span>
+                        ? <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2', color:'#991B1B', padding:'2px 7px', borderRadius:20 }}>LEFT{p.date_of_exit ? ` ${p.date_of_exit}` : ''}</span>
                         : <span style={{ fontSize:10, fontWeight:700, background:'#DCFCE7', color:'#166534', padding:'2px 7px', borderRadius:20 }}>ACTIVE</span>
                       }
                     </td>
                     <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:600, color:'#0F172A' }}>{fmt(p.gross_salary)}</td>
                     <td style={{ padding:'9px 12px', textAlign:'right', color:'#166534' }}>{fmt(p.total_earnings)}</td>
                     <td style={{ padding:'9px 12px', textAlign:'right', color:'#DC2626' }}>{fmt(p.total_deductions)}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#0F172A', background:'#F0FDF4' }}>{fmt(p.net_salary)}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#0F172A', background: isChecked ? '#F0FDF4' : 'transparent' }}>{fmt(p.net_salary)}</td>
                     <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.pf_employee)}</td>
                     <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.esi_employee)}</td>
                     <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748B', fontSize:11 }}>{fmt(ded.pt)}</td>
@@ -316,9 +377,11 @@ function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments })
             {/* Totals */}
             <tfoot>
               <tr style={{ background:'#FFF7ED', borderTop:'2px solid #FCD34D' }}>
-                <td colSpan={4} style={{ padding:'10px 12px', fontWeight:700, color:'#92400E', fontSize:12 }}>TOTAL — {previews.length} employees</td>
+                <td colSpan={5} style={{ padding:'10px 12px', fontWeight:700, color:'#92400E', fontSize:12 }}>
+                  TOTAL — {localSelected.size} selected ({previews.length - localSelected.size} skipped)
+                </td>
                 <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#0F172A' }}>{fmt(totalGross)}</td>
-                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#166534' }}>{fmt(previews.reduce((s,p)=>s+(p.total_earnings||0),0))}</td>
+                <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#166534' }}>{fmt(selectedPreviews.reduce((s,p)=>s+(p.total_earnings||0),0))}</td>
                 <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#DC2626' }}>{fmt(totalDed)}</td>
                 <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:700, color:'#166534', background:'#F0FDF4' }}>{fmt(totalNet)}</td>
                 <td colSpan={5} />
@@ -329,23 +392,42 @@ function PreviewDialog({ open, onClose, data, month, year, onApplyAdjustments })
 
         {/* Footer actions */}
         <div style={{ padding:'16px 24px', background:'#F8FAFC', borderTop:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+
+          {/* PRIMARY — Generate selected */}
           <button
-            onClick={downloadExcel}
-            style={{ display:'flex', alignItems:'center', gap:7, background:'#16A34A', color:'#fff', border:'none', borderRadius:9, padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}
+            onClick={() => { onGenerateSelected(localSelected); onClose(); }}
+            disabled={localSelected.size === 0}
+            style={{
+              display:'flex', alignItems:'center', gap:7,
+              background: localSelected.size === 0 ? '#CBD5E1' : 'linear-gradient(135deg,#F97316,#EA580C)',
+              color:'#fff', border:'none', borderRadius:9,
+              padding:'10px 22px', fontSize:14, fontWeight:700, cursor: localSelected.size === 0 ? 'not-allowed' : 'pointer',
+              boxShadow: localSelected.size === 0 ? 'none' : '0 3px 12px rgba(234,88,12,0.35)',
+            }}
           >
-            <FileSpreadsheet size={15} /> Download Excel — Edit & Re-upload
+            <FileText size={15} />
+            🚀 Generate {localSelected.size} Payslips — {MONTHS[month]} {year}
           </button>
 
-          <label style={{ display:'flex', alignItems:'center', gap:7, background:'#2563EB', color:'#fff', border:'none', borderRadius:9, padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-            <Upload size={15} /> Upload Adjusted Excel
-            <input type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleFileUpload} />
-          </label>
+          <div style={{ display:'flex', gap:8 }}>
+            <button
+              onClick={downloadExcel}
+              style={{ display:'flex', alignItems:'center', gap:6, background:'#16A34A', color:'#fff', border:'none', borderRadius:9, padding:'9px 16px', fontSize:13, fontWeight:600, cursor:'pointer' }}
+            >
+              <FileSpreadsheet size={14} /> Download Excel
+            </button>
 
-          <span style={{ fontSize:12, color:'#64748B', flex:1 }}>
-            💡 Download Excel → edit LOP, bonus, TDS → re-upload → preview again
+            <label style={{ display:'flex', alignItems:'center', gap:6, background:'#2563EB', color:'#fff', border:'none', borderRadius:9, padding:'9px 16px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              <Upload size={14} /> Upload Adjusted
+              <input type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleFileUpload} />
+            </label>
+          </div>
+
+          <span style={{ fontSize:11, color:'#64748B', flex:1 }}>
+            💡 Uncheck employees to skip them → Generate only the checked ones
           </span>
 
-          <button onClick={onClose} style={{ background:'none', border:'1px solid #CBD5E1', borderRadius:9, padding:'9px 18px', fontSize:13, cursor:'pointer', color:'#475569' }}>
+          <button onClick={onClose} style={{ background:'none', border:'1px solid #CBD5E1', borderRadius:9, padding:'9px 16px', fontSize:13, cursor:'pointer', color:'#475569' }}>
             Close
           </button>
         </div>
@@ -367,6 +449,10 @@ export default function SendPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Single-employee quick mode
+  const [singleEmp, setSingleEmp] = useState(null);
+  const [singleLoading, setSingleLoading] = useState(false);
 
   // Exceptions — only these are stored; everyone else is normal
   const [lopList,         setLopList]         = useState([]);
@@ -529,6 +615,50 @@ export default function SendPage() {
     }
   };
 
+  // Generate only the employees selected inside the PreviewDialog
+  const generateFromPreview = async (selectedEmpIds) => {
+    const ids = Array.from(selectedEmpIds);
+    if (ids.length === 0) { toast.error('No employees selected in preview'); return; }
+    setGenLoading(true);
+    try {
+      await api.post('/payslips/generate', {
+        month, year,
+        working_days: workingDays,
+        adjustments: buildAdjustments(),
+        employee_ids: ids,
+        salary_overrides: buildSalaryOverrides(),
+      });
+      toast.success(`✅ ${ids.length} payslip${ids.length !== 1 ? 's' : ''} generated — ${MONTHS[month]} ${year}`);
+      qc.invalidateQueries({ queryKey: ['payslips'] });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Generation failed');
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  // Generate payslip for a single specific employee
+  const generateSingleEmployee = async (emp) => {
+    if (!emp) return;
+    setSingleLoading(true);
+    try {
+      await api.post('/payslips/generate', {
+        month, year,
+        working_days: workingDays,
+        adjustments: buildAdjustments(),
+        employee_ids: [emp.employee_id],
+        salary_overrides: buildSalaryOverrides(),
+      });
+      toast.success(`✅ Payslip generated for ${emp.employee_name} — ${MONTHS[month]} ${year}`);
+      qc.invalidateQueries({ queryKey: ['payslips'] });
+      setSingleEmp(null);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Generation failed');
+    } finally {
+      setSingleLoading(false);
+    }
+  };
+
   const sendEmails = async () => {
     if (!pendingEmail.length) { toast('No pending payslips to email'); return; }
     setSendLoading(true);
@@ -579,6 +709,7 @@ export default function SendPage() {
         month={month}
         year={year}
         onApplyAdjustments={applyAdjustmentsFromExcel}
+        onGenerateSelected={generateFromPreview}
       />
 
       <div>
@@ -624,20 +755,87 @@ export default function SendPage() {
         ))}
       </div>
 
+      {/* ── Single Employee Quick Run ─────────────────────────────────── */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center shrink-0">
+              <Users size={14} />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900">Generate Payslip for a Single Employee</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Use this to run payroll for just one specific person — useful for re-runs, last-month payslips for employees who left, or new joiners.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]">
+              <EmpSearch
+                employees={employees}
+                exclude={singleEmp ? [] : []}
+                placeholder="Search employee name or ID…"
+                onSelect={(emp) => setSingleEmp(emp)}
+              />
+            </div>
+            {singleEmp && (
+              <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 flex-1 min-w-[260px]">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-900">{singleEmp.employee_name}</p>
+                  <p className="text-xs text-slate-500">
+                    {singleEmp.employee_id} · ₹{Number(singleEmp.salary||0).toLocaleString('en-IN')}/mo
+                    {singleEmp.status === 'inactive' && <span className="ml-1 text-red-500">(Left: {singleEmp.date_of_exit || 'unknown'})</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => generateSingleEmployee(singleEmp)}
+                  disabled={singleLoading}
+                  style={{
+                    background: singleLoading ? '#CBD5E1' : 'linear-gradient(135deg,#7C3AED,#6D28D9)',
+                    color:'#fff', border:'none', borderRadius:9,
+                    padding:'8px 16px', fontSize:13, fontWeight:700,
+                    cursor: singleLoading ? 'not-allowed' : 'pointer',
+                    whiteSpace:'nowrap',
+                  }}
+                >
+                  {singleLoading ? '⏳ Generating…' : `🚀 Generate for ${singleEmp.employee_name.split(' ')[0]} — ${MONTHS[month]} ${year}`}
+                </button>
+                <button onClick={() => setSingleEmp(null)}
+                  className="p-1.5 rounded-lg hover:bg-purple-100 text-purple-400 hover:text-purple-600">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            {!singleEmp && (
+              <p className="text-xs text-slate-400">← Search to pick an employee, then generate for that person only</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Recently left employee notice */}
       {leftEmps.length > 0 && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
-          <div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <Info size={15} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm font-semibold text-amber-800">
-              {leftEmps.length} recently-left employee{leftEmps.length > 1 ? 's' : ''} included for {MONTHS[month]} {year}
-            </p>
-            <p className="text-xs text-amber-600 mt-0.5">
-              {leftEmps.map(e => `${e.employee_name} (left: ${e.date_of_exit || 'unknown'})`).join(', ')}.
-              These employees were still active in {MONTHS[month]}, so payslips will be generated for them.
-              Use the Exclude section below if you don't want a payslip for any of them.
+              {leftEmps.length} recently-left employee{leftEmps.length > 1 ? 's' : ''} automatically included for {MONTHS[month]} {year}
             </p>
           </div>
+          <div className="space-y-1.5 pl-5">
+            {leftEmps.map(e => (
+              <div key={e.employee_id} className="flex items-center gap-3 text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-2">
+                <span className="font-semibold">{e.employee_name}</span>
+                <span className="text-amber-500">Left: {e.date_of_exit || 'unknown'}</span>
+                <span className="flex-1 text-amber-500">— included because they were active during {MONTHS[month]} {year}</span>
+                <span className="text-amber-600 font-medium">Use ⛔ Skip below to exclude them</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-amber-600 pl-5">
+            💡 Need a payslip for a <strong>past month</strong> (e.g. their last month before leaving)?
+            Use the <strong>Single Employee</strong> card above — select the employee, navigate to the correct past month using ← → arrows at the top, then generate.
+          </p>
         </div>
       )}
 
