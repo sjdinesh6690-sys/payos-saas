@@ -1,321 +1,333 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileText, Search, Calendar, CalendarRange, FileSpreadsheet } from 'lucide-react';
+import {
+  Download, FileSpreadsheet, FileText, AlertCircle,
+  Users, Building2, CreditCard, Receipt,
+  ShieldCheck, Landmark, Calculator,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 
+// ── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
 const YEARS  = [2022, 2023, 2024, 2025, 2026, 2027];
 
-// Reports that support date ranges (compliance / statutory)
-const RANGE_REPORT_IDS = new Set([
-  'pf-report','esi-report','professional-tax-report','tds-report',
-  'statutory-compliance','quarterly-payroll-summary','annual-payroll-summary',
-  'cost-to-company','payslip-audit-trail',
-]);
+// ── Report definitions (only what actually has data + is useful) ──────────────
+const PAYROLL_REPORTS = [
+  {
+    id:      'monthly-payroll-summary',
+    label:   'Payslip Summary',
+    desc:    'Month-wise totals — headcount, gross pay, deductions, net paid.',
+    use:     'Use this to get a quick overview of your monthly payroll spend.',
+    icon:    Receipt,
+    color:   'blue',
+    pdf:     true,
+    excel:   false,
+  },
+  {
+    id:      'salary-register',
+    label:   'Salary Register',
+    desc:    'Full salary breakup for every employee — basic, HRA, allowances, deductions.',
+    use:     'Use this for internal payroll records and audit.',
+    icon:    FileText,
+    color:   'indigo',
+    pdf:     true,
+    excel:   true,
+    excelId: 'salary-register',
+  },
+  {
+    id:      'bank-advice',
+    label:   'Bank Payment Advice',
+    desc:    'Employee name, bank account number, IFSC, and net salary to transfer.',
+    use:     'Upload the Excel to your bank portal for bulk salary transfer.',
+    icon:    CreditCard,
+    color:   'green',
+    pdf:     true,
+    excel:   true,
+    excelId: 'bank-advice',
+  },
+];
 
-// Reports that also have an Excel download
-const EXCEL_REPORT_MAP = {
-  'pf-report':               'pf-ecr',
-  'esi-report':              'esi-contribution',
-  'professional-tax-report': 'professional-tax',
-  'bank-advice':             'bank-advice',
-  'salary-register':         'salary-register',
+const STATUTORY_REPORTS = [
+  {
+    id:      'pf-report',
+    label:   'PF / EPF Report',
+    desc:    'Employee + employer PF contributions. Excel is in EPFO ECR upload format.',
+    use:     'Use the Excel to upload directly to the EPFO Unified Portal.',
+    icon:    ShieldCheck,
+    color:   'emerald',
+    pdf:     true,
+    excel:   true,
+    excelId: 'pf-ecr',
+  },
+  {
+    id:      'esi-report',
+    label:   'ESI Contribution Report',
+    desc:    'ESI deductions for employees with salary ≤ ₹21,000/month.',
+    use:     'Use the Excel for ESIC portal contribution filing.',
+    icon:    Building2,
+    color:   'teal',
+    pdf:     true,
+    excel:   true,
+    excelId: 'esi-contribution',
+  },
+  {
+    id:      'professional-tax-report',
+    label:   'Professional Tax (PT)',
+    desc:    'State-wise PT deductions with applicable slab reference.',
+    use:     'Use for monthly PT challan payment and filing.',
+    icon:    Landmark,
+    color:   'violet',
+    pdf:     true,
+    excel:   true,
+    excelId: 'professional-tax',
+  },
+  {
+    id:      'tds-report',
+    label:   'TDS Summary',
+    desc:    'Tax Deducted at Source per employee for the selected month.',
+    use:     'Use for quarterly TDS return filing (Form 24Q).',
+    icon:    Calculator,
+    color:   'orange',
+    pdf:     true,
+    excel:   false,
+  },
+];
+
+// ── Color maps ────────────────────────────────────────────────────────────────
+const COLOR = {
+  blue:    { bg: 'bg-blue-50',    icon: 'text-blue-600',    border: 'border-blue-100'    },
+  indigo:  { bg: 'bg-indigo-50',  icon: 'text-indigo-600',  border: 'border-indigo-100'  },
+  green:   { bg: 'bg-green-50',   icon: 'text-green-600',   border: 'border-green-100'   },
+  emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-100' },
+  teal:    { bg: 'bg-teal-50',    icon: 'text-teal-600',    border: 'border-teal-100'    },
+  violet:  { bg: 'bg-violet-50',  icon: 'text-violet-600',  border: 'border-violet-100'  },
+  orange:  { bg: 'bg-orange-50',  icon: 'text-orange-500',  border: 'border-orange-100'  },
 };
 
-const CATEGORIES = [
-  {
-    label: 'Payroll Reports',
-    reports: [
-      { id: 'monthly-payroll-summary',   label: 'Monthly Payroll Summary',     desc: 'Total salaries paid for selected month' },
-      { id: 'quarterly-payroll-summary', label: 'Quarterly Payroll Summary',   desc: 'Q1–Q4 salary breakdown — select date range' },
-      { id: 'annual-payroll-summary',    label: 'Annual Payroll Summary',      desc: 'Full year salary report — select date range' },
-      { id: 'salary-register',           label: 'Salary Register',             desc: 'Detailed payroll register — PDF & Excel download' },
-      { id: 'bank-advice',               label: 'Bank Advice / Transfer List', desc: 'Employee bank transfer details — PDF & Excel for bulk upload' },
-    ],
-  },
-  {
-    label: 'Statutory & Compliance',
-    reports: [
-      { id: 'pf-report',               label: 'PF Contribution Report',    desc: 'PF contributions — PDF summary + Excel ECR for EPFO portal upload' },
-      { id: 'esi-report',              label: 'ESI Contribution Report',   desc: 'ESI deductions — PDF summary + Excel for ESIC portal' },
-      { id: 'professional-tax-report', label: 'Professional Tax Report',   desc: 'PT deductions — PDF summary + Excel with state slab reference' },
-      { id: 'tds-report',              label: 'TDS Report',                desc: 'Tax deducted at source summary — supports date range' },
-      { id: 'statutory-compliance',    label: 'Compliance Checklist',      desc: 'PF/ESI/PT/TDS filing status — supports date range' },
-    ],
-  },
-  {
-    label: 'Employee Reports',
-    reports: [
-      { id: 'employee-headcount',  label: 'Employee Headcount Report', desc: 'Active employees by department' },
-      { id: 'cost-to-company',     label: 'Cost to Company (CTC)',     desc: 'Total employer cost per employee — supports date range' },
-      { id: 'payslip-audit-trail', label: 'Payslip Audit Trail',       desc: 'Payslip generation history log — supports date range' },
-    ],
-  },
-];
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+}
 
-// Quick preset ranges
-const PRESETS = [
-  { label: 'This Month',    getRange: () => { const n=new Date(); return { fm:n.getMonth()+1,fy:n.getFullYear(),tm:n.getMonth()+1,ty:n.getFullYear() }; } },
-  { label: 'Last 3 Months', getRange: () => { const n=new Date(); const s=new Date(n.getFullYear(),n.getMonth()-2,1); return { fm:s.getMonth()+1,fy:s.getFullYear(),tm:n.getMonth()+1,ty:n.getFullYear() }; } },
-  { label: 'Last 6 Months', getRange: () => { const n=new Date(); const s=new Date(n.getFullYear(),n.getMonth()-5,1); return { fm:s.getMonth()+1,fy:s.getFullYear(),tm:n.getMonth()+1,ty:n.getFullYear() }; } },
-  { label: 'This FY (Apr–Mar)', getRange: () => { const n=new Date(); const fy=n.getMonth()>=3?n.getFullYear():n.getFullYear()-1; return { fm:4,fy,tm:3,ty:fy+1 }; } },
-  { label: 'Last FY', getRange: () => { const n=new Date(); const fy=(n.getMonth()>=3?n.getFullYear():n.getFullYear()-1)-1; return { fm:4,fy,tm:3,ty:fy+1 }; } },
-];
-
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function ReportsPage() {
-  const now = new Date();
-  const [search,    setSearch]    = useState('');
-  const [loading,   setLoading]   = useState({});
-  const [useRange,  setUseRange]  = useState(false);
-
-  // Single month
+  const now   = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year,  setYear]  = useState(now.getFullYear());
+  const [loading, setLoading] = useState({});
 
-  // Date range
-  const [fromMonth, setFromMonth] = useState(now.getMonth() + 1);
-  const [fromYear,  setFromYear]  = useState(now.getFullYear());
-  const [toMonth,   setToMonth]   = useState(now.getMonth() + 1);
-  const [toYear,    setToYear]    = useState(now.getFullYear());
+  // Fetch payslip summary for selected month to show data availability
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ['report-summary', month, year],
+    queryFn:  async () => {
+      const res = await api.get(`/payslips?month=${month}&year=${year}&page=1&limit=500`);
+      const slips = res.data?.payslips || res.data || [];
+      if (!slips.length) return null;
+      const totalNet   = slips.reduce((s, p) => s + (parseFloat(p.net_salary)  || 0), 0);
+      const totalGross = slips.reduce((s, p) => s + (parseFloat(p.gross_salary) || parseFloat(p.basic_salary) || 0), 0);
+      return { count: slips.length, totalNet, totalGross };
+    },
+    staleTime: 30_000,
+  });
 
-  const applyPreset = (p) => {
-    const r = p.getRange();
-    setFromMonth(r.fm); setFromYear(r.fy);
-    setToMonth(r.tm);   setToYear(r.ty);
-    setUseRange(true);
-  };
+  const hasData = summary && summary.count > 0;
 
-  const rangeLabel = useRange
-    ? `${MONTHS[fromMonth]} ${fromYear} → ${MONTHS[toMonth]} ${toYear}`
-    : `${MONTHS[month]} ${year}`;
-
-  const allReports = CATEGORIES.flatMap(c => c.reports);
-  const filtered   = search
-    ? allReports.filter(r => r.label.toLowerCase().includes(search.toLowerCase()) || r.desc.toLowerCase().includes(search.toLowerCase()))
-    : null;
-
-  const download = async (id, label, format = 'pdf') => {
-    const loadKey = `${id}_${format}`;
-    setLoading(l => ({ ...l, [loadKey]: true }));
+  // Download handler
+  const download = async (reportId, label, format = 'pdf', excelId = null) => {
+    if (!hasData) {
+      toast.error(`No payslip data for ${MONTHS[month]} ${year}. Generate payslips first.`);
+      return;
+    }
+    const key = `${reportId}_${format}`;
+    setLoading(l => ({ ...l, [key]: true }));
     try {
-      let url, suffix;
+      let url, ext;
       if (format === 'excel') {
-        const excelId = EXCEL_REPORT_MAP[id];
-        url    = `/api/reports/excel/${excelId}?month=${month}&year=${year}`;
-        suffix = `${year}_${String(month).padStart(2,'0')}`;
+        url = `/api/reports/excel/${excelId}?month=${month}&year=${year}`;
+        ext = 'xlsx';
       } else {
-        const isRange = useRange && RANGE_REPORT_IDS.has(id);
-        if (isRange) {
-          url    = `/api/reports/${id}?from_month=${fromMonth}&from_year=${fromYear}&to_month=${toMonth}&to_year=${toYear}`;
-          suffix = `${fromYear}_${String(fromMonth).padStart(2,'0')}_to_${toYear}_${String(toMonth).padStart(2,'0')}`;
-        } else {
-          url    = `/api/reports/${id}?month=${month}&year=${year}`;
-          suffix = `${year}_${String(month).padStart(2,'0')}`;
-        }
+        url = `/api/reports/${reportId}?month=${month}&year=${year}`;
+        ext = 'pdf';
       }
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${localStorage.getItem('payslip_token')}` },
       });
-      if (!res.ok) { toast.error('Could not generate report — check server logs'); return; }
-      const blob = await res.blob();
+      if (!res.ok) {
+        toast.error('Could not generate report — please try again');
+        return;
+      }
+      const blob  = await res.blob();
       const dlUrl = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      const ext  = format === 'excel' ? 'xlsx' : 'pdf';
-      a.href = dlUrl; a.download = `${label.replace(/\s+/g,'_')}_${suffix}.${ext}`;
-      document.body.appendChild(a); a.click();
-      URL.revokeObjectURL(dlUrl); document.body.removeChild(a);
+      const a     = document.createElement('a');
+      const suffix = `${year}_${String(month).padStart(2, '0')}`;
+      a.href = dlUrl;
+      a.download = `${label.replace(/\s+/g, '_')}_${suffix}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(dlUrl);
+      document.body.removeChild(a);
       toast.success(`${label} ${format === 'excel' ? 'Excel' : 'PDF'} downloaded`);
     } catch {
-      toast.error('Error generating report');
+      toast.error('Error generating report — please try again');
     } finally {
-      setLoading(l => ({ ...l, [loadKey]: false }));
+      setLoading(l => ({ ...l, [key]: false }));
     }
   };
 
-  const selBox = 'h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500';
-
+  // ── Report Card ─────────────────────────────────────────────────────────────
   const ReportCard = ({ r }) => {
-    const supportsRange = RANGE_REPORT_IDS.has(r.id);
-    const hasExcel      = !!EXCEL_REPORT_MAP[r.id];
-    const pdfKey        = `${r.id}_pdf`;
-    const xlsKey        = `${r.id}_excel`;
+    const c = COLOR[r.color] || COLOR.blue;
+    const Icon = r.icon;
     return (
-      <Card>
-        <CardContent className="flex items-center justify-between py-4 px-5 gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className={`mt-0.5 p-1.5 rounded shrink-0 ${hasExcel ? 'bg-green-50' : supportsRange ? 'bg-blue-50' : 'bg-slate-100'}`}>
-              {hasExcel
-                ? <FileSpreadsheet size={14} className="text-green-600" />
-                : supportsRange
-                  ? <CalendarRange size={14} className="text-blue-500" />
-                  : <FileText size={14} className="text-slate-500" />
-              }
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{r.label}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{r.desc}</p>
-            </div>
+      <div className={`rounded-xl border ${hasData ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'} p-5 flex flex-col gap-4 transition-all`}>
+        {/* Top row */}
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-lg ${c.bg} shrink-0`}>
+            <Icon size={18} className={c.icon} />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {supportsRange && useRange && (
-              <span className="text-xs bg-blue-50 text-blue-600 border border-blue-100 rounded px-2 py-0.5 whitespace-nowrap">Range</span>
-            )}
-            {hasExcel && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={loading[xlsKey]}
-                onClick={() => download(r.id, r.label, 'excel')}
-                className="h-8 border-green-300 text-green-700 hover:bg-green-50"
-                title="Download Excel — suitable for government portal upload"
-              >
-                <FileSpreadsheet size={13} className="mr-1" />
-                {loading[xlsKey] ? 'Generating…' : 'Excel'}
-              </Button>
-            )}
+          <div className="min-w-0">
+            <p className={`text-sm font-semibold ${hasData ? 'text-slate-900' : 'text-slate-400'}`}>{r.label}</p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{r.desc}</p>
+          </div>
+        </div>
+
+        {/* Usage tip */}
+        <div className={`text-xs rounded-lg px-3 py-2 ${hasData ? `${c.bg} ${c.icon}` : 'bg-slate-100 text-slate-400'}`}>
+          💡 {r.use}
+        </div>
+
+        {/* Download buttons */}
+        <div className="flex items-center gap-2 mt-auto">
+          <Button
+            size="sm"
+            disabled={!hasData || loading[`${r.id}_pdf`]}
+            onClick={() => download(r.id, r.label, 'pdf')}
+            className={`h-8 flex-1 text-xs ${hasData ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+          >
+            <Download size={12} className="mr-1.5" />
+            {loading[`${r.id}_pdf`] ? 'Generating…' : 'Download PDF'}
+          </Button>
+          {r.excel && (
             <Button
               size="sm"
               variant="outline"
-              disabled={loading[pdfKey]}
-              onClick={() => download(r.id, r.label, 'pdf')}
-              className="h-8"
+              disabled={!hasData || loading[`${r.id}_excel`]}
+              onClick={() => download(r.id, r.label, 'excel', r.excelId)}
+              className={`h-8 flex-1 text-xs ${hasData ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-slate-200 text-slate-400 cursor-not-allowed'}`}
             >
-              <Download size={13} className="mr-1" />
-              {loading[pdfKey] ? 'Generating…' : 'PDF'}
+              <FileSpreadsheet size={12} className="mr-1.5" />
+              {loading[`${r.id}_excel`] ? 'Generating…' : 'Download Excel'}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </div>
+      </div>
     );
   };
 
+  const selBox = 'h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400';
+
   return (
-    <div className="p-6 space-y-5">
-      {/* Header */}
+    <div className="p-6 space-y-6 max-w-5xl">
+
+      {/* ── Header ── */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Compliance Reports</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Download statutory and payroll compliance reports</p>
+        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Download payroll and statutory compliance reports for any month</p>
       </div>
 
-      {/* Date range toggle */}
+      {/* ── Period Selector + Data Status ── */}
       <Card>
-        <CardContent className="py-4 px-5 space-y-4">
-          {/* Toggle */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-slate-700">Report Period:</span>
-            <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
-              <button
-                onClick={() => setUseRange(false)}
-                className={`px-4 py-1.5 transition-colors ${!useRange ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-                <Calendar size={12} className="inline mr-1" />
-                Single Month
-              </button>
-              <button
-                onClick={() => setUseRange(true)}
-                className={`px-4 py-1.5 transition-colors ${useRange ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-                <CalendarRange size={12} className="inline mr-1" />
-                Date Range
-              </button>
-            </div>
-          </div>
+        <CardContent className="py-5 px-5">
+          <div className="flex flex-wrap items-center gap-4">
 
-          {!useRange ? (
-            /* Single month */
-            <div className="flex flex-wrap items-center gap-3">
+            {/* Month + Year selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 shrink-0">Report for:</span>
               <select value={month} onChange={e => setMonth(Number(e.target.value))} className={selBox}>
-                {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                {MONTHS.slice(1).map((m, i) => (
+                  <option key={i + 1} value={i + 1}>{m}</option>
+                ))}
               </select>
               <select value={year} onChange={e => setYear(Number(e.target.value))} className={selBox}>
                 {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
-              <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-md">
-                Period: <strong>{MONTHS[month]} {year}</strong>
-              </span>
             </div>
-          ) : (
-            /* Date range */
-            <div className="space-y-3">
-              {/* Quick presets */}
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs text-slate-500 self-center">Quick select:</span>
-                {PRESETS.map(p => (
-                  <button key={p.label} onClick={() => applyPreset(p)}
-                    className="text-xs px-3 py-1 rounded-full border border-slate-200 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition-colors">
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              {/* From → To */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-500 w-8">From</span>
-                  <select value={fromMonth} onChange={e => setFromMonth(Number(e.target.value))} className={selBox}>
-                    {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                  </select>
-                  <select value={fromYear} onChange={e => setFromYear(Number(e.target.value))} className={selBox}>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+
+            {/* Data status badge */}
+            <div className="flex items-center gap-2 ml-auto">
+              {summaryLoading ? (
+                <span className="text-xs text-slate-400 animate-pulse">Checking data…</span>
+              ) : hasData ? (
+                <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+                  <Users size={14} className="text-green-600" />
+                  <div>
+                    <span className="text-sm font-semibold text-green-700">{summary.count} employees</span>
+                    <span className="text-xs text-green-600 ml-2">·</span>
+                    <span className="text-xs text-green-600 ml-2">Net paid: <strong>{fmt(summary.totalNet)}</strong></span>
+                  </div>
                 </div>
-                <span className="text-slate-400 text-sm">→</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-500 w-4">To</span>
-                  <select value={toMonth} onChange={e => setToMonth(Number(e.target.value))} className={selBox}>
-                    {MONTHS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                  </select>
-                  <select value={toYear} onChange={e => setToYear(Number(e.target.value))} className={selBox}>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+              ) : (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                  <AlertCircle size={14} className="text-amber-500" />
+                  <span className="text-sm text-amber-700 font-medium">No payslips found for {MONTHS[month]} {year}</span>
+                  <span className="text-xs text-amber-600">— generate payslips first from the Generate &amp; Send page</span>
                 </div>
-                <span className="text-xs text-slate-500 bg-orange-50 text-orange-700 border border-orange-100 px-3 py-1.5 rounded-md font-medium">
-                  {rangeLabel}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Reports marked with <CalendarRange size={11} className="inline text-blue-500" /> use the full date range. Others use the "From" month only.
-              </p>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Quick month shortcuts */}
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+            <span className="text-xs text-slate-400 self-center">Quick pick:</span>
+            {[-1, -2, -3].map(offset => {
+              const d   = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+              const m   = d.getMonth() + 1;
+              const y   = d.getFullYear();
+              const active = m === month && y === year;
+              return (
+                <button
+                  key={offset}
+                  onClick={() => { setMonth(m); setYear(y); }}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'border-slate-200 text-slate-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50'
+                  }`}
+                >
+                  {MONTHS[m]} {y}
+                </button>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search reports…"
-          className="pl-8 h-9 text-sm"
-        />
+      {/* ── Payroll Reports ── */}
+      <div>
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Payroll Reports</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PAYROLL_REPORTS.map(r => <ReportCard key={r.id} r={r} />)}
+        </div>
       </div>
 
-      {/* Report cards */}
-      {filtered ? (
-        <div>
-          <p className="text-xs text-slate-500 mb-3">{filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{search}"</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filtered.map(r => <ReportCard key={r.id} r={r} />)}
-          </div>
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-sm">No reports match "{search}"</div>
-          )}
+      {/* ── Statutory / Compliance Reports ── */}
+      <div>
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Statutory &amp; Compliance Reports</h2>
+        <p className="text-xs text-slate-400 mb-3">Required for government filings — PF, ESI, PT, TDS</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {STATUTORY_REPORTS.map(r => <ReportCard key={r.id} r={r} />)}
         </div>
-      ) : (
-        <div className="space-y-6">
-          {CATEGORIES.map(cat => (
-            <div key={cat.label}>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{cat.label}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {cat.reports.map(r => <ReportCard key={r.id} r={r} />)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
+
+      {/* ── Bottom info bar ── */}
+      <div className="rounded-lg bg-slate-50 border border-slate-100 px-5 py-4 text-xs text-slate-500 flex flex-wrap gap-x-6 gap-y-1">
+        <span>📄 <strong>PDF</strong> — for records, printing, and sharing</span>
+        <span>📊 <strong>Excel</strong> — for government portal uploads and bank transfers</span>
+        <span>⚠️ All reports use payslips generated for the selected month</span>
+      </div>
     </div>
   );
 }
