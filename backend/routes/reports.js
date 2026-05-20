@@ -7,8 +7,10 @@ const authCheck   = require('../middleware/auth');
 
 router.use(authCheck);
 
-const INR = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+// n() — safely converts DB values (may be strings from pg NUMERIC type) to numbers
+const n   = (v) => parseFloat(v) || 0;
+const INR = (v) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n(v));
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -332,7 +334,7 @@ async function buildExcelPFECR(res, slips, adminInfo, periodLabel, month, year) 
   let dataRow = headerRow + 1;
 
   slips.forEach((p, idx) => {
-    const gross    = p.gross_salary || p.salary || 0;
+    const gross    = n(p.gross_salary || p.salary);
     const basic    = (p.earnings || {}).basic || 0;
     const epfWage  = Math.min(basic || gross, 15000); // EPF wages capped at 15000
     const epsWage  = Math.min(epfWage, 15000);
@@ -426,7 +428,7 @@ async function buildExcelESI(res, slips, adminInfo, periodLabel, month, year) {
   }
 
   const headerRow = adminInfo.esic_code ? 3 : 4;
-  const eligible  = slips.filter(p => (p.gross_salary || p.salary || 0) <= 21000);
+  const eligible  = slips.filter(p => n(p.gross_salary || p.salary) <= 21000);
 
   const cols = [
     { header: '#',                       key: 'sno',    width: 5  },
@@ -456,7 +458,7 @@ async function buildExcelESI(res, slips, adminInfo, periodLabel, month, year) {
     dataRow++;
   } else {
     eligible.forEach((p, idx) => {
-      const gross  = p.gross_salary || p.salary || 0;
+      const gross  = n(p.gross_salary || p.salary);
       const eeESI  = (p.deductions || {}).esi_employee || Math.round(gross * 0.0075);
       const erESI  = (p.employer_contributions || {}).esi_employer || Math.round(gross * 0.0325);
       totalEE += eeESI;
@@ -559,14 +561,14 @@ async function buildExcelPT(res, slips, adminInfo, periodLabel, month, year) {
     const pt = (p.deductions || {}).pt || 0;
     totalPT += pt;
     const r = ws.getRow(dataRow);
-    r.values = [idx + 1, p.employee_name, p.employee_id, p.department || '', p.gross_salary || p.salary || 0, pt, p.net_salary || p.salary || 0];
+    r.values = [idx + 1, p.employee_name, p.employee_id, p.department || '', n(p.gross_salary || p.salary), pt, n(p.net_salary || p.salary)];
     styleDataRow(ws, dataRow, idx % 2 === 1);
     [5,6,7].forEach(ci => { r.getCell(ci).alignment = { horizontal: 'right', vertical: 'middle' }; });
     dataRow++;
   });
 
   const tr = ws.getRow(dataRow);
-  tr.values = ['', 'TOTAL', `${slips.length} employees`, '', slips.reduce((s,p)=>s+(p.gross_salary||p.salary||0),0), totalPT, slips.reduce((s,p)=>s+(p.net_salary||p.salary||0),0)];
+  tr.values = ['', 'TOTAL', `${slips.length} employees`, '', slips.reduce((s,p)=>s+n(p.gross_salary||p.salary),0), totalPT, slips.reduce((s,p)=>s+n(p.net_salary||p.salary),0)];
   styleTotalRow(ws, dataRow, null);
   [5,6,7].forEach(ci => { tr.getCell(ci).alignment = { horizontal: 'right', vertical: 'middle' }; });
 
@@ -660,7 +662,7 @@ async function buildExcelBankAdvice(res, slips, adminInfo, periodLabel, bankMap,
   let dataRow  = headerRow + 1;
 
   slips.forEach((p, idx) => {
-    const net  = p.net_salary || p.salary || 0;
+    const net  = n(p.net_salary || p.salary);
     totalNet  += net;
     const bank = bankMap[p.employee_id] || {};
     const remark = !bank.bank_account_number ? '❌ Bank details missing' : '✓ Ready';
@@ -688,7 +690,7 @@ async function buildExcelBankAdvice(res, slips, adminInfo, periodLabel, bankMap,
   dataRow++;
   const readyCount    = slips.filter(p => (bankMap[p.employee_id] || {}).bank_account_number).length;
   const missingCount  = slips.length - readyCount;
-  const readyTotal    = slips.filter(p => (bankMap[p.employee_id] || {}).bank_account_number).reduce((s,p)=>s+(p.net_salary||p.salary||0),0);
+  const readyTotal    = slips.filter(p => (bankMap[p.employee_id] || {}).bank_account_number).reduce((s,p)=>s+n(p.net_salary||p.salary),0);
 
   [
     ['Employees Ready for Transfer:', readyCount],
@@ -770,7 +772,7 @@ async function buildExcelSalaryRegister(res, slips, adminInfo, periodLabel, mont
     const earn = p.earnings      || {};
     const ded  = p.deductions    || {};
     const gross = p.gross_salary || p.salary || 0;
-    const net   = p.net_salary   || p.salary || 0;
+    const net   = n(p.net_salary   || p.salary);
 
     const vals = [
       idx+1,
@@ -944,9 +946,9 @@ function buildMonthlyPayrollSummary(doc, slips, adminName, periodLabel, month, y
   const W = doc.page.width - 80;
 
   // Summary stats
-  const totalGross = slips.reduce((s, p) => s + (p.gross_salary || p.salary || 0), 0);
-  const totalNet   = slips.reduce((s, p) => s + (p.net_salary   || p.salary || 0), 0);
-  const totalDed   = slips.reduce((s, p) => s + (p.total_deductions || 0), 0);
+  const totalGross = slips.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+  const totalNet   = slips.reduce((s, p) => s + n(p.net_salary   || p.salary), 0);
+  const totalDed   = slips.reduce((s, p) => s + n(p.total_deductions), 0);
 
   const statW = (W - 10) / 3;
   const stats = [
@@ -983,10 +985,10 @@ function buildMonthlyPayrollSummary(doc, slips, adminName, periodLabel, month, y
       i + 1,
       p.employee_name,
       p.department || '—',
-      INR(p.gross_salary || p.salary),
-      INR(p.total_earnings),
-      INR(p.total_deductions),
-      INR(p.net_salary || p.salary),
+      INR(n(p.gross_salary || p.salary)),
+      INR(n(p.total_earnings)),
+      INR(n(p.total_deductions)),
+      INR(n(p.net_salary || p.salary)),
     ];
     y = drawTableRow(doc, y, cols, vals, i);
   });
@@ -996,7 +998,7 @@ function buildMonthlyPayrollSummary(doc, slips, adminName, periodLabel, month, y
   doc.rect(40, y, W, 20).fill('#FFF7ED').stroke(MGRY);
   doc.fillColor(ACCENT).fontSize(8.5).font('Helvetica-Bold');
   let x = 44;
-  const totals = ['', 'TOTAL', '', INR(totalGross), INR(slips.reduce((s,p)=>s+(p.total_earnings||0),0)), INR(totalDed), INR(totalNet)];
+  const totals = ['', 'TOTAL', '', INR(totalGross), INR(slips.reduce((s,p)=>s+n(p.total_earnings),0)), INR(totalDed), INR(totalNet)];
   cols.forEach((col, i) => {
     doc.text(totals[i], x, y + 6, { width: col.w - 4, align: col.align || 'left' });
     x += col.w;
@@ -1043,7 +1045,7 @@ function buildSalaryRegister(doc, slips, adminName, periodLabel) {
       INR(earn.conveyance || 0),
       INR(earn.special || 0),
       INR(otherEarn),
-      INR(p.net_salary || p.salary),
+      INR(n(p.net_salary || p.salary)),
     ];
     y = drawTableRow(doc, y, cols, vals, i);
   });
@@ -1118,7 +1120,7 @@ function buildESIReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
     return;
   }
 
-  const eligible = slips.filter(p => (p.gross_salary || p.salary || 0) <= 21000);
+  const eligible = slips.filter(p => n(p.gross_salary || p.salary) <= 21000);
 
   doc.fillColor(DARK).fontSize(9).font('Helvetica')
      .text(`ESI eligible employees (gross ≤ ₹21,000): ${eligible.length} of ${slips.length}`, 40, y);
@@ -1143,7 +1145,7 @@ function buildESIReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
     const erESI  = (p.employer_contributions || {}).esi_employer || 0;
     totalEmpESI += empESI;
     totalErESI  += erESI;
-    const vals = [i + 1, p.employee_name, INR(p.gross_salary || p.salary), INR(empESI), INR(erESI), INR(empESI + erESI)];
+    const vals = [i + 1, p.employee_name, INR(n(p.gross_salary || p.salary)), INR(empESI), INR(erESI), INR(empESI + erESI)];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
@@ -1191,7 +1193,7 @@ function buildPTReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
     y = checkPageBreak(doc, y);
     const pt = (p.deductions || {}).pt || 0;
     totalPT += pt;
-    const vals = [i + 1, p.employee_name, p.department || '—', INR(p.gross_salary || p.salary), INR(pt), INR(p.net_salary || p.salary)];
+    const vals = [i + 1, p.employee_name, p.department || '—', INR(n(p.gross_salary || p.salary)), INR(pt), INR(n(p.net_salary || p.salary))];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
@@ -1243,7 +1245,7 @@ function buildTDSReport(doc, slips, adminName, periodLabel, adminInfo = {}) {
     y = checkPageBreak(doc, y);
     const tds = (p.deductions || {}).tds || 0;
     totalTDS += tds;
-    const vals = [i + 1, p.employee_name, INR(p.gross_salary || p.salary), INR(tds), INR(p.net_salary || p.salary)];
+    const vals = [i + 1, p.employee_name, INR(n(p.gross_salary || p.salary)), INR(tds), INR(n(p.net_salary || p.salary))];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
@@ -1294,7 +1296,7 @@ function buildBankAdvice(doc, slips, adminName, periodLabel, bankMap = {}) {
   let total = 0;
   slips.forEach((p, i) => {
     y = checkPageBreak(doc, y);
-    const net  = p.net_salary || p.salary || 0;
+    const net  = n(p.net_salary || p.salary);
     total += net;
     const bank = bankMap[p.employee_id] || {};
     const vals = [
@@ -1342,7 +1344,7 @@ function buildHeadcount(doc, slips, adminName, periodLabel) {
     const dept = p.department || 'Unknown';
     if (!deptMap[dept]) deptMap[dept] = { count: 0, totalNet: 0 };
     deptMap[dept].count++;
-    deptMap[dept].totalNet += p.net_salary || p.salary || 0;
+    deptMap[dept].totalNet += n(p.net_salary || p.salary);
   });
 
   const cols = [
@@ -1405,12 +1407,12 @@ function buildCTC(doc, slips, adminName, periodLabel) {
   let totalCTC = 0;
   slips.forEach((p, i) => {
     y = checkPageBreak(doc, y);
-    const net    = p.net_salary || p.salary || 0;
+    const net    = n(p.net_salary || p.salary);
     const erPF   = (p.employer_contributions || {}).pf_employer  || 0;
     const erESI  = (p.employer_contributions || {}).esi_employer || 0;
     const ctc    = net + erPF + erESI;
     totalCTC    += ctc;
-    const vals   = [i + 1, p.employee_name, INR(p.gross_salary || p.salary), INR(net), INR(erPF), INR(erESI), INR(ctc)];
+    const vals   = [i + 1, p.employee_name, INR(n(p.gross_salary || p.salary)), INR(net), INR(erPF), INR(erESI), INR(ctc)];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
@@ -1457,7 +1459,7 @@ function buildAuditTrail(doc, slips, adminName, periodLabel) {
       i + 1,
       p.employee_name,
       p.employee_id,
-      INR(p.net_salary || p.salary),
+      INR(n(p.net_salary || p.salary)),
       genDate,
       p.emailed ? 'Yes' : 'No',
       emailDate,
@@ -1496,17 +1498,17 @@ function buildQuarterlySummary(doc, slips, adminName, year, currentMonth) {
   qMonths.forEach((m, i) => {
     y = checkPageBreak(doc, y);
     const mSlips   = slips.filter(p => parseInt(p.month) === m);
-    const gross    = mSlips.reduce((s, p) => s + (p.gross_salary || p.salary || 0), 0);
-    const ded      = mSlips.reduce((s, p) => s + (p.total_deductions || 0), 0);
-    const net      = mSlips.reduce((s, p) => s + (p.net_salary || p.salary || 0), 0);
+    const gross    = mSlips.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+    const ded      = mSlips.reduce((s, p) => s + n(p.total_deductions), 0);
+    const net      = mSlips.reduce((s, p) => s + n(p.net_salary || p.salary), 0);
     const vals     = [MONTH_NAMES[m - 1] + ' ' + year, mSlips.length, INR(gross), INR(ded), INR(net)];
     y = drawTableRow(doc, y, cols, vals, i);
   });
 
   y = checkPageBreak(doc, y);
-  const totalGross = slips.reduce((s, p) => s + (p.gross_salary || p.salary || 0), 0);
-  const totalDed   = slips.reduce((s, p) => s + (p.total_deductions || 0), 0);
-  const totalNet   = slips.reduce((s, p) => s + (p.net_salary || p.salary || 0), 0);
+  const totalGross = slips.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+  const totalDed   = slips.reduce((s, p) => s + n(p.total_deductions), 0);
+  const totalNet   = slips.reduce((s, p) => s + n(p.net_salary || p.salary), 0);
   doc.rect(40, y, doc.page.width - 80, 20).fill('#FFF7ED');
   doc.fillColor(ACCENT).fontSize(8.5).font('Helvetica-Bold');
   let x = 44;
@@ -1543,17 +1545,17 @@ function buildAnnualSummary(doc, slips, adminName, year) {
     const mSlips = slips.filter(p => parseInt(p.month) === m);
     if (!mSlips.length) continue;
     y = checkPageBreak(doc, y);
-    const gross = mSlips.reduce((s, p) => s + (p.gross_salary || p.salary || 0), 0);
-    const ded   = mSlips.reduce((s, p) => s + (p.total_deductions || 0), 0);
-    const net   = mSlips.reduce((s, p) => s + (p.net_salary || p.salary || 0), 0);
+    const gross = mSlips.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+    const ded   = mSlips.reduce((s, p) => s + n(p.total_deductions), 0);
+    const net   = mSlips.reduce((s, p) => s + n(p.net_salary || p.salary), 0);
     const vals  = [MONTH_NAMES[m - 1] + ' ' + year, mSlips.length, INR(gross), INR(ded), INR(net)];
     y = drawTableRow(doc, y, cols, vals, m - 1);
   }
 
   y = checkPageBreak(doc, y);
-  const totalGross = slips.reduce((s, p) => s + (p.gross_salary || p.salary || 0), 0);
-  const totalDed   = slips.reduce((s, p) => s + (p.total_deductions || 0), 0);
-  const totalNet   = slips.reduce((s, p) => s + (p.net_salary || p.salary || 0), 0);
+  const totalGross = slips.reduce((s, p) => s + n(p.gross_salary || p.salary), 0);
+  const totalDed   = slips.reduce((s, p) => s + n(p.total_deductions), 0);
+  const totalNet   = slips.reduce((s, p) => s + n(p.net_salary || p.salary), 0);
   doc.rect(40, y, doc.page.width - 80, 20).fill('#FFF7ED');
   doc.fillColor(ACCENT).fontSize(8.5).font('Helvetica-Bold');
   let x = 44;
