@@ -19,8 +19,9 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
     return;
   }
 
-  await resend.emails.send({
-    from:    'PayOS <support@dinmind.com>',
+  console.log(`[verify-email] Sending to: ${email}`);
+  const { data, error } = await resend.emails.send({
+    from:    'PayOS <onboarding@resend.dev>',
     to:      email,
     subject: 'Verify your PayOS account',
     html: `
@@ -45,6 +46,11 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
         <p style="color:#94a3b8;font-size:12px;">Or copy this link:<br/><a href="${verifyUrl}" style="color:#ea580c;">${verifyUrl}</a></p>
       </div>`,
   });
+  if (error) {
+    console.error('[verify-email] Resend error:', JSON.stringify(error));
+  } else {
+    console.log('[verify-email] Sent OK, id:', data?.id);
+  }
 }
 
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
@@ -278,7 +284,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     await resend.emails.send({
-      from:    'PayOS <support@dinmind.com>',
+      from:    'PayOS <onboarding@resend.dev>',
       to:      admin.email,
       subject: 'Reset your PayOS password',
       html: `
