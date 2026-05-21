@@ -1,45 +1,32 @@
-const express    = require('express');
-const bcrypt     = require('bcryptjs');
-const jwt        = require('jsonwebtoken');
-const crypto     = require('crypto');
-const nodemailer = require('nodemailer');
-const router     = express.Router();
+const express = require('express');
+const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
+const { Resend } = require('resend');
+const router   = express.Router();
 const { pool, auditLog } = require('../database');
 const { decrypt } = require('../lib/crypto');
-<<<<<<< Updated upstream
-=======
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── helper: send verification email ──────────────────────────────────────────
 async function sendVerificationEmail(email, companyName, verifyToken, req) {
   const appUrl    = process.env.APP_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
   const verifyUrl = `${appUrl}/verify-email?token=${verifyToken}`;
 
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT || 587);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM || smtpUser;
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    console.log(`[verify-email] No system SMTP configured. Verify URL: ${verifyUrl}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[verify-email] No RESEND_API_KEY set. Verify URL: ${verifyUrl}`);
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost, port: smtpPort,
-    secure: smtpPort === 465, requireTLS: smtpPort !== 465,
-    auth: { user: smtpUser, pass: smtpPass.replace(/\s/g, '') },
-    tls: { rejectUnauthorized: false }, connectionTimeout: 10000,
-  });
-
-  await transporter.sendMail({
-    from:    `"PayLeef" <${smtpFrom}>`,
+  await resend.emails.send({
+    from:    'PayOS <support@dinmind.com>',
     to:      email,
-    subject: 'Verify your PayLeef account',
+    subject: 'Verify your PayOS account',
     html: `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;border-radius:12px;">
         <div style="text-align:center;margin-bottom:24px;">
-          <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#16a34a;">Leef</span>
+          <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#ea580c;">OS</span>
         </div>
         <h2 style="color:#0f172a;margin-bottom:8px;">Verify your email address</h2>
         <p style="color:#475569;margin-bottom:24px;">
@@ -47,7 +34,7 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
           Thanks for signing up! Click the button below to verify your email and activate your account.
         </p>
         <div style="text-align:center;margin:32px 0;">
-          <a href="${verifyUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:16px;">
+          <a href="${verifyUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:16px;">
             ✓ Verify My Email
           </a>
         </div>
@@ -55,11 +42,10 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
           This link expires in <strong>24 hours</strong>. If you didn't create this account, ignore this email.
         </p>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
-        <p style="color:#94a3b8;font-size:12px;">Or copy this link:<br/><a href="${verifyUrl}" style="color:#16a34a;">${verifyUrl}</a></p>
+        <p style="color:#94a3b8;font-size:12px;">Or copy this link:<br/><a href="${verifyUrl}" style="color:#ea580c;">${verifyUrl}</a></p>
       </div>`,
   });
 }
->>>>>>> Stashed changes
 
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
 router.post('/admin-signup', async (req, res) => {
@@ -93,7 +79,7 @@ router.post('/admin-signup', async (req, res) => {
 
     const admin = result.rows[0];
 
-    // Send verification email — non-blocking, don't fail signup if SMTP not set
+    // Send verification email — non-blocking, don't fail signup if email fails
     sendVerificationEmail(email.toLowerCase(), company_name, verifyToken, req)
       .catch(err => console.error('[verify-email] Send failed:', err.message));
 
@@ -236,7 +222,6 @@ router.post('/employee-login', async (req, res) => {
     if (!employee) return res.status(401).json({ error: 'Invalid credentials' });
 
     // If no password set yet, use employee_id as default (backwards compatibility)
-    const storedPassword = employee.password || employee.employee_id;
     const match = employee.password
       ? await bcrypt.compare(password, employee.password)
       : password === employee.employee_id; // Default: password = employee_id
@@ -264,7 +249,7 @@ router.post('/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     const result = await pool.query(
-      'SELECT id, email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from FROM admins WHERE email = $1',
+      'SELECT id, email, company_name FROM admins WHERE email = $1',
       [email.toLowerCase()]
     );
     const admin = result.rows[0];
@@ -283,52 +268,34 @@ router.post('/forgot-password', async (req, res) => {
       [token, expires, admin.id]
     );
 
-    // Build reset URL — use APP_URL env var if set, else derive from request
-    const appUrl  = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    // Build reset URL
+    const appUrl   = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
-    // Send email using admin's own SMTP if configured, else fallback to system SMTP
-    const smtpHost = admin.smtp_host || process.env.SMTP_HOST;
-    const smtpPort = parseInt(admin.smtp_port || process.env.SMTP_PORT || 587);
-    const smtpUser = admin.smtp_user || process.env.SMTP_USER;
-    // Decrypt stored SMTP password (backwards-compatible with plaintext)
-    const smtpPass = admin.smtp_pass ? decrypt(admin.smtp_pass) : process.env.SMTP_PASS;
-    const smtpFrom = admin.smtp_from || smtpUser;
-
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      // No SMTP configured — still succeed but log the token for dev
-      console.log(`[forgot-password] No SMTP configured. Reset URL: ${resetUrl}`);
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`[forgot-password] No RESEND_API_KEY set. Reset URL: ${resetUrl}`);
       return res.json({ message: 'If this email exists, a reset link has been sent.' });
     }
 
-<<<<<<< Updated upstream
-    const transporter = nodemailer.createTransporter({
-=======
-    const transporter = nodemailer.createTransport({
->>>>>>> Stashed changes
-      host:               smtpHost,
-      port:               smtpPort,
-      secure:             smtpPort === 465,
-      requireTLS:         smtpPort !== 465,
-      auth:               { user: smtpUser, pass: smtpPass.replace(/\s/g, '') },
-      tls:                { rejectUnauthorized: false },
-      connectionTimeout:  10000,
-    });
-
-    await transporter.sendMail({
-      from:    `"PayOS" <${smtpFrom}>`,
+    await resend.emails.send({
+      from:    'PayOS <support@dinmind.com>',
       to:      admin.email,
       subject: 'Reset your PayOS password',
       html: `
         <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #f9fafb; border-radius: 12px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#ea580c;">OS</span>
+          </div>
           <h2 style="color: #0f172a; margin-bottom: 8px;">Reset your password</h2>
           <p style="color: #475569; margin-bottom: 24px;">
             Hi${admin.company_name ? ' ' + admin.company_name : ''},<br/>
             We received a request to reset your PayOS password. Click the button below to set a new password.
           </p>
-          <a href="${resetUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">
-            Reset Password
-          </a>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${resetUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">
+              Reset Password
+            </a>
+          </div>
           <p style="color:#94a3b8;font-size:13px;margin-top:24px;">
             This link expires in <strong>1 hour</strong>. If you did not request this, you can safely ignore this email.
           </p>
