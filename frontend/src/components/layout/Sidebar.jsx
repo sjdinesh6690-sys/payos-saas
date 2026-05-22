@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Upload,
-  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings, CalendarCheck, CreditCard, Umbrella, MapPin,
+  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings, CalendarCheck, CreditCard, Umbrella, MapPin, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,35 +37,49 @@ const StepBadge = ({ num, active }) => (
   </span>
 );
 
-// The 4-step monthly workflow
+// The 4-step monthly workflow — permKey maps to permissions object key
 const WORKFLOW_STEPS = [
-  { step: 1, to: '/admin/employees',   label: 'Add Employees',     icon: Users,    hint: 'Enter staff details' },
-  { step: 2, to: '/admin/upload',      label: 'Upload Salaries',   icon: Upload,   hint: 'Import CSV/Excel' },
-  { step: 3, to: '/admin/send',        label: 'Generate & Send',   icon: Send,     hint: 'Create payslips & email' },
-  { step: 4, to: '/admin/reports',     label: 'Download Reports',  icon: BarChart3,hint: 'PDF & Excel reports' },
+  { step: 1, to: '/admin/employees',   label: 'Add Employees',     icon: Users,    hint: 'Enter staff details',     permKey: 'employees' },
+  { step: 2, to: '/admin/upload',      label: 'Upload Salaries',   icon: Upload,   hint: 'Import CSV/Excel',        permKey: 'upload' },
+  { step: 3, to: '/admin/send',        label: 'Generate & Send',   icon: Send,     hint: 'Create payslips & email', permKey: 'send' },
+  { step: 4, to: '/admin/reports',     label: 'Download Reports',  icon: BarChart3,hint: 'PDF & Excel reports',     permKey: 'reports' },
 ];
 
 const OTHER_NAV = [
-  { to: '/admin/dashboard',     label: 'Dashboard',       icon: LayoutDashboard },
-  { to: '/admin/locations',     label: 'Locations',       icon: MapPin },
-  { to: '/admin/attendance',    label: 'Attendance',      icon: CalendarCheck },
-  { to: '/admin/leave-policy',  label: 'Leave Policy',    icon: Umbrella },
-  { to: '/admin/billing',       label: 'Billing & Plan',  icon: CreditCard },
-  { to: '/admin/payslips',      label: 'Payslip History', icon: FileText },
-  { to: '/admin/analytics',     label: 'Analytics',       icon: TrendingUp },
-  { to: '/admin/payroll-config',label: 'Payroll Config',  icon: Settings2 },
-  { to: '/admin/settings',      label: 'Settings',        icon: Settings },
+  { to: '/admin/dashboard',     label: 'Dashboard',       icon: LayoutDashboard, permKey: null },
+  { to: '/admin/locations',     label: 'Locations',       icon: MapPin,          permKey: 'locations' },
+  { to: '/admin/attendance',    label: 'Attendance',      icon: CalendarCheck,   permKey: 'attendance' },
+  { to: '/admin/leave-policy',  label: 'Leave Policy',    icon: Umbrella,        permKey: 'leave_policy' },
+  { to: '/admin/billing',       label: 'Billing & Plan',  icon: CreditCard,      permKey: 'billing' },
+  { to: '/admin/payslips',      label: 'Payslip History', icon: FileText,        permKey: 'payslips' },
+  { to: '/admin/analytics',     label: 'Analytics',       icon: TrendingUp,      permKey: 'analytics' },
+  { to: '/admin/payroll-config',label: 'Payroll Config',  icon: Settings2,       permKey: 'payroll_config' },
+  { to: '/admin/settings',      label: 'Settings',        icon: Settings,        permKey: 'settings' },
 ];
 
 export default function Sidebar() {
   const navigate   = useNavigate();
-  const adminName  = localStorage.getItem('employee_name') || 'Admin';
+  const isSubUser  = localStorage.getItem('payslip_is_sub_user') === 'true';
+  const subName    = localStorage.getItem('payslip_sub_user_name') || '';
+  const adminName  = isSubUser ? subName : (localStorage.getItem('employee_name') || 'Admin');
   const initials   = adminName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+  // Parse permissions — only used for sub-users
+  let permissions = {};
+  if (isSubUser) {
+    try { permissions = JSON.parse(localStorage.getItem('payslip_permissions') || '{}'); } catch {}
+  }
+
+  // Check if a nav item is allowed for current user
+  const allowed = (permKey) => {
+    if (!isSubUser) return true;         // main admin — see everything
+    if (!permKey) return true;           // dashboard always visible
+    return permissions[permKey] === true;
+  };
+
   const logout = () => {
-    localStorage.removeItem('payslip_token');
-    localStorage.removeItem('payslip_role');
-    localStorage.removeItem('employee_name');
+    ['payslip_token','payslip_role','employee_name','payslip_is_sub_user','payslip_sub_user_name','payslip_permissions']
+      .forEach(k => localStorage.removeItem(k));
     navigate('/login');
   };
 
@@ -120,7 +134,7 @@ export default function Sidebar() {
             }} />
 
             <div className="space-y-[3px]">
-              {WORKFLOW_STEPS.map(({ step, to, label, icon: Icon, hint }) => (
+              {WORKFLOW_STEPS.filter(s => allowed(s.permKey)).map(({ step, to, label, icon: Icon, hint }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -170,7 +184,7 @@ export default function Sidebar() {
             More
           </p>
           <div className="space-y-[2px]">
-            {OTHER_NAV.map(({ to, label, icon: Icon }) => (
+            {OTHER_NAV.filter(n => allowed(n.permKey)).map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -202,6 +216,39 @@ export default function Sidebar() {
                 <span className="flex-1">{label}</span>
               </NavLink>
             ))}
+
+            {/* Team Access — only visible to main admin, not sub-users */}
+            {!isSubUser && (
+              <NavLink
+                to="/admin/users"
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-150',
+                    isActive ? 'active-nav' : 'inactive-nav'
+                  )
+                }
+                style={({ isActive }) =>
+                  isActive
+                    ? { background: 'var(--brand-light)', color: 'var(--brand)', boxShadow: 'inset 3px 0 0 var(--brand)' }
+                    : { color: 'var(--text-secondary)' }
+                }
+                onMouseEnter={e => {
+                  if (!e.currentTarget.style.boxShadow) {
+                    e.currentTarget.style.background = 'var(--border-light)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!e.currentTarget.style.boxShadow) {
+                    e.currentTarget.style.background = '';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
+                }}
+              >
+                <UserCog size={15} className="shrink-0" />
+                <span className="flex-1">Team Access</span>
+              </NavLink>
+            )}
           </div>
         </div>
       </nav>
@@ -214,15 +261,17 @@ export default function Sidebar() {
         >
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-            style={{ background: 'linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%)' }}
+            style={{ background: isSubUser ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%)' }}
           >
             {initials}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-              {adminName}
+              {adminName || 'Admin'}
             </p>
-            <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>Admin</p>
+            <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+              {isSubUser ? 'Team Member' : 'Admin'}
+            </p>
           </div>
         </div>
         <button

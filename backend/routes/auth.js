@@ -176,48 +176,96 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
+// Also handles sub-user login — checks admin_users table if not found in admins
 router.post('/admin-login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password required' });
 
-    const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.toLowerCase()]);
-    const admin  = result.rows[0];
+    const emailLc = email.toLowerCase().trim();
 
-    // Generic error — prevents account enumeration
-    if (!admin) return res.status(401).json({ error: 'Invalid email or password' });
-    if (admin.status === 'disabled') return res.status(403).json({ error: 'Account disabled. Contact support.' });
+    // 1. Try main admin table first
+    const adminRes = await pool.query('SELECT * FROM admins WHERE email = $1', [emailLc]);
+    const admin    = adminRes.rows[0];
 
-    const match = await bcrypt.compare(password, admin.password);
-    if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+    if (admin) {
+      // ── Admin login path ──────────────────────────────────────────────────
+      if (admin.status === 'disabled')
+        return res.status(403).json({ error: 'Account disabled. Contact support.' });
 
-    // Block login if email not verified (only enforce if column exists — backward compat)
-    if (admin.email_verified === false) {
-      return res.status(403).json({
-        error: 'Please verify your email before logging in.',
-        needs_verification: true,
-        email: admin.email,
+      const match = await bcrypt.compare(password, admin.password);
+      if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+      if (admin.email_verified === false) {
+        return res.status(403).json({
+          error: 'Please verify your email before logging in.',
+          needs_verification: true,
+          email: admin.email,
+        });
+      }
+
+      await pool.query('UPDATE admins SET last_active = NOW() WHERE id = $1', [admin.id]);
+
+      const token = jwt.sign(
+        { admin_id: admin.id, email: admin.email, role: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+
+      await auditLog(admin.id, 'admin_login', 'admins', admin.id, null, req.ip);
+      return res.json({
+        token,
+        role:                 'employer',
+        is_sub_user:          false,
+        company_name:         admin.company_name,
+        employee_name:        admin.company_name,
+        onboarding_completed: admin.onboarding_completed || false,
       });
     }
 
-    // Update last_active
-    await pool.query('UPDATE admins SET last_active = NOW() WHERE id = $1', [admin.id]);
-
-    const token = jwt.sign(
-      { admin_id: admin.id, email: admin.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+    // 2. Try sub-user (admin_users) table
+    const subRes = await pool.query(
+      `SELECT u.*, a.company_name, a.onboarding_completed
+       FROM admin_users u
+       JOIN admins a ON a.id = u.admin_id
+       WHERE u.email = $1 AND u.status = 'active'`,
+      [emailLc]
     );
+    const subUser = subRes.rows[0];
 
-    await auditLog(admin.id, 'admin_login', 'admins', admin.id, null, req.ip);
-    res.json({
-      token,
-      role: 'employer',
-      company_name:         admin.company_name,
-      employee_name:        admin.company_name,
-      onboarding_completed: admin.onboarding_completed || false,
-    });
+    if (subUser) {
+      const match = await bcrypt.compare(password, subUser.password);
+      if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+      const token = jwt.sign(
+        {
+          admin_id:    subUser.admin_id,
+          sub_user_id: subUser.id,
+          role:        subUser.role,
+          name:        subUser.name,
+          email:       subUser.email,
+          permissions: subUser.permissions || {},
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+
+      return res.json({
+        token,
+        role:                 'employer',
+        is_sub_user:          true,
+        sub_user_name:        subUser.name,
+        permissions:          subUser.permissions || {},
+        company_name:         subUser.company_name,
+        employee_name:        subUser.name,
+        onboarding_completed: subUser.onboarding_completed || false,
+      });
+    }
+
+    // Not found in either table
+    return res.status(401).json({ error: 'Invalid email or password' });
+
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed. Please try again.' });

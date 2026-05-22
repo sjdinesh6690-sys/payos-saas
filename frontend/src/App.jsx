@@ -27,6 +27,7 @@ import AttendancePage         from '@/pages/AttendancePage';
 import BillingPage            from '@/pages/BillingPage';
 import LeavePolicyPage        from '@/pages/LeavePolicyPage';
 import LocationsPage          from '@/pages/LocationsPage';
+import UsersPage              from '@/pages/UsersPage';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="payroll-config" element={<PayrollConfigPage />} />
             <Route path="leave-policy"   element={<LeavePolicyPage />} />
             <Route path="locations"      element={<LocationsPage />} />
+            <Route path="users"          element={<UsersPage />} />
             <Route path="settings"       element={<SettingsPage />} />
           </Route>
 

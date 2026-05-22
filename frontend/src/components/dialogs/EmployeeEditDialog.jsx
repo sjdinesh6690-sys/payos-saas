@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { MapPin } from 'lucide-react';
+import { MapPin, AlertCircle } from 'lucide-react';
 
 const EMPTY = {
   employee_id: '', employee_name: '', email: '',
@@ -12,11 +12,51 @@ const EMPTY = {
   pan_number: '', uan_number: '', bank_name: '', bank_account_number: '', ifsc_code: '',
 };
 
+// ── Inline field error helper ─────────────────────────────────────────────────
+function FieldError({ msg }) {
+  if (!msg) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-600 mt-1">
+      <AlertCircle size={11} /> {msg}
+    </p>
+  );
+}
+
+// ── Validation helpers ────────────────────────────────────────────────────────
+function validateForm(form, isNew) {
+  const errors = {};
+  if (isNew && !form.employee_id.trim())
+    errors.employee_id = 'Employee ID is required';
+  else if (isNew && !/^[A-Z0-9_-]{2,20}$/i.test(form.employee_id.trim()))
+    errors.employee_id = 'Use only letters, numbers, - or _ (2–20 chars)';
+
+  if (!form.employee_name.trim())
+    errors.employee_name = 'Employee name is required';
+
+  if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+    errors.email = 'Enter a valid email address';
+
+  if (form.phone && form.phone.trim() && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone.trim()))
+    errors.phone = 'Enter a valid phone number';
+
+  if (form.pan_number && form.pan_number.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(form.pan_number.trim()))
+    errors.pan_number = 'Format: ABCDE1234F (10 characters)';
+
+  if (form.ifsc_code && form.ifsc_code.trim() && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(form.ifsc_code.trim()))
+    errors.ifsc_code = 'Format: SBIN0001234 (11 characters)';
+
+  if (form.uan_number && form.uan_number.trim() && !/^\d{12}$/.test(form.uan_number.trim()))
+    errors.uan_number = 'UAN must be exactly 12 digits';
+
+  return errors;
+}
+
 export default function EmployeeEditDialog({ open, onOpenChange, employee, onSaved }) {
   const isNew = !employee;
   const [form, setForm]       = useState(EMPTY);
+  const [errors, setErrors]   = useState({});
   const [saving, setSaving]   = useState(false);
-  const [locations, setLocations] = useState([]);   // list from /api/locations
+  const [locations, setLocations] = useState([]);
 
   // Fetch locations whenever dialog opens
   useEffect(() => {
@@ -45,20 +85,31 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
     } else {
       setForm(EMPTY);
     }
+    setErrors({});
   }, [employee, open]);
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }));
+    // Clear error for this field on change
+    if (errors[k]) setErrors(prev => ({ ...prev, [k]: undefined }));
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const errs = validateForm(form, isNew);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      toast.error('Please fix the errors before saving');
+      return;
+    }
     setSaving(true);
     try {
       if (isNew) {
         await api.post('/employees', form);
-        toast.success('Employee added');
+        toast.success('Employee added successfully');
       } else {
         await api.put(`/employees/${employee.id}`, form);
-        toast.success('Employee updated');
+        toast.success('Employee updated successfully');
       }
       onSaved?.();
       onOpenChange(false);
@@ -68,6 +119,9 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
       setSaving(false);
     }
   };
+
+  const inputClass = (field) =>
+    errors[field] ? 'border-red-400 focus:ring-red-300' : '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -83,24 +137,54 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Employee ID *</label>
-                <Input value={form.employee_id} onChange={set('employee_id')} placeholder="EMP001" required disabled={!isNew} />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Employee ID <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={form.employee_id}
+                  onChange={set('employee_id')}
+                  placeholder="EMP001"
+                  disabled={!isNew}
+                  className={inputClass('employee_id')}
+                />
+                <FieldError msg={errors.employee_id} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
-                <Input value={form.employee_name} onChange={set('employee_name')} placeholder="John Smith" required />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={form.employee_name}
+                  onChange={set('employee_name')}
+                  placeholder="John Smith"
+                  className={inputClass('employee_name')}
+                />
+                <FieldError msg={errors.employee_name} />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-              <Input type="email" value={form.email} onChange={set('email')} placeholder="john@company.com" />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={set('email')}
+                placeholder="john@company.com"
+                className={inputClass('email')}
+              />
+              <FieldError msg={errors.email} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone</label>
-                <Input value={form.phone} onChange={set('phone')} placeholder="+91 9876543210" />
+                <Input
+                  value={form.phone}
+                  onChange={set('phone')}
+                  placeholder="9876543210"
+                  className={inputClass('phone')}
+                />
+                <FieldError msg={errors.phone} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Joining</label>
@@ -130,15 +214,10 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                   value={form.location}
                   onChange={set('location')}
                   style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    color: form.location ? '#0F172A' : '#94A3B8',
-                    background: '#fff',
-                    outline: 'none',
-                    cursor: 'pointer',
+                    width: '100%', padding: '8px 12px',
+                    border: '1px solid #E2E8F0', borderRadius: 8,
+                    fontSize: 14, color: form.location ? '#0F172A' : '#94A3B8',
+                    background: '#fff', outline: 'none', cursor: 'pointer',
                   }}
                 >
                   <option value="">— Select location —</option>
@@ -150,7 +229,7 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                 </select>
               ) : (
                 <>
-                  <Input value={form.location} onChange={set('location')} placeholder="e.g. Chennai Head Office, Warehouse B" />
+                  <Input value={form.location} onChange={set('location')} placeholder="e.g. Chennai Head Office" />
                   <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
                     💡 Add locations in <strong>Locations</strong> settings for a dropdown here.
                   </p>
@@ -169,11 +248,28 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">PAN Number</label>
-                  <Input value={form.pan_number} onChange={set('pan_number')} placeholder="ABCDE1234F" />
+                  <Input
+                    value={form.pan_number}
+                    onChange={e => { set('pan_number')(e); }}
+                    onBlur={e => {
+                      if (e.target.value) setForm(f => ({ ...f, pan_number: f.pan_number.toUpperCase() }));
+                    }}
+                    placeholder="ABCDE1234F"
+                    className={inputClass('pan_number')}
+                    maxLength={10}
+                  />
+                  <FieldError msg={errors.pan_number} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">UAN (PF Account)</label>
-                  <Input value={form.uan_number} onChange={set('uan_number')} placeholder="100123456789" />
+                  <Input
+                    value={form.uan_number}
+                    onChange={set('uan_number')}
+                    placeholder="100123456789"
+                    className={inputClass('uan_number')}
+                    maxLength={12}
+                  />
+                  <FieldError msg={errors.uan_number} />
                 </div>
               </div>
             </div>
@@ -188,12 +284,28 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
-                  <Input value={form.ifsc_code} onChange={set('ifsc_code')} placeholder="SBIN0001234" />
+                  <Input
+                    value={form.ifsc_code}
+                    onChange={set('ifsc_code')}
+                    onBlur={e => {
+                      if (e.target.value) setForm(f => ({ ...f, ifsc_code: f.ifsc_code.toUpperCase() }));
+                    }}
+                    placeholder="SBIN0001234"
+                    className={inputClass('ifsc_code')}
+                    maxLength={11}
+                  />
+                  <FieldError msg={errors.ifsc_code} />
                 </div>
               </div>
               <div className="mt-3">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Account Number</label>
-                <Input value={form.bank_account_number} onChange={set('bank_account_number')} placeholder="1234567890" />
+                <Input
+                  value={form.bank_account_number}
+                  onChange={set('bank_account_number')}
+                  placeholder="1234567890"
+                  type="text"
+                  inputMode="numeric"
+                />
               </div>
             </div>
 

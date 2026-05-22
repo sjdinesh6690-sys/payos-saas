@@ -238,6 +238,22 @@ async function initDB() {
       )
     `);
 
+    // ── Admin sub-users (staff with module access) ───────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id          SERIAL PRIMARY KEY,
+        admin_id    INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        name        VARCHAR(255) NOT NULL,
+        email       VARCHAR(255) NOT NULL,
+        password    VARCHAR(255) NOT NULL,
+        role        VARCHAR(50)  DEFAULT 'staff',
+        permissions JSONB        DEFAULT '{}',
+        status      VARCHAR(20)  DEFAULT 'active',
+        created_at  TIMESTAMPTZ  DEFAULT NOW(),
+        UNIQUE(admin_id, email)
+      )
+    `);
+
     // audit logs — security & compliance
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (

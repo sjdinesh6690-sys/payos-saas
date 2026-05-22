@@ -50,9 +50,22 @@ router.get('/', async (req, res) => {
 // ── POST add employee ─────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly, department, designation, phone, date_of_joining, password } = req.body;
-    if (!employee_id || !employee_name)
-      return res.status(400).json({ error: 'employee_id and employee_name are required' });
+    const {
+      employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly,
+      department, designation, phone, date_of_joining, password, location,
+      pan_number, uan_number, bank_name, bank_account_number, ifsc_code,
+    } = req.body;
+
+    if (!employee_id || !employee_id.toString().trim())
+      return res.status(400).json({ error: 'Employee ID is required' });
+    if (!employee_name || !employee_name.toString().trim())
+      return res.status(400).json({ error: 'Employee name is required' });
+    if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      return res.status(400).json({ error: 'Invalid email format' });
+    if (pan_number && pan_number.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(pan_number.trim()))
+      return res.status(400).json({ error: 'Invalid PAN format. Example: ABCDE1234F' });
+    if (ifsc_code && ifsc_code.trim() && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(ifsc_code.trim()))
+      return res.status(400).json({ error: 'Invalid IFSC format. Example: SBIN0001234' });
 
     // Resolve gross monthly from whichever field was provided
     let grossMonthly = parseFloat(salary) || 0;
@@ -60,7 +73,7 @@ router.post('/', async (req, res) => {
     if (isNaN(grossMonthly) || grossMonthly < 0)
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
 
-    const empId = employee_id.toUpperCase();
+    const empId = employee_id.toString().trim().toUpperCase();
 
     // Check uniqueness
     const exists = await pool.query(
@@ -80,14 +93,22 @@ router.post('/', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO employees
         (admin_id, employee_id, employee_name, email, salary, yearly_ctc, net_salary_monthly,
-         department, designation, phone, date_of_joining, password)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         department, designation, phone, date_of_joining, password,
+         location, pan_number, uan_number, bank_name, bank_account_number, ifsc_code)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING *
     `, [
-      req.admin_id, empId, employee_name, email,
+      req.admin_id, empId, employee_name.trim(),
+      email ? email.trim().toLowerCase() : '',
       grossMonthly, ctc, netMthly,
       department || '', designation || '', phone || '', date_of_joining || '',
       hashedPwd,
+      location || null,
+      pan_number ? pan_number.trim().toUpperCase() : null,
+      uan_number ? uan_number.trim() : null,
+      bank_name  ? bank_name.trim()  : null,
+      bank_account_number ? bank_account_number.trim() : null,
+      ifsc_code  ? ifsc_code.trim().toUpperCase() : null,
     ]);
 
     await auditLog(req.admin_id, 'employee_created', 'employees', result.rows[0].id, { employee_id: empId }, req.ip);
@@ -170,11 +191,20 @@ router.put('/:id', async (req, res) => {
     );
     if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
-    const { employee_name, email, salary, yearly_ctc, net_salary_monthly, department, designation, phone, date_of_joining,
-            pan_number, uan_number, bank_name, bank_account_number, ifsc_code } = req.body;
+    const {
+      employee_name, email, salary, yearly_ctc, net_salary_monthly,
+      department, designation, phone, date_of_joining, location,
+      pan_number, uan_number, bank_name, bank_account_number, ifsc_code,
+    } = req.body;
 
     if (salary !== undefined && salary !== '' && (isNaN(parseFloat(salary)) || parseFloat(salary) < 0))
       return res.status(400).json({ error: 'Salary must be a non-negative number' });
+    if (email !== undefined && email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      return res.status(400).json({ error: 'Invalid email format' });
+    if (pan_number !== undefined && pan_number && pan_number.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(pan_number.trim()))
+      return res.status(400).json({ error: 'Invalid PAN format. Example: ABCDE1234F' });
+    if (ifsc_code !== undefined && ifsc_code && ifsc_code.trim() && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(ifsc_code.trim()))
+      return res.status(400).json({ error: 'Invalid IFSC format. Example: SBIN0001234' });
 
     const fields = [];
     const values = [];
@@ -185,18 +215,19 @@ router.put('/:id', async (req, res) => {
     if (resolvedGross === undefined && yearly_ctc !== undefined && yearly_ctc !== '')
       resolvedGross = parseFloat(yearly_ctc) / 12;
 
-    if (employee_name   !== undefined) { fields.push(`employee_name = $${idx++}`);  values.push(employee_name); }
-    if (email           !== undefined) { fields.push(`email = $${idx++}`);           values.push(email); }
+    if (employee_name   !== undefined) { fields.push(`employee_name = $${idx++}`);  values.push(employee_name ? employee_name.trim() : employee_name); }
+    if (email           !== undefined) { fields.push(`email = $${idx++}`);           values.push(email ? email.trim().toLowerCase() : email); }
     if (resolvedGross   !== undefined) { fields.push(`salary = $${idx++}`);          values.push(resolvedGross); }
     if (department      !== undefined) { fields.push(`department = $${idx++}`);      values.push(department); }
     if (designation     !== undefined) { fields.push(`designation = $${idx++}`);     values.push(designation); }
     if (phone           !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone); }
     if (date_of_joining !== undefined) { fields.push(`date_of_joining = $${idx++}`); values.push(date_of_joining); }
-    if (pan_number          !== undefined) { fields.push(`pan_number = $${idx++}`);          values.push(pan_number || null); }
+    if (location        !== undefined) { fields.push(`location = $${idx++}`);        values.push(location || null); }
+    if (pan_number          !== undefined) { fields.push(`pan_number = $${idx++}`);          values.push(pan_number ? pan_number.trim().toUpperCase() : null); }
     if (uan_number          !== undefined) { fields.push(`uan_number = $${idx++}`);          values.push(uan_number || null); }
     if (bank_name           !== undefined) { fields.push(`bank_name = $${idx++}`);           values.push(bank_name || null); }
     if (bank_account_number !== undefined) { fields.push(`bank_account_number = $${idx++}`); values.push(bank_account_number || null); }
-    if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);           values.push(ifsc_code || null); }
+    if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);           values.push(ifsc_code ? ifsc_code.trim().toUpperCase() : null); }
 
     // Sync CTC whenever gross changes, or save explicit CTC value
     if (yearly_ctc !== undefined) {

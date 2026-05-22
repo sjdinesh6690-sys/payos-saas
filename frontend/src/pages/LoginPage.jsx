@@ -40,6 +40,16 @@ export default function LoginPage() {
       if (data.token) {
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employer');
+        // Store sub-user info if applicable
+        if (data.is_sub_user) {
+          localStorage.setItem('payslip_is_sub_user', 'true');
+          localStorage.setItem('payslip_sub_user_name', data.sub_user_name || '');
+          localStorage.setItem('payslip_permissions', JSON.stringify(data.permissions || {}));
+        } else {
+          localStorage.removeItem('payslip_is_sub_user');
+          localStorage.removeItem('payslip_sub_user_name');
+          localStorage.removeItem('payslip_permissions');
+        }
         navigate(data.onboarding_completed === false ? '/onboarding' : '/admin/dashboard');
       } else if (data.needs_verification) {
         setUnverifiedEmail(data.email || adminEmail);

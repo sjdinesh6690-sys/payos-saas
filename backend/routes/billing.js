@@ -285,16 +285,14 @@ async function activateSubscription(adminId, type, slots, now, orderId, paymentI
   const existing = subRes.rows[0];
 
   if (type === 'base_plan') {
-    // Renew or create base plan — 1 month from now
-    const paidUntil = new Date(now);
-    paidUntil.setMonth(paidUntil.getMonth() + 1);
-
     if (existing) {
-      // If renewing an already-active plan, extend from paid_until, not now
-      const extendFrom = existing.status === 'active' && new Date(existing.paid_until) > now
+      // If renewing an already-active plan, extend from paid_until; otherwise extend from now
+      const baseDate = existing.status === 'active' && new Date(existing.paid_until) > now
         ? new Date(existing.paid_until)
-        : now;
-      extendFrom.setMonth(extendFrom.getMonth() + 1);
+        : new Date(now);
+      // Create a NEW date object to avoid mutation bugs
+      const newPaidUntil = new Date(baseDate);
+      newPaidUntil.setMonth(newPaidUntil.getMonth() + 1);
 
       await pool.query(
         `UPDATE subscriptions
@@ -303,14 +301,17 @@ async function activateSubscription(adminId, type, slots, now, orderId, paymentI
              status         = 'active',
              updated_at     = NOW()
          WHERE admin_id = $3`,
-        [BASE_PLAN_SLOTS, extendFrom, adminId]
+        [BASE_PLAN_SLOTS, newPaidUntil, adminId]
       );
     } else {
+      // New subscription — 1 month from now
+      const newPaidUntil = new Date(now);
+      newPaidUntil.setMonth(newPaidUntil.getMonth() + 1);
       await pool.query(
         `INSERT INTO subscriptions
            (admin_id, employee_limit, paid_until, status)
          VALUES ($1, $2, $3, 'active')`,
-        [adminId, BASE_PLAN_SLOTS, paidUntil]
+        [adminId, BASE_PLAN_SLOTS, newPaidUntil]
       );
     }
   } else if (type === 'topup') {
