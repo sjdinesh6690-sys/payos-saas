@@ -93,8 +93,8 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
-              <Input type="email" value={form.email} onChange={set('email')} placeholder="john@company.com" required />
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+              <Input type="email" value={form.email} onChange={set('email')} placeholder="john@company.com" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
