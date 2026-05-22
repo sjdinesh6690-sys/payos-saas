@@ -128,7 +128,7 @@ router.post('/preview-pdf', async (req, res) => {
     const doc = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="PayOS_Sample_Payslip.pdf"');
+    res.setHeader('Content-Disposition', 'attachment; filename="PayLeef_Sample_Payslip.pdf"');
     doc.pipe(res);
     renderPayslipPDF(doc, samplePayslip, branding, admin);
     doc.end();

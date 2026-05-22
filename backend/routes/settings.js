@@ -2,7 +2,6 @@ const express  = require('express');
 const router   = express.Router();
 const { pool } = require('../database');
 const authCheck = require('../middleware/auth');
-const nodemailer = require('nodemailer');
 const { encrypt, decrypt } = require('../lib/crypto');
 
 router.use(authCheck);
@@ -102,62 +101,43 @@ router.put('/', async (req, res) => {
   }
 });
 
-// POST /api/settings/test-smtp — send a test email
-router.post('/test-smtp', async (req, res) => {
+// POST /api/settings/test-email — send a test email via Resend (SMTP is blocked on Render)
+router.post('/test-email', async (req, res) => {
   try {
-    const { smtp_host, smtp_user, smtp_from, test_to } = req.body;
-    let { smtp_port, smtp_pass } = req.body;
+    const { test_to } = req.body;
+    if (!test_to) return res.status(400).json({ error: 'Please enter an email address to send the test to.' });
 
-    if (!smtp_host || !smtp_user || !smtp_pass) {
-      return res.status(400).json({ error: 'SMTP host, user and password are required' });
+    const { Resend } = require('resend');
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(503).json({ error: 'Email service not configured. Please contact PayLeef support.' });
     }
 
-    // Strip spaces — Gmail app passwords are displayed with spaces
-    // Also support when user is re-testing with a freshly-typed password (not encrypted yet)
-    smtp_pass = smtp_pass.replace(/\s/g, '');
-    smtp_port = parseInt(smtp_port) || 587;
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const adminResult = await pool.query('SELECT company_name, brand_color FROM admins WHERE id = $1', [req.admin_id]);
+    const admin = adminResult.rows[0] || {};
+    const companyName = admin.company_name || 'Your Company';
+    const brandColor  = admin.brand_color || '#1A7A4A';
 
-<<<<<<< Updated upstream
-    const transporter = nodemailer.createTransporter({
-=======
-    const transporter = nodemailer.createTransport({
->>>>>>> Stashed changes
-      host:       smtp_host,
-      port:       smtp_port,
-      secure:     smtp_port === 465,
-      requireTLS: smtp_port !== 465,    // Force STARTTLS on 587/other ports
-      auth:       { user: smtp_user, pass: smtp_pass },
-      tls:        { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout:   10000,
+    await resend.emails.send({
+      from:    `${companyName} Payroll <payroll@dinmind.com>`,
+      to:      [test_to],
+      subject: '✅ PayLeef Email Test — Working!',
+      html:    `
+        <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px;">
+          <div style="background:${brandColor};padding:20px 24px;border-radius:8px;margin-bottom:20px;">
+            <div style="font-size:22px;font-weight:900;color:#fff;">Pay<span style="color:#4ADE80;">Leef</span></div>
+          </div>
+          <h2 style="color:#16a34a;margin:0 0 12px;">✅ Email delivery is working perfectly!</h2>
+          <p style="color:#334155;">Payslips for <strong>${companyName}</strong> will be sent reliably to your employees.</p>
+          <p style="color:#64748b;font-size:13px;margin-top:16px;">Powered by PayLeef · dinmind.com</p>
+        </div>
+      `,
     });
 
-    await transporter.verify();
-
-    const toAddr = test_to || smtp_user;
-    await transporter.sendMail({
-      from:    `"PayOS Test" <${smtp_from || smtp_user}>`,
-      to:      toAddr,
-      subject: 'PayOS SMTP Test — Connection Successful',
-      html:    `<div style="font-family:sans-serif;padding:20px;">
-                  <h2 style="color:#16a34a;">✅ SMTP Connected Successfully!</h2>
-                  <p>Your email settings are working correctly.</p>
-                  <p>Payslips will be delivered from <strong>${smtp_from || smtp_user}</strong></p>
-                </div>`,
-    });
-
-    res.json({ message: `Test email sent to ${toAddr}` });
+    res.json({ message: `Test email sent to ${test_to} — check your inbox!` });
   } catch (err) {
-    // Provide user-friendly error messages for common failures
-    let message = err.message || 'Connection failed';
-    if (/Invalid login|Username and Password not accepted|535/i.test(message)) {
-      message = 'Login failed — wrong password. For Gmail: make sure you used an App Password (not your normal Gmail password). Remove any spaces from the app password before pasting.';
-    } else if (/ECONNREFUSED|ECONNRESET|ETIMEDOUT|connect/i.test(message)) {
-      message = 'Could not connect to the mail server — check your SMTP host and port.';
-    } else if (/EAUTH|authentication/i.test(message)) {
-      message = 'Authentication failed — check your email and password. For Gmail, you must use an App Password (not your normal login password).';
-    }
-    res.status(400).json({ error: message });
+    console.error('[settings/test-email]', err.message);
+    res.status(500).json({ error: 'Failed to send test email. Please try again or contact support.' });
   }
 });
 

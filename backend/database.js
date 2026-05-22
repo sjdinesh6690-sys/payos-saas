@@ -1,4 +1,4 @@
-// database.js — PostgreSQL adapter for PayOS
+// database.js — PostgreSQL adapter for PayLeef
 // Replaces the flat JSON file store with a production-grade connection pool.
 
 require('dotenv').config();
@@ -116,6 +116,58 @@ async function initDB() {
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS yearly_ctc NUMERIC(14,2)`);
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS net_salary_monthly NUMERIC(12,2)`);
 
+    // Location / branch
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS location VARCHAR(100)`);
+
+    // Attendance table — monthly attendance per employee
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS attendance (
+        id           SERIAL PRIMARY KEY,
+        admin_id     INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        employee_id  VARCHAR(50) NOT NULL,
+        month        INTEGER NOT NULL,
+        year         INTEGER NOT NULL,
+        working_days INTEGER DEFAULT 26,
+        present_days INTEGER DEFAULT 26,
+        lop_days     INTEGER DEFAULT 0,
+        notes        VARCHAR(255),
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(admin_id, employee_id, month, year)
+      )
+    `);
+
+    // ── Billing: Subscriptions ────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id             SERIAL PRIMARY KEY,
+        admin_id       INTEGER UNIQUE REFERENCES admins(id) ON DELETE CASCADE,
+        employee_limit INTEGER      DEFAULT 5,
+        paid_until     TIMESTAMPTZ,
+        status         VARCHAR(20)  DEFAULT 'inactive',
+        created_at     TIMESTAMPTZ  DEFAULT NOW(),
+        updated_at     TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+
+    // ── Billing: Payments (every Razorpay transaction) ────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id                   SERIAL PRIMARY KEY,
+        admin_id             INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        razorpay_order_id    VARCHAR(100),
+        razorpay_payment_id  VARCHAR(100),
+        payment_type         VARCHAR(20)  DEFAULT 'base_plan',
+        employee_slots       INTEGER      DEFAULT 5,
+        base_amount          NUMERIC(10,2),
+        gst_amount           NUMERIC(10,2),
+        total_amount         NUMERIC(10,2),
+        status               VARCHAR(20)  DEFAULT 'pending',
+        notes                VARCHAR(255),
+        created_at           TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+
     // Add company statutory registration numbers to admins
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS pan_number VARCHAR(30)`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS tan_number VARCHAR(30)`);
@@ -128,8 +180,6 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token VARCHAR(128)`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
 
-<<<<<<< Updated upstream
-=======
     // Email verification
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verify_token VARCHAR(128)`);
@@ -139,7 +189,10 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS logo_url TEXT`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS brand_color VARCHAR(20) DEFAULT '#1B4F8A'`);
 
->>>>>>> Stashed changes
+    // Terms & Conditions acceptance
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`);
+
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (

@@ -1,5 +1,5 @@
 /**
- * PayOS — 5 Payslip PDF Templates
+ * PayLeef — 5 Payslip PDF Templates
  * Each template is a function: renderTemplate(doc, payslip, branding, admin)
  * All templates share the same data structure, different visual styles.
  */

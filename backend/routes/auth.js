@@ -7,7 +7,11 @@ const router   = express.Router();
 const { pool, auditLog } = require('../database');
 const { decrypt } = require('../lib/crypto');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init — avoids crash if RESEND_API_KEY is not set at startup
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 // ── helper: send verification email ──────────────────────────────────────────
 async function sendVerificationEmail(email, companyName, verifyToken, req) {
@@ -19,15 +23,20 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
     return;
   }
 
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[verify-email] No RESEND_API_KEY. Verify URL: ${verifyUrl}`);
+    return;
+  }
   console.log(`[verify-email] Sending to: ${email}`);
   const { data, error } = await resend.emails.send({
-    from:    'PayOS <onboarding@resend.dev>',
+    from:    'PayLeef <support@dinmind.com>',
     to:      email,
-    subject: 'Verify your PayOS account',
+    subject: 'Verify your PayLeef account',
     html: `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;border-radius:12px;">
         <div style="text-align:center;margin-bottom:24px;">
-          <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#ea580c;">OS</span>
+          <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#1A7A4A;">Leef</span>
         </div>
         <h2 style="color:#0f172a;margin-bottom:8px;">Verify your email address</h2>
         <p style="color:#475569;margin-bottom:24px;">
@@ -56,9 +65,12 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
 router.post('/admin-signup', async (req, res) => {
   try {
-    const { email, password, company_name } = req.body;
+    const { email, password, company_name, terms_accepted } = req.body;
     if (!email || !password || !company_name)
       return res.status(400).json({ error: 'All fields required' });
+
+    if (!terms_accepted)
+      return res.status(400).json({ error: 'You must accept the Terms of Service and Privacy Policy to create an account.' });
 
     if (password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
@@ -78,10 +90,11 @@ router.post('/admin-signup', async (req, res) => {
         (email, password, company_name, onboarding_completed, plan, status,
          company_industry, company_size, last_active,
          trial_start_date, trial_end_date, trial_days, created_at,
-         email_verified, email_verify_token, email_verify_expires)
-      VALUES ($1,$2,$3,false,'starter','active','','',$4,$5,$6,30,$7,false,$8,$9)
+         email_verified, email_verify_token, email_verify_expires,
+         terms_accepted, terms_accepted_at)
+      VALUES ($1,$2,$3,false,'starter','active','','',$4,$5,$6,30,$7,false,$8,$9,true,$10)
       RETURNING id, email, company_name
-    `, [email.toLowerCase(), hash, company_name, now, now, trialEnd, now, verifyToken, verifyExp]);
+    `, [email.toLowerCase(), hash, company_name, now, now, trialEnd, now, verifyToken, verifyExp, now]);
 
     const admin = result.rows[0];
 
@@ -278,24 +291,25 @@ router.post('/forgot-password', async (req, res) => {
     const appUrl   = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
-    if (!process.env.RESEND_API_KEY) {
+    const resend = getResend();
+    if (!resend) {
       console.log(`[forgot-password] No RESEND_API_KEY set. Reset URL: ${resetUrl}`);
       return res.json({ message: 'If this email exists, a reset link has been sent.' });
     }
 
     await resend.emails.send({
-      from:    'PayOS <onboarding@resend.dev>',
+      from:    'PayLeef <support@dinmind.com>',
       to:      admin.email,
-      subject: 'Reset your PayOS password',
+      subject: 'Reset your PayLeef password',
       html: `
         <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #f9fafb; border-radius: 12px;">
           <div style="text-align:center;margin-bottom:24px;">
-            <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#ea580c;">OS</span>
+            <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#1A7A4A;">Leef</span>
           </div>
           <h2 style="color: #0f172a; margin-bottom: 8px;">Reset your password</h2>
           <p style="color: #475569; margin-bottom: 24px;">
             Hi${admin.company_name ? ' ' + admin.company_name : ''},<br/>
-            We received a request to reset your PayOS password. Click the button below to set a new password.
+            We received a request to reset your PayLeef password. Click the button below to set a new password.
           </p>
           <div style="text-align:center;margin:32px 0;">
             <a href="${resetUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">

@@ -1,5 +1,5 @@
 /**
- * routes/ai.js — PayOS AI Features (powered by Google Gemini — Free Tier)
+ * routes/ai.js — PayLeef AI Features (powered by Google Gemini — Free Tier)
  *
  * POST /api/ai/employee-chat  → Employee Self-Service AI
  * POST /api/ai/anomaly-scan   → Smart Anomaly Detection (admin only)
@@ -79,7 +79,7 @@ ${MONTHS[p.month]} ${p.year}:
       }).join('\n');
     }
 
-    const prompt = `You are a friendly payroll assistant for PayOS, a payroll software used by Indian companies.
+    const prompt = `You are a friendly payroll assistant for PayLeef, a payroll software used by Indian companies.
 You help employees understand their salary slip and payroll deductions in simple, clear language.
 
 EMPLOYEE PROFILE:

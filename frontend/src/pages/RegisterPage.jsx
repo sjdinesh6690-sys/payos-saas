@@ -68,7 +68,7 @@ function CheckEmailScreen({ email, onResend, resending, resendMsg }) {
 }
 
 export default function RegisterPage() {
-  const [form, setForm]         = useState({ company_name: '', email: '', password: '' });
+  const [form, setForm]         = useState({ company_name: '', email: '', password: '', terms_accepted: false });
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -169,14 +169,25 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
-              By creating an account you agree to our{' '}
-              <a href="/terms" target="_blank" className="text-green-600 hover:underline">Terms of Service</a>
-              {' '}and{' '}
-              <a href="/privacy" target="_blank" className="text-green-600 hover:underline">Privacy Policy</a>.
-            </p>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                required
+                checked={form.terms_accepted}
+                onChange={e => setForm(f => ({ ...f, terms_accepted: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 cursor-pointer flex-shrink-0"
+                style={{ accentColor: '#1A7A4A' }}
+              />
+              <span className="text-xs text-slate-500 leading-relaxed">
+                I have read and agree to the{' '}
+                <a href="/terms" target="_blank" className="text-green-600 hover:underline font-medium">Terms of Service</a>
+                {' '}and{' '}
+                <a href="/privacy" target="_blank" className="text-green-600 hover:underline font-medium">Privacy Policy</a>.{' '}
+                <span className="text-red-500">*</span>
+              </span>
+            </label>
 
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || !form.terms_accepted}
               className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               style={{ background: '#1A7A4A' }}>
               {loading

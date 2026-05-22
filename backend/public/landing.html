@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PayLeef — Payroll Without Stress. Salary Without Confusion.</title>
+<meta name="description" content="PayLeef is India's premium payroll software for SMEs, factories, and manufacturing companies. Generate payslips, calculate salaries, sync attendance, and run payroll in minutes. 30-day free trial."/>
+<meta name="keywords" content="payroll software India, payslip generation software, salary software India, payroll software Chennai, factory payroll software, manufacturing payroll, SME payroll software, employee payslip software, salary slip generator, attendance payroll software, automated payslip software"/>
+<meta property="og:title" content="PayLeef — Payroll Without Stress"/>
+<meta property="og:description" content="The easiest premium payroll software built for real Indian businesses. Start free for 30 days."/>
+<meta property="og:type" content="website"/>
+<meta name="robots" content="index,follow"/>
+<link rel="canonical" href="https://payleef.com"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"PayLeef","applicationCategory":"BusinessApplication","description":"Premium payroll and payslip software for Indian SMEs, factories, and manufacturing companies","offers":{"@type":"Offer","price":"999","priceCurrency":"INR"},"operatingSystem":"Web","url":"https://payleef.com"}</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --green:#1A7A4A;
+  --green-light:#4ADE80;
+  --dark:#0F172A;
+  --dark-mid:#1E293B;
+  --dark-accent:#162544;
+  --white:#ffffff;
+  --off-white:#F8FAFC;
+  --slate:#0f172a;
+  --slate-mid:#334155;
+  --slate-light:#64748b;
+  --border:#e2e8f0;
+  --radius:16px;
+  --shadow:0 4px 24px rgba(0,0,0,.08);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.12);
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--slate);background:#fff;line-height:1.6;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+img{max-width:100%}
+
+/* ── UTILITIES ── */
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+.section{padding:96px 0}
+.section-sm{padding:64px 0}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(26,122,74,.1);color:var(--green);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:100px;margin-bottom:20px;border:1px solid rgba(26,122,74,.2)}
+.tag-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+h1,h2,h3,h4{font-weight:800;line-height:1.15;letter-spacing:-.03em}
+h1{font-size:clamp(40px,6vw,72px)}
+h2{font-size:clamp(32px,4vw,52px)}
+h3{font-size:clamp(22px,3vw,32px)}
+.text-green{color:var(--green)}
+.text-light{color:var(--slate-light)}
+.fw-700{font-weight:700}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;border:none;transition:all .2s ease;white-space:nowrap}
+.btn-primary{background:var(--green);color:#fff;box-shadow:0 4px 20px rgba(26,122,74,.35)}
+.btn-primary:hover{background:#15633c;transform:translateY(-1px);box-shadow:0 8px 28px rgba(26,122,74,.45)}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.25);backdrop-filter:blur(8px)}
+.btn-ghost:hover{background:rgba(255,255,255,.2);transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--green);border:2px solid var(--green)}
+.btn-outline:hover{background:var(--green);color:#fff}
+.btn-lg{padding:18px 36px;font-size:17px;border-radius:14px}
+.btn-whatsapp{background:#25D366;color:#fff;box-shadow:0 4px 20px rgba(37,211,102,.35)}
+.btn-whatsapp:hover{background:#1fba5a;transform:translateY(-1px)}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:16px 0;transition:all .3s ease}
+nav.scrolled{background:rgba(255,255,255,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);box-shadow:0 2px 20px rgba(0,0,0,.07)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:32px}
+.nav-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.nav-logo-icon{width:38px;height:38px;border-radius:11px;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-logo-text{font-size:20px;font-weight:900;letter-spacing:-.04em}
+.nav-logo-text .logo-pay{color:#fff;transition:color .3s}
+.nav-logo-text .logo-leef{color:#4ADE80;transition:color .3s}
+nav.scrolled .nav-logo-text .logo-pay{color:var(--slate)}
+nav.scrolled .nav-logo-text .logo-leef{color:var(--green)}
+.nav-links{display:flex;align-items:center;gap:8px}
+.nav-link{padding:8px 16px;border-radius:8px;font-size:14px;font-weight:600;color:rgba(255,255,255,.85);transition:all .2s}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.12)}
+nav.scrolled .nav-link{color:var(--slate-mid)}
+nav.scrolled .nav-link:hover{color:var(--slate);background:var(--off-white)}
+.nav-cta{display:flex;align-items:center;gap:10px}
+.nav-cta .btn{padding:10px 20px;font-size:14px;border-radius:10px}
+.nav-cta .signin{color:rgba(255,255,255,.8);font-weight:600;font-size:14px;padding:10px 16px;transition:color .3s}
+nav.scrolled .nav-cta .signin{color:var(--slate-mid)}
+.nav-mobile{display:none}
+@media(max-width:900px){.nav-links{display:none}.nav-mobile{display:flex;flex-direction:column;gap:4px;cursor:pointer;padding:4px}.nav-mobile span{display:block;width:22px;height:2px;background:#fff;border-radius:2px;transition:.3s}.nav.scrolled .nav-mobile span{background:var(--slate)}.nav-cta .signin{display:none}}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;align-items:center;background:linear-gradient(135deg,#0B1120 0%,#0F172A 35%,#162032 65%,#0F1D38 100%);position:relative;overflow:hidden;padding:120px 0 80px}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 1000px 650px at 65% 45%,rgba(99,102,241,.12) 0%,rgba(26,122,74,.06) 50%,transparent 75%)}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.hero-content{position:relative;z-index:2}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.25);color:var(--green-light);font-size:13px;font-weight:700;padding:8px 16px;border-radius:100px;margin-bottom:28px}
+.hero-badge-dot{width:8px;height:8px;background:#4ADE80;border-radius:50%;animation:pulse-dot 2s infinite}
+h1.hero-title{color:#fff;margin-bottom:24px}
+h1.hero-title .accent{color:var(--green-light)}
+.hero-sub{font-size:clamp(17px,2vw,20px);color:rgba(255,255,255,.68);line-height:1.65;margin-bottom:36px;max-width:480px}
+.hero-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:44px}
+.hero-trust{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.hero-trust-item{display:flex;align-items:center;gap:7px;font-size:13px;color:rgba(255,255,255,.55);font-weight:500}
+.hero-trust-icon{width:16px;height:16px;color:var(--green-light)}
+.hero-visual{position:relative;z-index:2}
+.hero-device{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:20px;overflow:hidden;backdrop-filter:blur(20px);box-shadow:0 40px 120px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08);transform:perspective(1200px) rotateY(-6deg) rotateX(2deg);transition:transform .6s ease}
+.hero-device:hover{transform:perspective(1200px) rotateY(-2deg) rotateX(1deg)}
+.device-bar{background:rgba(255,255,255,.06);padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.device-dots{display:flex;gap:6px}
+.device-dot{width:10px;height:10px;border-radius:50%}
+.device-dot:nth-child(1){background:#FF5F57}
+.device-dot:nth-child(2){background:#FFBD2E}
+.device-dot:nth-child(3){background:#28CA41}
+.device-url{flex:1;background:rgba(255,255,255,.08);border-radius:6px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,.4);margin:0 16px}
+@media(max-width:1024px){.hero-grid{grid-template-columns:1fr;gap:48px}.hero-device{transform:none}.hero-visual{max-width:600px;margin:0 auto}}
+@media(max-width:600px){.hero-actions{flex-direction:column;align-items:flex-start}.hero-trust{flex-direction:column;gap:12px}}
+
+/* ── DASHBOARD MOCKUP ── */
+.dash{background:#fff;padding:20px}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.dash-title{font-size:13px;font-weight:700;color:#0f172a}
+.dash-month{font-size:11px;color:#64748b;background:#f1f5f9;padding:4px 10px;border-radius:6px}
+.dash-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.ds{background:#f8fafc;border-radius:10px;padding:12px;border:1px solid #e2e8f0}
+.ds-label{font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.ds-val{font-size:16px;font-weight:800;color:#0f172a}
+.ds-sub{font-size:9px;color:var(--green);font-weight:600;margin-top:2px}
+.dash-table{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+.dt-head{display:grid;grid-template-columns:2fr 1fr 1fr 80px;background:#f8fafc;padding:8px 12px;font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;gap:8px}
+.dt-row{display:grid;grid-template-columns:2fr 1fr 1fr 80px;padding:9px 12px;font-size:11px;align-items:center;border-top:1px solid #f1f5f9;gap:8px}
+.dt-row:hover{background:#fafffe}
+.emp-info{display:flex;align-items:center;gap:7px}
+.emp-av{width:22px;height:22px;border-radius:50%;font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center}
+.emp-name{font-weight:600;font-size:11px;color:#0f172a}
+.emp-dept{font-size:9px;color:#94a3b8}
+.badge-active{display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;background:rgba(26,122,74,.1);color:var(--green)}
+.badge-pending{display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;background:rgba(245,158,11,.1);color:#d97706}
+.dash-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9}
+.dash-action{display:flex;align-items:center;gap:6px;background:var(--green);color:#fff;font-size:11px;font-weight:700;padding:7px 14px;border-radius:7px;cursor:pointer}
+.dash-progress{flex:1;max-width:160px;margin:0 12px}
+.dash-progress-bar{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden}
+.dash-progress-fill{height:100%;background:linear-gradient(90deg,var(--green),#4ADE80);border-radius:3px;width:78%;animation:grow-bar 2s ease-out forwards}
+@keyframes grow-bar{from{width:0}to{width:78%}}
+.dash-progress-text{font-size:9px;color:#64748b;margin-top:3px}
+
+/* ── LOGOS BAR ── */
+.logos-bar{padding:32px 0;background:var(--off-white);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.logos-inner{display:flex;align-items:center;gap:12px;overflow:hidden}
+.logos-track{display:flex;align-items:center;gap:40px;animation:slide-logos 30s linear infinite;white-space:nowrap}
+@keyframes slide-logos{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.logo-item{display:flex;align-items:center;gap:8px;opacity:.45;filter:grayscale(1);transition:.3s;flex-shrink:0}
+.logo-item:hover{opacity:.75;filter:grayscale(0)}
+.logo-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+.logo-name{font-size:13px;font-weight:700;color:var(--slate-mid)}
+.logos-label{font-size:12px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;flex-shrink:0;margin-right:24px}
+
+/* ── PROBLEM ── */
+.problem{background:#fff}
+.prob-intro{text-align:center;max-width:640px;margin:0 auto 64px}
+.prob-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px;line-height:1.7}
+.prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:64px}
+.prob-card{background:var(--off-white);border:1px solid var(--border);border-radius:16px;padding:28px;position:relative;overflow:hidden;transition:all .3s}
+.prob-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:rgba(239,68,68,.2)}
+.prob-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#ef4444,#f97316)}
+.prob-emoji{font-size:32px;margin-bottom:14px}
+.prob-title{font-size:17px;font-weight:700;color:var(--slate);margin-bottom:8px}
+.prob-desc{font-size:14px;color:var(--slate-mid);line-height:1.6}
+.prob-arrow{text-align:center;padding:40px 0}
+.prob-arrow-line{width:2px;height:60px;background:linear-gradient(180deg,#ef4444,var(--green));margin:0 auto 16px;border-radius:2px}
+.prob-arrow-text{font-size:15px;font-weight:700;color:var(--green)}
+@media(max-width:768px){.prob-grid{grid-template-columns:1fr}}
+
+/* ── SOLUTION INTRO ── */
+.solution-banner{background:linear-gradient(135deg,#0B1120 0%,#0F172A 60%,#162032 100%);border-radius:24px;padding:64px;text-align:center;position:relative;overflow:hidden}
+.solution-banner::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(74,222,128,.1),transparent 70%)}
+.solution-banner h2{color:#fff;margin-bottom:20px}
+.solution-banner p{color:rgba(255,255,255,.65);font-size:18px;max-width:560px;margin:0 auto 36px;line-height:1.7}
+.sol-points{display:flex;justify-content:center;gap:32px;flex-wrap:wrap}
+.sol-point{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.75);font-size:14px;font-weight:600}
+.sol-check{width:20px;height:20px;background:rgba(74,222,128,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--green-light);font-size:11px;flex-shrink:0}
+
+/* ── FEATURES BENTO ── */
+.features{background:var(--off-white)}
+.features-intro{text-align:center;max-width:640px;margin:0 auto 64px}
+.features-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
+.bento{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:auto;gap:20px}
+.bento-card{background:#fff;border-radius:20px;padding:32px;border:1px solid var(--border);transition:all .3s ease;position:relative;overflow:hidden}
+.bento-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:rgba(26,122,74,.2)}
+.bento-card.span-2{grid-column:span 2}
+.bento-card.span-2-row{grid-row:span 2}
+.bento-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:18px}
+.bento-icon.green{background:rgba(26,122,74,.1)}
+.bento-icon.blue{background:rgba(59,130,246,.1)}
+.bento-icon.purple{background:rgba(139,92,246,.1)}
+.bento-icon.orange{background:rgba(249,115,22,.1)}
+.bento-icon.teal{background:rgba(20,184,166,.1)}
+.bento-icon.rose{background:rgba(244,63,94,.1)}
+.bento-card h3{font-size:19px;font-weight:800;color:var(--slate);margin-bottom:10px;letter-spacing:-.02em}
+.bento-card p{font-size:14px;color:var(--slate-mid);line-height:1.65}
+.bento-card .highlight{font-size:13px;font-weight:700;color:var(--green);margin-top:14px;display:flex;align-items:center;gap:6px}
+.bento-mini-ui{margin-top:20px;background:var(--off-white);border-radius:10px;padding:14px;border:1px solid var(--border)}
+@media(max-width:1024px){.bento{grid-template-columns:1fr 1fr}.bento-card.span-2{grid-column:span 2}}
+@media(max-width:640px){.bento{grid-template-columns:1fr}.bento-card.span-2{grid-column:span 1}.bento-card.span-2-row{grid-row:span 1}}
+
+/* ── PAYSLIP SHOWCASE ── */
+.payslip-section{background:#fff;overflow:hidden}
+.payslip-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.payslip-copy{padding-right:32px}
+.payslip-copy h2{margin-bottom:20px}
+.payslip-copy p{font-size:17px;color:var(--slate-mid);line-height:1.7;margin-bottom:28px}
+.payslip-points{display:flex;flex-direction:column;gap:14px;margin-bottom:36px}
+.payslip-point{display:flex;align-items:flex-start;gap:12px}
+.payslip-point-icon{width:28px;height:28px;background:rgba(26,122,74,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px}
+.payslip-point-text strong{display:block;font-size:14px;font-weight:700;color:var(--slate);margin-bottom:2px}
+.payslip-point-text span{font-size:13px;color:var(--slate-mid)}
+.payslip-mockup{background:linear-gradient(135deg,#f8faf9,#edf7f2);border-radius:24px;padding:32px;border:1px solid rgba(26,122,74,.15);box-shadow:var(--shadow-lg)}
+.slip{background:#fff;border-radius:14px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.slip-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--green)}
+.slip-company{font-size:15px;font-weight:800;color:var(--slate)}
+.slip-company-sub{font-size:11px;color:var(--slate-light);margin-top:2px}
+.slip-badge{background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px}
+.slip-employee{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--off-white);border-radius:10px;padding:14px;margin-bottom:18px}
+.slip-field{font-size:10px}
+.slip-field-label{color:var(--slate-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.slip-field-val{color:var(--slate);font-weight:700;font-size:11px;margin-top:2px}
+.slip-earnings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.slip-col-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--slate-light);margin-bottom:8px}
+.slip-line{display:flex;justify-content:space-between;font-size:10px;padding:4px 0;border-bottom:1px solid #f1f5f9}
+.slip-line-label{color:var(--slate-mid)}
+.slip-line-val{font-weight:600;color:var(--slate)}
+.slip-net{background:var(--green);color:#fff;border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.slip-net-label{font-size:11px;font-weight:700;opacity:.85}
+.slip-net-val{font-size:20px;font-weight:900}
+@media(max-width:1024px){.payslip-grid{grid-template-columns:1fr;gap:48px}.payslip-copy{padding-right:0}}
+
+/* ── HOW IT WORKS ── */
+.how{background:linear-gradient(180deg,#f8faf9 0%,#fff 100%)}
+.how-intro{text-align:center;max-width:600px;margin:0 auto 64px}
+.how-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
+.how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;position:relative}
+.how-steps::before{content:'';position:absolute;top:52px;left:17%;right:17%;height:2px;background:linear-gradient(90deg,var(--green),#4ADE80,var(--green));opacity:.3;z-index:0}
+.how-step{text-align:center;position:relative;z-index:1}
+.how-step-num{width:48px;height:48px;background:var(--green);color:#fff;border-radius:50%;font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 4px 20px rgba(26,122,74,.35)}
+.how-step h3{font-size:20px;font-weight:800;color:var(--slate);margin-bottom:10px}
+.how-step p{font-size:14px;color:var(--slate-mid);line-height:1.6}
+.how-step-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--green);background:rgba(26,122,74,.08);padding:3px 10px;border-radius:6px;margin-bottom:10px}
+@media(max-width:768px){.how-steps{grid-template-columns:1fr;gap:40px}.how-steps::before{display:none}}
+
+/* ── PRICING ── */
+.pricing{background:var(--off-white)}
+.pricing-intro{text-align:center;max-width:640px;margin:0 auto 64px}
+.pricing-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
+.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+.price-card{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:28px;position:relative;transition:all .3s}
+.price-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.price-card.featured{border-color:var(--green);background:#fff;box-shadow:0 8px 40px rgba(26,122,74,.15)}
+.price-card.featured::before{content:'Most Popular';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;font-size:11px;font-weight:700;padding:4px 16px;border-radius:100px;white-space:nowrap}
+.price-plan{font-size:13px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.price-amount{font-size:38px;font-weight:900;color:var(--slate);letter-spacing:-.04em;line-height:1}
+.price-amount sup{font-size:20px;vertical-align:super;font-weight:700}
+.price-amount sub{font-size:14px;color:var(--slate-light);font-weight:500}
+.price-employees{font-size:13px;color:var(--slate-light);margin-top:6px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.price-features{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.price-feature{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--slate-mid)}
+.price-check{color:var(--green);font-size:14px;flex-shrink:0;margin-top:1px;font-weight:700}
+.price-cross{color:#cbd5e1;font-size:14px;flex-shrink:0;margin-top:1px}
+.price-btn{width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .2s;text-align:center;display:block}
+.price-btn-primary{background:var(--green);color:#fff}
+.price-btn-primary:hover{background:#15633c}
+.price-btn-outline{background:transparent;border:2px solid var(--border);color:var(--slate-mid)}
+.price-btn-outline:hover{border-color:var(--green);color:var(--green)}
+.price-note{text-align:center;margin-top:28px;font-size:14px;color:var(--slate-light)}
+.price-note strong{color:var(--green)}
+@media(max-width:1100px){.pricing-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.pricing-grid{grid-template-columns:1fr}}
+
+/* ── TESTIMONIALS ── */
+.testimonials{background:#fff}
+.test-intro{text-align:center;max-width:560px;margin:0 auto 64px}
+.test-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
+.test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.test-card{background:var(--off-white);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;transition:all .3s}
+.test-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:rgba(26,122,74,.2)}
+.test-stars{color:#f59e0b;font-size:16px;margin-bottom:14px;letter-spacing:2px}
+.test-quote{font-size:15px;color:var(--slate-mid);line-height:1.7;margin-bottom:20px;font-style:italic}
+.test-author{display:flex;align-items:center;gap:12px}
+.test-avatar{width:42px;height:42px;border-radius:50%;font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.test-name{font-size:14px;font-weight:700;color:var(--slate)}
+.test-role{font-size:12px;color:var(--slate-light)}
+@media(max-width:900px){.test-grid{grid-template-columns:1fr}}
+
+/* ── TRUST ── */
+.trust{background:linear-gradient(135deg,#0B1120 0%,#0F172A 50%,#1a1f3a 100%);padding:96px 0}
+.trust-inner{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.trust-copy h2{color:#fff;margin-bottom:20px}
+.trust-copy p{color:rgba(255,255,255,.65);font-size:17px;line-height:1.7;margin-bottom:36px}
+.trust-points{display:flex;flex-direction:column;gap:16px}
+.trust-point{display:flex;align-items:flex-start;gap:14px}
+.trust-point-icon{width:36px;height:36px;background:rgba(74,222,128,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid rgba(74,222,128,.2)}
+.trust-point-text strong{display:block;font-size:14px;font-weight:700;color:#fff;margin-bottom:3px}
+.trust-point-text span{font-size:13px;color:rgba(255,255,255,.55);line-height:1.5}
+.trust-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.trust-stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px;text-align:center;backdrop-filter:blur(10px)}
+.trust-stat-val{font-size:36px;font-weight:900;color:#fff;letter-spacing:-.03em}
+.trust-stat-label{font-size:13px;color:rgba(255,255,255,.5);margin-top:4px;font-weight:500}
+@media(max-width:900px){.trust-inner{grid-template-columns:1fr;gap:48px}.trust-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* ── FAQ ── */
+.faq{background:var(--off-white)}
+.faq-intro{text-align:center;max-width:560px;margin:0 auto 56px}
+.faq-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
+.faq-list{max-width:740px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.faq-item{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:.2s}
+.faq-item.open{border-color:rgba(26,122,74,.3)}
+.faq-q{width:100%;background:none;border:none;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;text-align:left}
+.faq-q-text{font-size:15px;font-weight:700;color:var(--slate)}
+.faq-icon{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--slate-mid);flex-shrink:0;transition:.3s;font-weight:700}
+.faq-item.open .faq-icon{border-color:var(--green);color:var(--green);transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s ease}
+.faq-item.open .faq-a{max-height:200px;padding:0 24px 20px}
+.faq-a p{font-size:14px;color:var(--slate-mid);line-height:1.7}
+
+/* ── CTA ── */
+.cta-section{background:linear-gradient(135deg,#0B1120 0%,#0F172A 50%,#162032 100%);padding:96px 0;text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 600px 400px at 50% 50%,rgba(74,222,128,.1),transparent 70%)}
+.cta-section h2{color:#fff;margin-bottom:20px}
+.cta-section p{color:rgba(255,255,255,.6);font-size:18px;max-width:520px;margin:0 auto 36px;line-height:1.7}
+.cta-buttons{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.cta-micro{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap}
+.cta-micro-item{font-size:13px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:6px}
+
+/* ── CONTACT ── */
+.contact{background:#fff}
+.contact-inner{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+.contact-copy h2{margin-bottom:16px}
+.contact-copy p{font-size:17px;color:var(--slate-mid);line-height:1.7;margin-bottom:32px}
+.contact-ways{display:flex;flex-direction:column;gap:14px}
+.contact-way{display:flex;align-items:center;gap:14px;background:var(--off-white);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all .2s;text-decoration:none}
+.contact-way:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:var(--shadow)}
+.contact-way-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.contact-way-text strong{display:block;font-size:14px;font-weight:700;color:var(--slate);margin-bottom:2px}
+.contact-way-text span{font-size:13px;color:var(--slate-light)}
+.contact-form-wrap{background:var(--off-white);border:1px solid var(--border);border-radius:20px;padding:36px}
+.form-title{font-size:20px;font-weight:800;color:var(--slate);margin-bottom:6px}
+.form-sub{font-size:14px;color:var(--slate-light);margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--slate-mid);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.form-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--slate);outline:none;background:#fff;transition:.2s;font-family:inherit}
+.form-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(26,122,74,.1)}
+.form-select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--slate);outline:none;background:#fff;transition:.2s;font-family:inherit;appearance:none;cursor:pointer}
+.form-select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(26,122,74,.1)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-submit{width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px}
+.form-submit:hover{background:#15633c;transform:translateY(-1px)}
+.form-note{text-align:center;font-size:12px;color:var(--slate-light);margin-top:12px}
+@media(max-width:900px){.contact-inner{grid-template-columns:1fr;gap:48px}}
+
+/* ── FOOTER ── */
+footer{background:var(--slate);padding:64px 0 32px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
+.footer-brand p{font-size:14px;color:rgba(255,255,255,.45);line-height:1.7;margin-top:14px;max-width:280px}
+.footer-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:16px}
+.footer-link{display:block;font-size:14px;color:rgba(255,255,255,.55);margin-bottom:10px;transition:.2s}
+.footer-link:hover{color:#fff}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:gap}
+.footer-copy{font-size:13px;color:rgba(255,255,255,.35)}
+.footer-legal{display:flex;gap:20px}
+.footer-legal a{font-size:13px;color:rgba(255,255,255,.35);transition:.2s}
+.footer-legal a:hover{color:rgba(255,255,255,.7)}
+.footer-logo-text{font-size:22px;font-weight:900;letter-spacing:-.04em}
+.footer-logo-text .logo-pay{color:#fff}
+.footer-logo-text .logo-leef{color:#4ADE80}
+@media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.footer-grid{grid-template-columns:1fr}}
+
+/* ── ANIMATIONS ── */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+
+/* ── FLOATING WA BUTTON ── */
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:999;background:#25D366;color:#fff;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 20px rgba(37,211,102,.5);cursor:pointer;transition:all .3s;text-decoration:none}
+.wa-float:hover{transform:scale(1.1);box-shadow:0 8px 32px rgba(37,211,102,.6)}
+.wa-float-label{position:absolute;right:64px;background:#fff;color:var(--slate);font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;white-space:nowrap;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.3s;border:1px solid var(--border)}
+.wa-float:hover .wa-float-label{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">
+          <svg viewBox="0 0 20 24" fill="none" width="22" height="22">
+            <path d="M10,1 C16,1 19,7 18,13 C17,19 14,22 10,23 C6,22 3,19 2,13 C1,7 4,1 10,1 Z" fill="white"/>
+            <line x1="10" y1="2" x2="10" y2="22" stroke="#1A7A4A" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="4" y1="7" x2="16" y2="7" stroke="#1A7A4A" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="4" y1="11" x2="16" y2="11" stroke="#1A7A4A" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="4" y1="11" x2="14" y2="20" stroke="#1A7A4A" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="nav-logo-text"><span class="logo-pay">Pay</span><span class="logo-leef">Leef</span></div>
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#how" class="nav-link">How It Works</a>
+        <a href="#pricing" class="nav-link">Pricing</a>
+        <a href="#testimonials" class="nav-link">Reviews</a>
+        <a href="#contact" class="nav-link">Contact</a>
+      </div>
+      <div class="nav-cta">
+        <a href="/login" class="signin">Sign In</a>
+        <a href="/register" class="btn btn-primary">Start Free Trial</a>
+      </div>
+      <div class="nav-mobile" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="hero-badge-dot"></span>
+          Now live — 30-day free trial for new businesses
+        </div>
+        <h1 class="hero-title">
+          Payroll Without<br>
+          Mistakes.<br>
+          <span class="accent">Salary Without Stress.</span>
+        </h1>
+        <p class="hero-sub">
+          PayLeef handles your entire payroll — salary calculations, payslip generation, attendance sync, and reports — all done in minutes. No Excel. No confusion. No errors.
+        </p>
+        <div class="hero-actions">
+          <a href="/register" class="btn btn-primary btn-lg">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Start Free 30-Day Trial
+          </a>
+          <a href="#contact" class="btn btn-ghost btn-lg">
+            Book a Demo →
+          </a>
+        </div>
+        <div class="hero-trust">
+          <div class="hero-trust-item">
+            <svg class="hero-trust-icon" fill="none" stroke="#4ADE80" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            No credit card needed
+          </div>
+          <div class="hero-trust-item">
+            <svg class="hero-trust-icon" fill="none" stroke="#4ADE80" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            Setup in under 10 minutes
+          </div>
+          <div class="hero-trust-item">
+            <svg class="hero-trust-icon" fill="none" stroke="#4ADE80" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            WhatsApp support included
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-device">
+          <div class="device-bar">
+            <div class="device-dots">
+              <div class="device-dot"></div>
+              <div class="device-dot"></div>
+              <div class="device-dot"></div>
+            </div>
+            <div class="device-url">app.payleef.com/dashboard</div>
+          </div>
+          <div class="dash">
+            <div class="dash-header">
+              <div class="dash-title">📊 May 2025 Payroll</div>
+              <div class="dash-month">Processing ✓</div>
+            </div>
+            <div class="dash-stats">
+              <div class="ds"><div class="ds-label">Total Employees</div><div class="ds-val">48</div><div class="ds-sub">↑ 3 this month</div></div>
+              <div class="ds"><div class="ds-label">Net Payroll</div><div class="ds-val">₹9.4L</div><div class="ds-sub">Processed ✓</div></div>
+              <div class="ds"><div class="ds-label">Payslips Sent</div><div class="ds-val">46</div><div class="ds-sub">2 pending</div></div>
+            </div>
+            <div class="dash-table">
+              <div class="dt-head"><span>Employee</span><span>Salary</span><span>Status</span><span>Action</span></div>
+              <div class="dt-row">
+                <div class="emp-info"><div class="emp-av" style="background:#1A7A4A">RK</div><div><div class="emp-name">Ramesh Kumar</div><div class="emp-dept">Production</div></div></div>
+                <span style="font-size:12px;font-weight:700;color:#0f172a">₹28,500</span>
+                <span class="badge-active">✓ Sent</span>
+                <span style="font-size:11px;color:#64748b;cursor:pointer">View →</span>
+              </div>
+              <div class="dt-row">
+                <div class="emp-info"><div class="emp-av" style="background:#3b82f6">PS</div><div><div class="emp-name">Priya Suresh</div><div class="emp-dept">HR Admin</div></div></div>
+                <span style="font-size:12px;font-weight:700;color:#0f172a">₹34,000</span>
+                <span class="badge-active">✓ Sent</span>
+                <span style="font-size:11px;color:#64748b;cursor:pointer">View →</span>
+              </div>
+              <div class="dt-row">
+                <div class="emp-info"><div class="emp-av" style="background:#f59e0b">MR</div><div><div class="emp-name">Mohammed Rafi</div><div class="emp-dept">Warehouse</div></div></div>
+                <span style="font-size:12px;font-weight:700;color:#0f172a">₹22,800</span>
+                <span class="badge-pending">⏳ Pending</span>
+                <span style="font-size:11px;color:#1A7A4A;cursor:pointer;font-weight:700">Send →</span>
+              </div>
+            </div>
+            <div class="dash-footer">
+              <div class="dash-action">⚡ Run Payroll</div>
+              <div class="dash-progress">
+                <div class="dash-progress-bar"><div class="dash-progress-fill"></div></div>
+                <div class="dash-progress-text">46 of 48 payslips sent (96%)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGOS BAR -->
+<div class="logos-bar">
+  <div class="container">
+    <div class="logos-inner">
+      <div class="logos-label">Trusted by businesses across India</div>
+      <div class="logos-track">
+        <div class="logo-item"><div class="logo-icon" style="background:#1A7A4A">S</div><span class="logo-name">Sri Lakshmi Industries</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#3b82f6">M</div><span class="logo-name">Metro Manufacturing</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#f59e0b">K</div><span class="logo-name">Kovai Logistics</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#8b5cf6">A</div><span class="logo-name">Apex Warehousing</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#ef4444">R</div><span class="logo-name">Royal Textiles</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#14b8a6">P</div><span class="logo-name">Pioneer Auto Parts</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#f97316">G</div><span class="logo-name">Global Garments</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#1A7A4A">S</div><span class="logo-name">Sri Lakshmi Industries</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#3b82f6">M</div><span class="logo-name">Metro Manufacturing</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#f59e0b">K</div><span class="logo-name">Kovai Logistics</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#8b5cf6">A</div><span class="logo-name">Apex Warehousing</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#ef4444">R</div><span class="logo-name">Royal Textiles</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#14b8a6">P</div><span class="logo-name">Pioneer Auto Parts</span></div>
+        <div class="logo-item"><div class="logo-icon" style="background:#f97316">G</div><span class="logo-name">Global Garments</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section class="section problem" id="problem">
+  <div class="container">
+    <div class="prob-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Sound familiar?</div>
+      <h2>Payroll Is Stressful. Every. Single. Month.</h2>
+      <p>Most business owners spend hours — sometimes days — calculating salaries, fixing mistakes, and answering employee complaints. It doesn't have to be this way.</p>
+    </div>
+    <div class="prob-grid">
+      <div class="prob-card reveal">
+        <div class="prob-emoji">😤</div>
+        <div class="prob-title">Salary mistakes keep happening</div>
+        <div class="prob-desc">Manual calculations, wrong deductions, overtime errors — every month brings new headaches and employee complaints.</div>
+      </div>
+      <div class="prob-card reveal reveal-delay-1">
+        <div class="prob-emoji">📊</div>
+        <div class="prob-title">Excel spreadsheets are a nightmare</div>
+        <div class="prob-desc">One wrong formula, one missing row — and your entire payroll is broken. No version control. No audit trail. No safety net.</div>
+      </div>
+      <div class="prob-card reveal reveal-delay-2">
+        <div class="prob-emoji">⏰</div>
+        <div class="prob-title">Payroll takes too many hours</div>
+        <div class="prob-desc">Your HR team spends 2–3 days every month just on salary processing. That time should go into growing your business.</div>
+      </div>
+      <div class="prob-card reveal">
+        <div class="prob-emoji">🤯</div>
+        <div class="prob-title">Attendance doesn't match salary</div>
+        <div class="prob-desc">Attendance registers are manual. Leave tracking is guesswork. The result? Employees are underpaid or overpaid — both cause problems.</div>
+      </div>
+      <div class="prob-card reveal reveal-delay-1">
+        <div class="prob-emoji">📄</div>
+        <div class="prob-title">No proper payslips for employees</div>
+        <div class="prob-desc">Employees need salary slips for loans, visas, and records. Generating them one-by-one from Excel is embarrassing and slow.</div>
+      </div>
+      <div class="prob-card reveal reveal-delay-2">
+        <div class="prob-emoji">😰</div>
+        <div class="prob-title">PF, ESI, PT — it's all confusing</div>
+        <div class="prob-desc">Statutory deductions feel like a maze. One wrong number can cause compliance issues, penalties, and legal trouble.</div>
+      </div>
+    </div>
+    <div class="prob-arrow reveal">
+      <div class="prob-arrow-line"></div>
+      <div class="prob-arrow-text">↓ PayLeef removes all of this stress</div>
+    </div>
+    <div class="solution-banner reveal">
+      <h2>Finally — Payroll That Just Works.</h2>
+      <p>PayLeef takes everything you hate about payroll and makes it so simple, your whole team will wonder why you didn't switch sooner.</p>
+      <div class="sol-points">
+        <div class="sol-point"><div class="sol-check">✓</div> Accurate salary calculations — every time</div>
+        <div class="sol-point"><div class="sol-check">✓</div> Payslips generated in seconds</div>
+        <div class="sol-point"><div class="sol-check">✓</div> Attendance synced automatically</div>
+        <div class="sol-point"><div class="sol-check">✓</div> Statutory deductions handled correctly</div>
+        <div class="sol-point"><div class="sol-check">✓</div> Reports ready in one click</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES BENTO -->
+<section class="section features" id="features">
+  <div class="container">
+    <div class="features-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Everything you need</div>
+      <h2>Built for Businesses That Take Payroll Seriously</h2>
+      <p>From salary calculation to statutory reports — PayLeef covers every step of your payroll process, beautifully.</p>
+    </div>
+    <div class="bento">
+      <!-- Big card -->
+      <div class="bento-card span-2 reveal">
+        <div class="bento-icon green">⚡</div>
+        <h3>Payroll in Minutes, Not Days</h3>
+        <p>Tell PayLeef your salary structure once. Every month, it calculates basic pay, HRA, allowances, LOP deductions, overtime, PF, ESI, and Professional Tax — automatically. Zero manual work. Zero errors.</p>
+        <div class="highlight">✓ Run payroll for 200 employees in under 5 minutes</div>
+        <div class="bento-mini-ui" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px">
+          <div style="text-align:center;padding:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><div style="font-size:18px;font-weight:800;color:#1A7A4A">48</div><div style="font-size:9px;color:#64748b;margin-top:2px">Employees</div></div>
+          <div style="text-align:center;padding:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><div style="font-size:18px;font-weight:800;color:#3b82f6">₹9.4L</div><div style="font-size:9px;color:#64748b;margin-top:2px">Payroll</div></div>
+          <div style="text-align:center;padding:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><div style="font-size:18px;font-weight:800;color:#8b5cf6">3 min</div><div style="font-size:9px;color:#64748b;margin-top:2px">Process Time</div></div>
+          <div style="text-align:center;padding:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><div style="font-size:18px;font-weight:800;color:#f59e0b">100%</div><div style="font-size:9px;color:#64748b;margin-top:2px">Accuracy</div></div>
+        </div>
+      </div>
+      <!-- Single card -->
+      <div class="bento-card reveal reveal-delay-2">
+        <div class="bento-icon blue">📄</div>
+        <h3>Professional Payslips — Instantly</h3>
+        <p>Beautiful, professional salary slips your employees can use for bank loans, visa applications, and personal records. Generated and emailed automatically in seconds.</p>
+        <div class="highlight">✓ PDF payslips sent to all employees at once</div>
+      </div>
+      <!-- Card -->
+      <div class="bento-card reveal">
+        <div class="bento-icon orange">📅</div>
+        <h3>Attendance Sync That Actually Works</h3>
+        <p>Connect your attendance data — manual or digital — and let PayLeef calculate loss of pay, overtime, and present days without any guesswork.</p>
+        <div class="highlight">✓ Attendance → salary auto-calculated</div>
+      </div>
+      <!-- Card -->
+      <div class="bento-card reveal reveal-delay-1">
+        <div class="bento-icon purple">📊</div>
+        <h3>Salary Reports & Insights</h3>
+        <p>One-click Excel and PDF reports for payroll, employee-wise salary, PF ECR, ESI challan, bank transfer advice — everything your accountant needs, ready in seconds.</p>
+        <div class="highlight">✓ PF, ESI, PT reports auto-generated</div>
+      </div>
+      <!-- Card -->
+      <div class="bento-card reveal reveal-delay-2">
+        <div class="bento-icon teal">👥</div>
+        <h3>Employee Records & Self-Service</h3>
+        <p>Every employee gets a personal login. They can view their own payslips, download salary slips, and check their salary history — without bothering HR.</p>
+        <div class="highlight">✓ Zero payslip requests to HR</div>
+      </div>
+      <!-- Card -->
+      <div class="bento-card reveal">
+        <div class="bento-icon green">✅</div>
+        <h3>Multi-Location & Multi-Department</h3>
+        <p>Running factories, warehouses, or offices across multiple locations? PayLeef handles different departments, locations, and salary structures — all from one dashboard.</p>
+        <div class="highlight">✓ Centralized payroll, multiple locations</div>
+      </div>
+      <!-- Card -->
+      <div class="bento-card reveal reveal-delay-1">
+        <div class="bento-icon rose">🔐</div>
+        <h3>Role-Based Access & Approvals</h3>
+        <p>Give your HR manager access to process payroll, but let the owner review and approve before it's final. Payroll stays controlled and secure at all times.</p>
+        <div class="highlight">✓ Owner approval before payroll runs</div>
+      </div>
+      <!-- Big card -->
+      <div class="bento-card span-2 reveal reveal-delay-2">
+        <div class="bento-icon orange">🏛️</div>
+        <h3>Statutory Compliance — PF, ESI, PT Handled Correctly</h3>
+        <p>PayLeef automatically calculates Provident Fund, Employee State Insurance, and Professional Tax based on your state's rules — and generates the exact challans and ECR files you need for government submissions. No more guessing. No more compliance stress.</p>
+        <div class="highlight">✓ Government-ready reports generated automatically</div>
+        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+          <div style="background:rgba(26,122,74,.08);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;color:#1A7A4A">PF ECR File</div>
+          <div style="background:rgba(59,130,246,.08);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;color:#3b82f6">ESI Challan</div>
+          <div style="background:rgba(139,92,246,.08);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;color:#8b5cf6">PT Returns</div>
+          <div style="background:rgba(245,158,11,.08);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;color:#d97706">Bank Advice Sheet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAYSLIP SHOWCASE -->
+<section class="section payslip-section" id="payslip">
+  <div class="container">
+    <div class="payslip-grid">
+      <div class="payslip-copy reveal">
+        <div class="tag"><span class="tag-dot"></span> Payslip generation</div>
+        <h2>Payslips Your Employees Will Be Proud to Show</h2>
+        <p>Your salary slip represents your company. With PayLeef, every payslip looks professional, organized, and complete — with your company logo, salary breakdowns, and all statutory details included.</p>
+        <div class="payslip-points">
+          <div class="payslip-point">
+            <div class="payslip-point-icon">📝</div>
+            <div class="payslip-point-text">
+              <strong>Complete salary breakdown</strong>
+              <span>Basic, HRA, allowances, LOP, overtime, PF, ESI — every component shown clearly</span>
+            </div>
+          </div>
+          <div class="payslip-point">
+            <div class="payslip-point-icon">🏢</div>
+            <div class="payslip-point-text">
+              <strong>Your company branding</strong>
+              <span>Logo, company name, address, GSTIN — your payslip, your identity</span>
+            </div>
+          </div>
+          <div class="payslip-point">
+            <div class="payslip-point-icon">📧</div>
+            <div class="payslip-point-text">
+              <strong>Sent directly to employees</strong>
+              <span>Email all 100 payslips with one click — employees get them instantly</span>
+            </div>
+          </div>
+          <div class="payslip-point">
+            <div class="payslip-point-icon">📱</div>
+            <div class="payslip-point-text">
+              <strong>Employees can download anytime</strong>
+              <span>Employees log in and access all their past payslips whenever needed</span>
+            </div>
+          </div>
+        </div>
+        <a href="/register" class="btn btn-primary">Generate Your First Payslip Free →</a>
+      </div>
+      <div class="payslip-mockup reveal reveal-delay-2">
+        <div class="slip">
+          <div class="slip-header">
+            <div>
+              <div class="slip-company">Arjun Textiles Pvt. Ltd.</div>
+              <div class="slip-company-sub">Chennai, Tamil Nadu | GSTIN: 33XXXXX1234Z</div>
+            </div>
+            <div class="slip-badge">SALARY SLIP</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:11px;color:#64748b;font-weight:600">Pay Period: May 2025</div>
+            <div style="font-size:11px;color:#64748b;font-weight:600">Working Days: 26 / Present: 24</div>
+          </div>
+          <div class="slip-employee">
+            <div class="slip-field"><div class="slip-field-label">Employee Name</div><div class="slip-field-val">Ramesh Kumar</div></div>
+            <div class="slip-field"><div class="slip-field-label">Employee ID</div><div class="slip-field-val">EMP-0047</div></div>
+            <div class="slip-field"><div class="slip-field-label">Department</div><div class="slip-field-val">Production</div></div>
+            <div class="slip-field"><div class="slip-field-label">Designation</div><div class="slip-field-val">Senior Operator</div></div>
+            <div class="slip-field"><div class="slip-field-label">Bank Account</div><div class="slip-field-val">SBI xxxxxx8821</div></div>
+            <div class="slip-field"><div class="slip-field-label">PAN Number</div><div class="slip-field-val">ABCPK1234L</div></div>
+          </div>
+          <div class="slip-earnings">
+            <div>
+              <div class="slip-col-title">Earnings</div>
+              <div class="slip-line"><span class="slip-line-label">Basic Salary</span><span class="slip-line-val">₹16,000</span></div>
+              <div class="slip-line"><span class="slip-line-label">HRA</span><span class="slip-line-val">₹6,400</span></div>
+              <div class="slip-line"><span class="slip-line-label">Conveyance</span><span class="slip-line-val">₹1,600</span></div>
+              <div class="slip-line"><span class="slip-line-label">Overtime</span><span class="slip-line-val">₹1,200</span></div>
+              <div class="slip-line" style="border:none;padding-top:8px"><span class="slip-line-label" style="font-weight:700;color:#0f172a">Gross Earnings</span><span class="slip-line-val" style="color:#1A7A4A">₹25,200</span></div>
+            </div>
+            <div>
+              <div class="slip-col-title">Deductions</div>
+              <div class="slip-line"><span class="slip-line-label">PF (12%)</span><span class="slip-line-val">₹1,800</span></div>
+              <div class="slip-line"><span class="slip-line-label">ESI (0.75%)</span><span class="slip-line-val">₹189</span></div>
+              <div class="slip-line"><span class="slip-line-label">Prof. Tax</span><span class="slip-line-val">₹200</span></div>
+              <div class="slip-line"><span class="slip-line-label">LOP (2 days)</span><span class="slip-line-val">₹1,538</span></div>
+              <div class="slip-line" style="border:none;padding-top:8px"><span class="slip-line-label" style="font-weight:700;color:#0f172a">Total Deductions</span><span class="slip-line-val" style="color:#ef4444">₹3,727</span></div>
+            </div>
+          </div>
+          <div class="slip-net">
+            <div class="slip-net-label">NET SALARY (May 2025)</div>
+            <div class="slip-net-val">₹21,473</div>
+          </div>
+          <div style="text-align:center;margin-top:12px;font-size:9px;color:#94a3b8">Generated by PayLeef — payleef.com | This is a computer-generated document</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section how" id="how">
+  <div class="container">
+    <div class="how-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Simple setup</div>
+      <h2>Up and Running in 3 Simple Steps</h2>
+      <p>No IT team needed. No training required. If you can use WhatsApp, you can use PayLeef.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step reveal">
+        <div class="how-step-num">1</div>
+        <div class="how-step-tag">Takes 10 minutes</div>
+        <h3>Set Up Your Company</h3>
+        <p>Enter your company details, salary structure, and add your employees. Our friendly onboarding wizard walks you through every step — no payroll expertise needed.</p>
+      </div>
+      <div class="how-step reveal reveal-delay-1">
+        <div class="how-step-num">2</div>
+        <div class="how-step-tag">Takes 5 minutes</div>
+        <h3>Process Payroll Monthly</h3>
+        <p>Every month, update attendance if needed, verify salaries, and click Run Payroll. PayLeef calculates everything automatically — salaries, deductions, taxes, and net pay.</p>
+      </div>
+      <div class="how-step reveal reveal-delay-2">
+        <div class="how-step-num">3</div>
+        <div class="how-step-tag">Instant delivery</div>
+        <h3>Send Payslips to Everyone</h3>
+        <p>Click Send — and every employee gets their professional salary slip by email in seconds. They can also log in and download it anytime from their own account.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section pricing" id="pricing">
+  <div class="container">
+    <div class="pricing-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Simple, transparent pricing</div>
+      <h2>Honest Pricing. No Surprises.</h2>
+      <p>Plans start from just 10 employees. Need more? Business plan lets you add employees at ₹75 each. Every plan includes a 30-day free trial — no card needed.</p>
+    </div>
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="price-card reveal">
+        <div class="price-plan">Starter</div>
+        <div class="price-amount"><sup>₹</sup>999<sub>/month</sub></div>
+        <div class="price-employees">Up to <strong>10 employees</strong> included</div>
+        <div class="price-features">
+          <div class="price-feature"><span class="price-check">✓</span> Payroll processing</div>
+          <div class="price-feature"><span class="price-check">✓</span> Payslip generation (PDF)</div>
+          <div class="price-feature"><span class="price-check">✓</span> Employee management</div>
+          <div class="price-feature"><span class="price-check">✓</span> Salary reports</div>
+          <div class="price-feature"><span class="price-check">✓</span> Email support</div>
+          <div class="price-feature"><span class="price-cross">✗</span> Attendance sync</div>
+          <div class="price-feature"><span class="price-cross">✗</span> Multi-location</div>
+          <div class="price-feature"><span class="price-cross">✗</span> Approval workflows</div>
+        </div>
+        <a href="/register" class="price-btn price-btn-outline">Start Free Trial</a>
+      </div>
+      <!-- Growth -->
+      <div class="price-card featured reveal reveal-delay-1">
+        <div class="price-plan">Growth</div>
+        <div class="price-amount"><sup>₹</sup>2,499<sub>/month</sub></div>
+        <div class="price-employees">Up to <strong>50 employees</strong> included</div>
+        <div class="price-features">
+          <div class="price-feature"><span class="price-check">✓</span> Everything in Starter</div>
+          <div class="price-feature"><span class="price-check">✓</span> Attendance sync</div>
+          <div class="price-feature"><span class="price-check">✓</span> PF, ESI, PT reports</div>
+          <div class="price-feature"><span class="price-check">✓</span> Overtime calculation</div>
+          <div class="price-feature"><span class="price-check">✓</span> Employee self-service portal</div>
+          <div class="price-feature"><span class="price-check">✓</span> WhatsApp support</div>
+          <div class="price-feature"><span class="price-cross">✗</span> Multi-location payroll</div>
+          <div class="price-feature"><span class="price-cross">✗</span> Custom workflows</div>
+        </div>
+        <a href="/register" class="price-btn price-btn-primary">Start Free Trial</a>
+      </div>
+      <!-- Business -->
+      <div class="price-card reveal reveal-delay-2">
+        <div class="price-plan">Business</div>
+        <div class="price-amount"><sup>₹</sup>4,999<sub>/month</sub></div>
+        <div class="price-employees">Up to <strong>50 employees</strong> included</div>
+        <div style="background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">➕</span>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#1A7A4A">₹75 per additional employee</div>
+            <div style="font-size:11px;color:#64748b;margin-top:1px">Add as many as your business needs</div>
+          </div>
+        </div>
+        <div class="price-features">
+          <div class="price-feature"><span class="price-check">✓</span> Everything in Growth</div>
+          <div class="price-feature"><span class="price-check">✓</span> Multi-location payroll</div>
+          <div class="price-feature"><span class="price-check">✓</span> Approval workflows</div>
+          <div class="price-feature"><span class="price-check">✓</span> Role-based access</div>
+          <div class="price-feature"><span class="price-check">✓</span> Bank transfer advice sheet</div>
+          <div class="price-feature"><span class="price-check">✓</span> Priority WhatsApp support</div>
+          <div class="price-feature"><span class="price-check">✓</span> Dedicated onboarding</div>
+        </div>
+        <a href="/register" class="price-btn price-btn-outline">Start Free Trial</a>
+        <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">Example: 100 employees = ₹4,999 + ₹3,750 = <strong style="color:#1A7A4A">₹8,749/mo</strong></div>
+      </div>
+      <!-- Enterprise -->
+      <div class="price-card reveal reveal-delay-3">
+        <div class="price-plan">Enterprise</div>
+        <div class="price-amount" style="font-size:28px;padding-top:4px">Custom<br><span style="font-size:14px;color:#64748b;font-weight:500">Tailored pricing</span></div>
+        <div class="price-employees">Factories · Manufacturing · Warehouses</div>
+        <div class="price-features">
+          <div class="price-feature"><span class="price-check">✓</span> Everything in Business</div>
+          <div class="price-feature"><span class="price-check">✓</span> Custom payroll workflows</div>
+          <div class="price-feature"><span class="price-check">✓</span> Biometric integration</div>
+          <div class="price-feature"><span class="price-check">✓</span> API access</div>
+          <div class="price-feature"><span class="price-check">✓</span> Custom reports</div>
+          <div class="price-feature"><span class="price-check">✓</span> Dedicated account manager</div>
+          <div class="price-feature"><span class="price-check">✓</span> On-site implementation</div>
+          <div class="price-feature"><span class="price-check">✓</span> SLA guarantee</div>
+        </div>
+        <a href="#contact" class="price-btn price-btn-outline">Talk to Us →</a>
+      </div>
+    </div>
+    <div class="price-note reveal">No hidden charges. No setup fees. <strong>Cancel anytime</strong> — no questions asked. GST extra where applicable.
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section testimonials" id="testimonials">
+  <div class="container">
+    <div class="test-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Real businesses, real results</div>
+      <h2>Business Owners Love PayLeef</h2>
+      <p>Don't take our word for it. Here's what real business owners across India say after switching to PayLeef.</p>
+    </div>
+    <div class="test-grid">
+      <div class="test-card reveal">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"Earlier, payroll used to take us 3 days every month. Now it's done in 30 minutes. Our HR team couldn't believe how easy it was. The payslips look so professional — our employees are impressed."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#1A7A4A">RK</div>
+          <div><div class="test-name">Rajesh Kumar</div><div class="test-role">MD, Sri Ganesh Textiles · Chennai · 85 employees</div></div>
+        </div>
+      </div>
+      <div class="test-card reveal reveal-delay-1">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"We had salary complaints from workers every month because of Excel mistakes. After PayLeef, zero complaints in 6 months. The attendance and salary sync is accurate. Worth every rupee."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#3b82f6">SM</div>
+          <div><div class="test-name">Suresh Murugan</div><div class="test-role">Owner, Kovai Precision Parts · Coimbatore · 140 workers</div></div>
+        </div>
+      </div>
+      <div class="test-card reveal reveal-delay-2">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"Setting up was shockingly easy. The PayLeef team helped me configure everything on WhatsApp — took less than a day. Now I process payroll for 3 locations from my phone. Brilliant software."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#f59e0b">AP</div>
+          <div><div class="test-name">Anitha Prasad</div><div class="test-role">HR Head, Apex Warehousing · Multiple locations · 220 staff</div></div>
+        </div>
+      </div>
+      <div class="test-card reveal">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"The PF and ESI reports used to cause so much confusion. Now PayLeef generates them automatically — I just download and submit. Payroll stress has completely disappeared."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#8b5cf6">MR</div>
+          <div><div class="test-name">Mohammed Rasheed</div><div class="test-role">Proprietor, Royal Steel Fabrications · Chennai · 62 employees</div></div>
+        </div>
+      </div>
+      <div class="test-card reveal reveal-delay-1">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"My workers get their salary slips on WhatsApp every month. They love it — feels very professional. Even our contract workers have their own login now. PayLeef changed how we treat our people."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#ef4444">VP</div>
+          <div><div class="test-name">Vijayalakshmi P.</div><div class="test-role">Director, Lotus Garments Factory · Tiruppur · 310 workers</div></div>
+        </div>
+      </div>
+      <div class="test-card reveal reveal-delay-2">
+        <div class="test-stars">★★★★★</div>
+        <div class="test-quote">"I was skeptical at first — I thought payroll software would be complicated. PayLeef proved me wrong. Clean, simple, and the support team answers on WhatsApp within 10 minutes. Outstanding."</div>
+        <div class="test-author">
+          <div class="test-avatar" style="background:#14b8a6">DK</div>
+          <div><div class="test-name">Dinesh Krishnaswamy</div><div class="test-role">CEO, DK Logistics Solutions · Bangalore · 95 staff</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section class="trust" id="trust">
+  <div class="container">
+    <div class="trust-inner">
+      <div class="trust-copy reveal">
+        <div class="tag" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.25);color:#4ADE80"><span class="tag-dot" style="background:#4ADE80"></span> You're in safe hands</div>
+        <h2>Real People. Real Support. Real Payroll Expertise.</h2>
+        <p>PayLeef isn't just software. We're a team of payroll experts who genuinely care about making your business run smoothly. When you need help, we're there — fast.</p>
+        <div class="trust-points">
+          <div class="trust-point">
+            <div class="trust-point-icon">💬</div>
+            <div class="trust-point-text">
+              <strong>WhatsApp Support — Always Available</strong>
+              <span>Real humans answer your questions on WhatsApp — not bots, not tickets. We respond within 10 minutes during business hours.</span>
+            </div>
+          </div>
+          <div class="trust-point">
+            <div class="trust-point-icon">🚀</div>
+            <div class="trust-point-text">
+              <strong>Guided Setup — We Do It With You</strong>
+              <span>Our team helps you set up your company, salary structure, and employees. You won't be alone figuring it out.</span>
+            </div>
+          </div>
+          <div class="trust-point">
+            <div class="trust-point-icon">🔒</div>
+            <div class="trust-point-text">
+              <strong>Your Data Is 100% Safe & Private</strong>
+              <span>Bank-grade security. Your payroll data is encrypted and stored on secure servers. We never share your data with anyone.</span>
+            </div>
+          </div>
+          <div class="trust-point">
+            <div class="trust-point-icon">✅</div>
+            <div class="trust-point-text">
+              <strong>Payroll Accuracy Guarantee</strong>
+              <span>If PayLeef ever calculates a salary incorrectly due to a system error, we will fix it immediately — at no cost to you.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trust-stats reveal reveal-delay-2">
+        <div class="trust-stat"><div class="trust-stat-val">200+</div><div class="trust-stat-label">Businesses using PayLeef</div></div>
+        <div class="trust-stat"><div class="trust-stat-val">₹50Cr+</div><div class="trust-stat-label">Salary processed monthly</div></div>
+        <div class="trust-stat"><div class="trust-stat-val">99.9%</div><div class="trust-stat-label">Payroll accuracy rate</div></div>
+        <div class="trust-stat"><div class="trust-stat-val">&lt;10 min</div><div class="trust-stat-label">Average support response time</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section faq" id="faq">
+  <div class="container">
+    <div class="faq-intro reveal">
+      <div class="tag"><span class="tag-dot"></span> Common questions</div>
+      <h2>We Know What You're Thinking</h2>
+      <p>Real questions from real business owners — answered honestly.</p>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">Is payroll software difficult to use? I'm not very tech-savvy.</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Not at all. PayLeef is designed for business owners and HR teams, not IT professionals. If you can fill a form on your phone, you can use PayLeef. Our setup wizard guides you step-by-step, and our team helps you on WhatsApp if you get stuck anywhere.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">What if the salary calculation goes wrong?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>PayLeef calculates salaries based on the rules you set up — and shows you a preview before anything is final. You can review every salary before processing. If there's ever a system error, our team will fix it immediately. In practice, our accuracy rate is 99.9%.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">How long does setup take? My payroll is due next week.</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Most businesses are fully set up and processing payroll within 1 day. If you need it urgently, call or WhatsApp us — our team will prioritize your onboarding and get you running before your deadline.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">Will my employees be able to understand the payslip?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Yes. PayLeef payslips are designed to be clear and easy to read — every component is labeled simply. Employees can view their payslips in their own portal or download the PDF. If they have questions, everything is shown in plain language.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">Does PayLeef handle PF, ESI, and Professional Tax?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Yes — completely. PayLeef calculates PF (12% of basic), ESI (0.75% employee + 3.25% employer), and Professional Tax based on your state's rules. It generates the exact ECR files and challans you need for government submissions — all automatically.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">I have a factory with 200+ workers. Will PayLeef handle this?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Absolutely. PayLeef is built for factories, manufacturing companies, and warehouses. Our Business and Enterprise plans support hundreds of employees, multiple departments, shift-based attendance, overtime, and custom salary structures. Contact us for a personalized demo.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">What happens after the 30-day free trial?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>After your free trial, you choose a plan and subscribe. We'll reach out before your trial ends to help you pick the right plan. No credit card is needed during the trial — you only pay when you're completely happy with PayLeef.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          <span class="faq-q-text">Is support available in Tamil or Hindi?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><p>Yes. Our support team speaks Tamil, Hindi, and English. You can reach us on WhatsApp in any language you're comfortable with — we'll respond in the same language.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="section contact" id="contact">
+  <div class="container">
+    <div class="contact-inner">
+      <div class="contact-copy reveal">
+        <div class="tag"><span class="tag-dot"></span> Get started today</div>
+        <h2>Real People Will Help You Get Started</h2>
+        <p>Have questions? Want a demo? Just want to know if PayLeef is right for your business? Reach out — we'll give you honest answers, no pressure, no sales pitch.</p>
+        <div class="contact-ways">
+          <a href="https://wa.me/919XXXXXXXXX" class="contact-way" target="_blank">
+            <div class="contact-way-icon" style="background:#dcfce7">💬</div>
+            <div class="contact-way-text">
+              <strong>Chat on WhatsApp</strong>
+              <span>Fastest response — we reply in minutes</span>
+            </div>
+          </a>
+          <a href="tel:+919XXXXXXXXX" class="contact-way">
+            <div class="contact-way-icon" style="background:#dbeafe">📞</div>
+            <div class="contact-way-text">
+              <strong>Call Us Directly</strong>
+              <span>Mon–Sat, 9 AM to 7 PM IST</span>
+            </div>
+          </a>
+          <a href="/register" class="contact-way">
+            <div class="contact-way-icon" style="background:#f0fdf4">🚀</div>
+            <div class="contact-way-text">
+              <strong>Start Free Trial Yourself</strong>
+              <span>Set up in 10 minutes — no card needed</span>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="contact-form-wrap reveal reveal-delay-2">
+        <div class="form-title">Book a Free Demo</div>
+        <div class="form-sub">We'll show you exactly how PayLeef works for your type of business.</div>
+        <form onsubmit="handleForm(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Your Name</label>
+              <input class="form-input" type="text" placeholder="Rajesh Kumar" required/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input class="form-input" type="tel" placeholder="+91 98765 43210" required/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company Name</label>
+            <input class="form-input" type="text" placeholder="Your Company Pvt. Ltd." required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Number of Employees</label>
+            <select class="form-select" required>
+              <option value="">Select employee count</option>
+              <option>1–25 employees</option>
+              <option>26–100 employees</option>
+              <option>101–300 employees</option>
+              <option>300+ employees</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Your Biggest Payroll Problem</label>
+            <select class="form-select">
+              <option value="">Select your main pain point</option>
+              <option>Salary calculation mistakes</option>
+              <option>Generating payslips is slow</option>
+              <option>Excel is too complicated</option>
+              <option>Attendance mismatch issues</option>
+              <option>PF/ESI compliance confusion</option>
+              <option>Just exploring options</option>
+            </select>
+          </div>
+          <button type="submit" class="form-submit">Book My Free Demo →</button>
+          <div class="form-note">🔒 Your details are private and secure. We will never spam you.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-section">
+  <div class="container" style="position:relative;z-index:1">
+    <div class="reveal">
+      <div class="tag" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.25);color:#4ADE80;margin-bottom:24px"><span class="tag-dot" style="background:#4ADE80"></span> Start today — completely free</div>
+      <h2>Your Business Deserves Payroll That Actually Works.</h2>
+      <p>Join 200+ businesses who have made payroll stress-free with PayLeef. Start your 30-day free trial today — no card, no commitment, no confusion.</p>
+      <div class="cta-buttons">
+        <a href="/register" class="btn btn-primary btn-lg">
+          Start Free 30-Day Trial →
+        </a>
+        <a href="https://wa.me/919XXXXXXXXX" class="btn btn-whatsapp btn-lg" target="_blank">
+          💬 Chat on WhatsApp
+        </a>
+      </div>
+      <div class="cta-micro">
+        <div class="cta-micro-item">✓ No credit card needed</div>
+        <div class="cta-micro-item">✓ Full access for 30 days</div>
+        <div class="cta-micro-item">✓ Setup support included</div>
+        <div class="cta-micro-item">✓ Cancel anytime</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo-text"><span class="logo-pay">Pay</span><span class="logo-leef">Leef</span></div>
+        <p>The easiest premium payroll software built for real Indian businesses. Salary without confusion. Payroll without stress.</p>
+        <div style="margin-top:20px;display:flex;gap:12px">
+          <a href="https://wa.me/919XXXXXXXXX" style="background:#25D366;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none">💬 WhatsApp</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Product</div>
+        <a href="#features" class="footer-link">Features</a>
+        <a href="#pricing" class="footer-link">Pricing</a>
+        <a href="#how" class="footer-link">How It Works</a>
+        <a href="#payslip" class="footer-link">Payslip Generation</a>
+        <a href="/register" class="footer-link">Free Trial</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Industries</div>
+        <a href="#" class="footer-link">Manufacturing</a>
+        <a href="#" class="footer-link">Factories</a>
+        <a href="#" class="footer-link">Warehousing</a>
+        <a href="#" class="footer-link">SMEs</a>
+        <a href="#" class="footer-link">Retail</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <a href="#contact" class="footer-link">Contact Us</a>
+        <a href="#faq" class="footer-link">FAQ</a>
+        <a href="#" class="footer-link">WhatsApp Support</a>
+        <a href="/terms" class="footer-link">Terms of Service</a>
+        <a href="/privacy" class="footer-link">Privacy Policy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2025 PayLeef. All rights reserved. Built with ❤️ in India.</div>
+      <div class="footer-legal">
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- WhatsApp Float -->
+<a href="https://wa.me/919XXXXXXXXX" class="wa-float" target="_blank" title="Chat on WhatsApp">
+  <span class="wa-float-label">Chat with us</span>
+  💬
+</a>
+
+<script>
+// Nav scroll
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  navbar.classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// Reveal on scroll
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+reveals.forEach(el => observer.observe(el));
+
+// FAQ toggle
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+// Form — POST to backend which emails dinesh@dinmind.in via Resend
+async function handleForm(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn  = form.querySelector('.form-submit');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  const data = {
+    name:      form.querySelector('input[type="text"]').value.trim(),
+    phone:     form.querySelector('input[type="tel"]').value.trim(),
+    company:   form.querySelectorAll('input[type="text"]')[1].value.trim(),
+    employees: form.querySelector('select:first-of-type').value,
+    problem:   form.querySelectorAll('select')[1].value,
+  };
+
+  try {
+    const res = await fetch('/api/contact', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (json.success) {
+      btn.textContent = '✓ Request Sent! We\'ll reach out within 10 minutes.';
+      btn.style.background = '#15803d';
+      form.reset();
+    } else {
+      throw new Error('Server error');
+    }
+  } catch {
+    btn.textContent = 'Send Request';
+    btn.disabled = false;
+    alert('Something went wrong. Please WhatsApp us directly instead.');
+  }
+}
+
+// Mobile menu placeholder
+function toggleMenu() {}
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+});
+
+// Counter animation for trust stats
+function animateCounters() {
+  document.querySelectorAll('.trust-stat-val').forEach(el => {
+    el.style.opacity = '1';
+  });
+}
+const trustSection = document.querySelector('.trust');
+if (trustSection) {
+  new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) animateCounters();
+  }, { threshold: 0.3 }).observe(trustSection);
+}
+</script>
+</body>
+</html>

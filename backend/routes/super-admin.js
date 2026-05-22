@@ -21,7 +21,7 @@ router.post('/login', (req, res) => {
   try {
     const { email, password } = req.body;
     const SA_EMAIL    = process.env.SUPER_ADMIN_EMAIL    || 'admin@payos.com';
-    const SA_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'PayOS@Master2025';
+    const SA_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'PayLeef@Master2025';
 
     // Generic error to prevent credential enumeration
     if (email !== SA_EMAIL || password !== SA_PASSWORD) {

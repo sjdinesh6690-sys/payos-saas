@@ -62,12 +62,12 @@ export default function DashboardPage() {
   const emailedCount    = thisMonthSlips.filter(p => p.emailed).length;
 
   const stats = [
-    { label: 'Total Employees',     value: employees.length,         icon: Users,      iconBg: '#FFF1ED', iconColor: '#E85C2F' },
-    { label: 'Monthly Payroll',     value: fmtShort(totalPayroll),   icon: DollarSign, iconBg: '#E8F5E9', iconColor: '#16a34a' },
-    { label: 'Avg Salary',          value: fmtShort(avgSalary),      icon: TrendingUp, iconBg: '#F3E8FF', iconColor: '#7c3aed' },
-    { label: 'This Month Payslips', value: thisMonthSlips.length,    icon: FileText,   iconBg: '#FFF8E1', iconColor: '#d97706' },
-    { label: 'Departments',         value: departments.length,       icon: Building2,  iconBg: '#E0F7FA', iconColor: '#0891b2' },
-    { label: 'Emails Sent',         value: emailedCount,             icon: Send,       iconBg: '#EDE9FE', iconColor: '#6d28d9' },
+    { label: 'Total Employees',     value: employees.length,         icon: Users,      iconBg: '#FFF1ED', iconColor: '#E85C2F', link: '/admin/employees' },
+    { label: 'Monthly Payroll',     value: fmtShort(totalPayroll),   icon: DollarSign, iconBg: '#E8F5E9', iconColor: '#16a34a', link: '/admin/payslips' },
+    { label: 'Avg Salary',          value: fmtShort(avgSalary),      icon: TrendingUp, iconBg: '#F3E8FF', iconColor: '#7c3aed', link: '/admin/employees' },
+    { label: 'This Month Payslips', value: thisMonthSlips.length,    icon: FileText,   iconBg: '#FFF8E1', iconColor: '#d97706', link: '/admin/payslips' },
+    { label: 'Departments',         value: departments.length,       icon: Building2,  iconBg: '#E0F7FA', iconColor: '#0891b2', link: '/admin/employees' },
+    { label: 'Emails Sent',         value: emailedCount,             icon: Send,       iconBg: '#EDE9FE', iconColor: '#6d28d9', link: '/admin/payslips' },
   ];
 
   // ── Monthly payroll trend (last 6 months) ───────────────────────────────────
@@ -283,10 +283,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — clickable */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {stats.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <Card key={label} className="border-0 shadow-sm">
+        {stats.map(({ label, value, icon: Icon, iconBg, iconColor, link }) => (
+          <Card
+            key={label}
+            className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => link && navigate(link)}
+          >
             <CardContent className="pt-4 pb-4 px-4">
               <div className="flex items-start justify-between mb-3">
                 <p className="text-xs text-slate-500 leading-tight pr-2">{label}</p>

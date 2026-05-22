@@ -9,6 +9,9 @@ const { initDB, pool } = require('./database');
 
 const app = express();
 
+// ── Trust Render's proxy so express-rate-limit gets real client IPs ──────────
+app.set('trust proxy', 1);
+
 // ── Security headers (Helmet) ─────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: false, // Disabled so the React app can load correctly
@@ -91,6 +94,9 @@ initDB().then(async () => {
   app.use('/api/settings',       require('./routes/settings'));
   app.use('/api/ai',             require('./routes/ai'));
   app.use('/api/errors',         require('./routes/errors'));
+  app.use('/api/contact',        require('./routes/contact'));
+  app.use('/api/attendance',     require('./routes/attendance'));
+  app.use('/api/billing',        require('./routes/billing'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));
@@ -116,6 +122,12 @@ initDB().then(async () => {
     res.status(err.status || 500).json({ error: msg });
   });
 
+  // Serve premium landing page at root '/' — must be BEFORE React static files
+  const LANDING = path.join(__dirname, 'public/landing.html');
+  if (fs.existsSync(LANDING)) {
+    app.get('/', (req, res) => res.sendFile(LANDING));
+  }
+
   // Serve frontend build if it exists
   const DIST = path.join(__dirname, '../frontend/dist');
   if (fs.existsSync(DIST)) {
@@ -125,7 +137,7 @@ initDB().then(async () => {
 
   const PORT = process.env.PORT || 3001;
   const server = app.listen(PORT, () => {
-    console.log(`🚀 PayOS server running on port ${PORT}`);
+    console.log(`🚀 PayLeef server running on port ${PORT}`);
     console.log(`✅ API ready at http://localhost:${PORT}/api/health`);
   });
 

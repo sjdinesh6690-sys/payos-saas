@@ -102,9 +102,52 @@ router.post('/generate', async (req, res) => {
     const { month, year, adjustments = {}, working_days, employee_ids, salary_overrides = {} } = req.body;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
-    // Block future month generation (more than 1 month ahead)
+    // ── Billing check ──────────────────────────────────────────────────────────
     const now = new Date();
-    const genDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+
+    // Check trial
+    const adminBillingRes = await pool.query(
+      'SELECT trial_end_date FROM admins WHERE id = $1', [req.admin_id]
+    );
+    const adminBilling    = adminBillingRes.rows[0] || {};
+    const trialActive     = adminBilling.trial_end_date && new Date(adminBilling.trial_end_date) > now;
+
+    // Check active subscription
+    const subBillingRes = await pool.query(
+      'SELECT employee_limit, paid_until, status FROM subscriptions WHERE admin_id = $1',
+      [req.admin_id]
+    );
+    const sub       = subBillingRes.rows[0];
+    const subActive = sub && sub.status === 'active' && new Date(sub.paid_until) > now;
+
+    if (!trialActive && !subActive) {
+      return res.status(402).json({
+        error: 'No active plan. Please purchase a PayLeef plan to generate payslips.',
+        code:  'PAYMENT_REQUIRED',
+      });
+    }
+
+    // Check employee slot limit (5 during trial, subscription limit otherwise)
+    const slotLimit   = subActive ? parseInt(sub.employee_limit) : 5;
+    const empCntRes   = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM employees
+       WHERE admin_id = $1 AND (status = 'active' OR status IS NULL)`,
+      [req.admin_id]
+    );
+    const activeEmpCount = parseInt(empCntRes.rows[0].cnt);
+
+    if (activeEmpCount > slotLimit) {
+      return res.status(402).json({
+        error: `You have ${activeEmpCount} active employees but only ${slotLimit} payslip slots. Please top up to continue.`,
+        code:  'LIMIT_EXCEEDED',
+        employee_count: activeEmpCount,
+        employee_limit: slotLimit,
+      });
+    }
+    // ── End billing check ───────────────────────────────────────────────────────
+
+    // Block future month generation (more than 1 month ahead)
+    const genDate   = new Date(parseInt(year), parseInt(month) - 1, 1);
     const maxFuture = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     if (genDate > maxFuture)
       return res.status(400).json({ error: 'Cannot generate payslips for future months' });

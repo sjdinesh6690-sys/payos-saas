@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">P</div>
-            <span className="text-2xl font-bold text-white tracking-tight">PayOS</span>
+            <span className="text-2xl font-bold text-white tracking-tight">PayLeef</span>
           </div>
         </div>
 

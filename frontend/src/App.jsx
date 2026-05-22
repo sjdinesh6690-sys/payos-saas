@@ -6,16 +6,11 @@ import { Toaster } from 'sonner';
 import LandingPage            from '@/pages/LandingPage';
 import LoginPage              from '@/pages/LoginPage';
 import RegisterPage           from '@/pages/RegisterPage';
-<<<<<<< Updated upstream
-import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
-import ResetPasswordPage      from '@/pages/ResetPasswordPage';
-=======
 import VerifyEmailPage        from '@/pages/VerifyEmailPage';
 import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
 import ResetPasswordPage      from '@/pages/ResetPasswordPage';
 import TermsPage              from '@/pages/TermsPage';
 import PrivacyPage            from '@/pages/PrivacyPage';
->>>>>>> Stashed changes
 import OnboardingPage         from '@/pages/OnboardingPage';
 import EmployeePayslipsPage   from '@/pages/EmployeePayslipsPage';
 import PayrollConfigPage      from '@/pages/PayrollConfigPage';
@@ -28,6 +23,8 @@ import UploadPage             from '@/components/admin/UploadPage';
 import SendPage               from '@/components/admin/SendPage';
 import ReportsPage            from '@/components/admin/ReportsPage';
 import AnalyticsPage          from '@/components/admin/AnalyticsPage';
+import AttendancePage         from '@/pages/AttendancePage';
+import BillingPage            from '@/pages/BillingPage';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
@@ -46,12 +43,6 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
 
           {/* ── Auth ─────────────────────────────────────────────── */}
-<<<<<<< Updated upstream
-          <Route path="/login"           element={<LoginPage />} />
-          <Route path="/register"        element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password"  element={<ResetPasswordPage />} />
-=======
           <Route path="/login"            element={<LoginPage />} />
           <Route path="/register"         element={<RegisterPage />} />
           <Route path="/verify-email"     element={<VerifyEmailPage />} />
@@ -59,7 +50,6 @@ export default function App() {
           <Route path="/reset-password"   element={<ResetPasswordPage />} />
           <Route path="/terms"            element={<TermsPage />} />
           <Route path="/privacy"          element={<PrivacyPage />} />
->>>>>>> Stashed changes
 
           {/* ── Onboarding (shown after first login) ─────────────── */}
           <Route path="/onboarding" element={<OnboardingPage />} />
@@ -77,6 +67,8 @@ export default function App() {
             <Route path="send"           element={<SendPage />} />
             <Route path="reports"        element={<ReportsPage />} />
             <Route path="analytics"      element={<AnalyticsPage />} />
+            <Route path="attendance"     element={<AttendancePage />} />
+            <Route path="billing"        element={<BillingPage />} />
             <Route path="payroll-config" element={<PayrollConfigPage />} />
             <Route path="settings"       element={<SettingsPage />} />
           </Route>

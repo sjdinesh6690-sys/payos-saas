@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
-  Settings, Mail, Building2, Server, Send, Eye, EyeOff,
-  CheckCircle2, AlertCircle, Palette, Save, ExternalLink,
-  ChevronDown, ChevronUp, ArrowRight, Loader2, Info
+  Settings, Mail, Building2, Send,
+  CheckCircle2, AlertCircle, Palette, Save,
+  Loader2, Info
 } from 'lucide-react';
 import api from '../lib/api';
 
-/* ─── Email provider guide data ─────────────────────────────────────── */
-const PROVIDERS = [
+/* ─── Email provider guide data — kept for reference, not displayed ─── */
+const _PROVIDERS_UNUSED = [
   {
     id: 'gmail',
     name: 'Gmail',
@@ -36,7 +36,7 @@ const PROVIDERS = [
       },
       {
         title: 'Name it and copy the password',
-        desc: 'In the "App name" box type "PayOS" and click Create. Google will show you a 16-letter password like "abcd efgh ijkl mnop". Copy that password.',
+        desc: 'In the "App name" box type "PayLeef" and click Create. Google will show you a 16-letter password like "abcd efgh ijkl mnop". Copy that password.',
         tip: '⚠️ Copy it now — Google will never show it again.',
       },
       {
@@ -93,7 +93,7 @@ const PROVIDERS = [
       },
       {
         title: 'Go to Security → App Passwords',
-        desc: 'In Zoho Mail settings, click "Security" in the left menu. Then click "App Passwords". Click "Generate New Password", name it "PayOS" and click Generate.',
+        desc: 'In Zoho Mail settings, click "Security" in the left menu. Then click "App Passwords". Click "Generate New Password", name it "PayLeef" and click Generate.',
       },
       {
         title: 'Copy the password',
@@ -217,10 +217,8 @@ export default function SettingsPage() {
   const [loading, setLoading]           = useState(true);
   const [saving, setSaving]             = useState(false);
   const [testing, setTesting]           = useState(false);
-  const [showPass, setShowPass]         = useState(false);
-  const [selectedProvider, setProvider] = useState(null);
-  const [showAdvanced, setAdvanced]     = useState(false);
-  const [smtpSaved, setSmtpSaved]       = useState(false);
+  const [testEmailTo, setTestEmailTo]   = useState('');
+  const [emailTested, setEmailTested]   = useState(false);
   const [selectedTpl, setSelectedTpl]   = useState('professional'); // active email template
   const [customNote, setCustomNote]     = useState('');             // plain-text custom message
 
@@ -283,51 +281,23 @@ export default function SettingsPage() {
     } finally { setSaving(false); }
   };
 
-  const saveAndTest = async () => {
-    if (!form.smtp_host || !form.smtp_user || !form.smtp_pass) {
-      toast.error('Please fill in your email address and password first');
+  const sendTestEmail = async () => {
+    const to = testEmailTo || form.company_email;
+    if (!to) {
+      toast.error('Please enter an email address to send the test to');
       return;
     }
-    if (form.smtp_pass === '••••••••') {
-      toast.error('Please re-enter your password to test');
-      return;
-    }
-    setSaving(true);
-    try {
-      await api.put('/settings', form);
-      toast.success('Settings saved!');
-    } catch (e) {
-      toast.error(e.response?.data?.error || 'Failed to save');
-      setSaving(false);
-      return;
-    }
-    setSaving(false);
     setTesting(true);
     try {
-      const res = await api.post('/settings/test-smtp', {
-        smtp_host: form.smtp_host, smtp_port: form.smtp_port,
-        smtp_user: form.smtp_user, smtp_pass: form.smtp_pass,
-        smtp_from: form.smtp_from || form.smtp_user,
-        test_to: form.smtp_user,
-      });
+      const res = await api.post('/settings/test-email', { test_to: to });
       toast.success('🎉 ' + res.data.message);
-      setSmtpSaved(true);
+      setEmailTested(true);
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Connection failed — check your password and try again');
+      toast.error(e.response?.data?.error || 'Failed to send test email — contact PayLeef support');
     } finally { setTesting(false); }
   };
 
-  const pickProvider = (p) => {
-    setProvider(p.id);
-    setAdvanced(p.id === 'other');
-    setSmtpSaved(false);
-    if (p.smtp_host) set('smtp_host', p.smtp_host);
-    set('smtp_port', p.smtp_port);
-  };
-
   const insertVar = (v) => set('email_body', (form.email_body || '') + v);
-
-  const provider = PROVIDERS.find(p => p.id === selectedProvider);
 
   const tabs = [
     { id: 'company',  label: 'Company',       icon: Building2 },
@@ -463,187 +433,75 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ── SMTP TAB ── */}
+        {/* ── EMAIL SETUP TAB ── */}
         {activeTab === 'smtp' && (
           <div className="space-y-6">
 
             <div>
-              <h2 className="font-semibold text-gray-900 text-lg">Set Up Email Sending</h2>
+              <h2 className="font-semibold text-gray-900 text-lg">Email Setup</h2>
               <p className="text-sm text-gray-500 mt-1">
-                This lets PayOS send payslips directly to your employees from your own email address.
+                PayLeef sends payslips to your employees automatically. No setup needed — it just works.
               </p>
             </div>
 
-            {/* Step 1 — Pick provider */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</div>
-                <p className="font-medium text-gray-800">Which email service do you use?</p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {PROVIDERS.map(p => (
-                  <button key={p.id} onClick={() => pickProvider(p)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all hover:shadow-sm ${
-                      selectedProvider === p.id
-                        ? 'border-blue-500 shadow-md'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    style={selectedProvider === p.id ? { backgroundColor: p.bgColor } : {}}>
-                    <div className="text-2xl mb-1">{p.logo}</div>
-                    <div className="font-semibold text-sm text-gray-900">{p.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 leading-tight">{p.hint}</div>
-                  </button>
-                ))}
+            {/* Info card */}
+            <div className="flex gap-4 p-5 rounded-xl bg-green-50 border border-green-200">
+              <div className="text-3xl">✅</div>
+              <div>
+                <p className="font-semibold text-green-900">Email delivery is active</p>
+                <p className="text-sm text-green-700 mt-1">
+                  All payslips are sent via <strong>payroll@dinmind.com</strong> through PayLeef's built-in email system.
+                  Employees reply to <strong>{form.company_email || 'your company email'}</strong>.
+                </p>
+                <p className="text-xs text-green-600 mt-2">
+                  No SMTP configuration required. Emails are delivered reliably on every platform.
+                </p>
               </div>
             </div>
 
-            {/* Step 2 — Guide + form */}
-            {provider && (
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</div>
-                  <p className="font-medium text-gray-800">Follow these steps to get your password</p>
-                </div>
-
-                {/* Step cards */}
-                <div className="space-y-3 mb-6">
-                  {provider.steps.map((step, i) => (
-                    <div key={i} className="flex gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50">
-                      <div className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ backgroundColor: provider.color }}>
-                        {i + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 text-sm">{step.title}</p>
-                        <p className="text-gray-600 text-sm mt-1 leading-relaxed">{step.desc}</p>
-                        {step.link && (
-                          <a href={step.link.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-                            style={{ backgroundColor: provider.color }}>
-                            {step.link.label}
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        {step.tip && (
-                          <div className="flex items-start gap-1.5 mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                            {step.tip}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Step 3 — Enter credentials */}
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</div>
-                  <p className="font-medium text-gray-800">Enter your email details</p>
-                </div>
-
-                <div className="space-y-3 p-4 rounded-xl border-2 border-blue-100 bg-blue-50">
-                  <Field label={`Your ${provider.name} Email Address`} required>
-                    <input value={form.smtp_user} onChange={e => { set('smtp_user', e.target.value); if (!form.smtp_from) set('smtp_from', e.target.value); }}
-                      type="email" placeholder="yourname@gmail.com" className={inp} />
-                  </Field>
-
-                  <Field label={provider.id === 'gmail' ? 'App Password (16 letters from Google)' : provider.id === 'hostinger' ? 'Your Email Password' : 'App Password'} required>
-                    <div className="relative">
-                      <input type={showPass ? 'text' : 'password'} value={form.smtp_pass}
-                        onChange={e => set('smtp_pass', e.target.value)}
-                        onPaste={e => {
-                          // Auto-strip spaces when pasting — Google shows "abcd efgh ijkl mnop" with spaces
-                          e.preventDefault();
-                          const pasted = (e.clipboardData || window.Clipboard).getData('text');
-                          set('smtp_pass', pasted.replace(/\s/g, ''));
-                        }}
-                        placeholder={provider.id === 'gmail' ? 'Paste the 16-letter app password here' : 'Paste your password here'}
-                        className={`${inp} pr-10`} />
-                      <button onClick={() => setShowPass(!showPass)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {provider.id === 'gmail' && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        ⚠️ Google shows the password with spaces (e.g. "abcd efgh ijkl mnop") — spaces are automatically removed when you paste.
-                      </p>
-                    )}
-                  </Field>
-
-                  {/* Advanced — hidden by default */}
-                  <button onClick={() => setAdvanced(!showAdvanced)}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-1">
-                    {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    Advanced settings (SMTP host / port / from address)
-                  </button>
-
-                  {showAdvanced && (
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-200">
-                      <Field label="SMTP Host">
-                        <input value={form.smtp_host} onChange={e => set('smtp_host', e.target.value)}
-                          placeholder="smtp.gmail.com" className={inp} />
-                      </Field>
-                      <Field label="Port">
-                        <select value={form.smtp_port} onChange={e => set('smtp_port', e.target.value)} className={inp}>
-                          <option value="587">587 (recommended)</option>
-                          <option value="465">465 (SSL)</option>
-                          <option value="25">25</option>
-                        </select>
-                      </Field>
-                      <Field label="From Name / Address" className="col-span-2">
-                        <input value={form.smtp_from} onChange={e => set('smtp_from', e.target.value)}
-                          placeholder="HR Payroll <payroll@yourcompany.com>" className={inp} />
-                      </Field>
-                    </div>
-                  )}
-                </div>
-
-                {/* Step 4 — Save & Test */}
-                <div className="flex items-center gap-2 mt-5 mb-4">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">4</div>
-                  <p className="font-medium text-gray-800">Save and send a test email</p>
-                </div>
-
-                <button onClick={saveAndTest} disabled={saving || testing}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: provider.color }}>
-                  {(saving || testing)
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {saving ? 'Saving…' : 'Sending test email…'}</>
-                    : <><Send className="w-4 h-4" /> Save Settings &amp; Send Test Email <ArrowRight className="w-4 h-4" /></>
+            {/* Test email */}
+            <div className="p-5 rounded-xl border border-gray-200 space-y-3">
+              <p className="font-medium text-gray-800">Send a test email to verify delivery</p>
+              <p className="text-sm text-gray-500">
+                Enter any email address below and click Send Test. You should receive it within 30 seconds.
+              </p>
+              <div className="flex gap-3">
+                <input
+                  type="email"
+                  value={testEmailTo || form.company_email}
+                  onChange={e => setTestEmailTo(e.target.value)}
+                  placeholder={form.company_email || 'yourname@company.com'}
+                  className={`${inp} flex-1`}
+                />
+                <button
+                  onClick={sendTestEmail}
+                  disabled={testing}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 disabled:opacity-50 shrink-0"
+                >
+                  {testing
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                    : <><Send className="w-4 h-4" /> Send Test</>
                   }
                 </button>
-
-                <p className="text-xs text-gray-400 text-center mt-2">
-                  This will save your settings and send a test email to <strong>{form.smtp_user || 'your email'}</strong> to confirm everything is working.
-                </p>
-
-                {/* Success badge */}
-                {smtpSaved && (
-                  <div className="flex items-center gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-green-800">Email is connected!</p>
-                      <p className="text-xs text-green-600">Payslips will now be sent from your {provider.name} account.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Warning if not set */}
-                {!smtpSaved && !form.smtp_host && (
-                  <div className="flex items-center gap-2 mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <p className="text-xs text-amber-700">Email not yet configured. Payslips will be <strong>simulated</strong> (not actually sent to employees).</p>
-                  </div>
-                )}
               </div>
-            )}
+              {emailTested && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                  <p className="text-sm text-green-800">Test email sent! Check your inbox.</p>
+                </div>
+              )}
+            </div>
 
-            {!provider && (
-              <div className="text-center py-6 text-gray-400 text-sm">
-                ☝️ Select your email provider above to get started
+            {/* Reply-to info */}
+            <div className="flex gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100 text-sm text-blue-800">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <strong>Reply-To address:</strong> When employees reply to their payslip email, replies go to
+                <strong> {form.company_email || 'your company email (set it in the Company tab)'}</strong>.
+                Make sure your company HR / payroll email is set correctly in the Company tab.
               </div>
-            )}
+            </div>
+
           </div>
         )}
 

@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">P</div>
-            <span className="text-2xl font-bold text-white tracking-tight">PayOS</span>
+            <span className="text-2xl font-bold text-white tracking-tight">PayLeef</span>
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
             <>
               <div className="mb-6">
                 <h1 className="text-xl font-bold text-slate-900">Set new password</h1>
-                <p className="text-sm text-slate-500 mt-1">Choose a strong password for your PayOS account.</p>
+                <p className="text-sm text-slate-500 mt-1">Choose a strong password for your PayLeef account.</p>
               </div>
 
               {error && (

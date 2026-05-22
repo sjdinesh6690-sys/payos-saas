@@ -422,7 +422,35 @@ export default function PayrollConfigPage() {
   const [previewingPdf,  setPreviewingPdf]  = useState(false);
 
   useEffect(() => {
-    if (brandingLoaded?.branding) setBranding(b => ({ ...b, ...brandingLoaded.branding }));
+    if (brandingLoaded?.branding) {
+      const b = brandingLoaded.branding;
+      setBranding(prev => ({ ...prev, ...b }));
+      // If company_name not set in branding, auto-fill from Settings
+      if (!b.company_name) {
+        api.get('/settings').then(r => {
+          const s = r.data.settings || {};
+          setBranding(prev => ({
+            ...prev,
+            company_name:    prev.company_name    || s.company_name    || '',
+            company_address: prev.company_address || s.company_address || '',
+            company_phone:   prev.company_phone   || s.company_phone   || '',
+            company_email:   prev.company_email   || s.company_email   || '',
+          }));
+        }).catch(() => {});
+      }
+    } else if (brandingLoaded !== undefined) {
+      // Branding not saved yet — pre-fill from Settings
+      api.get('/settings').then(r => {
+        const s = r.data.settings || {};
+        setBranding(prev => ({
+          ...prev,
+          company_name:    s.company_name    || '',
+          company_address: s.company_address || '',
+          company_phone:   s.company_phone   || '',
+          company_email:   s.company_email   || '',
+        }));
+      }).catch(() => {});
+    }
   }, [brandingLoaded]);
   const [saving, setSaving]         = useState(false);
   const [showAddEarn,  setShowAddEarn]  = useState(false);
