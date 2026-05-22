@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Search, ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings } from 'lucide-react';
+import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TrialBanner from './TrialBanner';
@@ -247,33 +247,6 @@ export default function MainLayout() {
               )}
             </div>
 
-            {/* Search */}
-            <div className="flex-1 max-w-sm mx-4">
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Search employees, payslips…"
-                  className="w-full h-9 pl-9 pr-4 text-[13px] rounded-xl transition-all focus:outline-none"
-                  style={{
-                    background: 'var(--bg-warm)',
-                    border: '1.5px solid var(--border)',
-                    color: 'var(--text-primary)',
-                  }}
-                  onFocus={e => {
-                    e.target.style.border = '1.5px solid var(--brand)';
-                    e.target.style.background = '#fff';
-                    e.target.style.boxShadow = '0 0 0 3px var(--brand-light)';
-                  }}
-                  onBlur={e => {
-                    e.target.style.border = '1.5px solid var(--border)';
-                    e.target.style.background = 'var(--bg-warm)';
-                    e.target.style.boxShadow = '';
-                  }}
-                />
-              </div>
-            </div>
-
             {/* Right side actions */}
             <div className="ml-auto flex items-center gap-2">
 
@@ -379,21 +352,6 @@ export default function MainLayout() {
                 title="Help — how to use this page"
               >
                 <HelpCircle size={17} />
-              </button>
-
-              {/* Notifications */}
-              <button
-                className="w-9 h-9 flex items-center justify-center rounded-xl relative transition-all"
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                title="Notifications"
-              >
-                <Bell size={17} />
-                <span
-                  className="absolute top-2 right-2 w-2 h-2 rounded-full ring-2 ring-white"
-                  style={{ background: 'var(--brand)' }}
-                />
               </button>
 
               {/* Divider */}

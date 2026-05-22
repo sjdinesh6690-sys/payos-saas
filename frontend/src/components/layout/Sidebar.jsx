@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, Upload,
-  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings, CalendarCheck, CreditCard, Umbrella, MapPin, UserCog,
+  LayoutDashboard, Users, Upload, Send, BarChart3,
+  LogOut, Settings, ChevronDown, ChevronUp,
+  FileText, TrendingUp, Settings2, CalendarCheck,
+  CreditCard, Umbrella, MapPin, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,54 +18,69 @@ const RupeeLeaf = ({ size = 20 }) => (
   </svg>
 );
 
-// Numbered step badge
-const StepBadge = ({ num, active }) => (
-  <span
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 20,
-      height: 20,
-      borderRadius: '50%',
-      fontSize: 10,
-      fontWeight: 700,
-      flexShrink: 0,
-      background: active ? 'var(--brand)' : 'var(--border-light)',
-      color: active ? 'white' : 'var(--text-muted)',
-      border: active ? '2px solid var(--brand)' : '2px solid #E2E8F0',
-    }}
-  >
-    {num}
-  </span>
-);
-
-// The 4-step monthly workflow — permKey maps to permissions object key
-const WORKFLOW_STEPS = [
-  { step: 1, to: '/admin/employees',   label: 'Add Employees',     icon: Users,    hint: 'Enter staff details',     permKey: 'employees' },
-  { step: 2, to: '/admin/upload',      label: 'Upload Salaries',   icon: Upload,   hint: 'Import CSV/Excel',        permKey: 'upload' },
-  { step: 3, to: '/admin/send',        label: 'Generate & Send',   icon: Send,     hint: 'Create payslips & email', permKey: 'send' },
-  { step: 4, to: '/admin/reports',     label: 'Download Reports',  icon: BarChart3,hint: 'PDF & Excel reports',     permKey: 'reports' },
+// Core monthly workflow — always visible
+const CORE_NAV = [
+  { to: '/admin/dashboard',  label: 'Dashboard',         icon: LayoutDashboard, permKey: null },
+  { to: '/admin/employees',  label: 'Employees',          icon: Users,           permKey: 'employees' },
+  { to: '/admin/upload',     label: 'Import Data',        icon: Upload,          permKey: 'upload' },
+  { to: '/admin/send',       label: 'Generate & Send',    icon: Send,            permKey: 'send' },
+  { to: '/admin/reports',    label: 'Reports',            icon: BarChart3,       permKey: 'reports' },
 ];
 
-const OTHER_NAV = [
-  { to: '/admin/dashboard',     label: 'Dashboard',       icon: LayoutDashboard, permKey: null },
-  { to: '/admin/locations',     label: 'Locations',       icon: MapPin,          permKey: 'locations' },
-  { to: '/admin/attendance',    label: 'Attendance',      icon: CalendarCheck,   permKey: 'attendance' },
-  { to: '/admin/leave-policy',  label: 'Leave Policy',    icon: Umbrella,        permKey: 'leave_policy' },
-  { to: '/admin/billing',       label: 'Billing & Plan',  icon: CreditCard,      permKey: 'billing' },
-  { to: '/admin/payslips',      label: 'Payslip History', icon: FileText,        permKey: 'payslips' },
-  { to: '/admin/analytics',     label: 'Analytics',       icon: TrendingUp,      permKey: 'analytics' },
-  { to: '/admin/payroll-config',label: 'Payroll Config',  icon: Settings2,       permKey: 'payroll_config' },
-  { to: '/admin/settings',      label: 'Settings',        icon: Settings,        permKey: 'settings' },
+// Hidden behind "More" — advanced / infrequent pages
+const MORE_NAV = [
+  { to: '/admin/payslips',       label: 'Payslip History', icon: FileText,     permKey: 'payslips' },
+  { to: '/admin/attendance',     label: 'Attendance',      icon: CalendarCheck, permKey: 'attendance' },
+  { to: '/admin/leave-policy',   label: 'Leave Policy',    icon: Umbrella,      permKey: 'leave_policy' },
+  { to: '/admin/analytics',      label: 'Analytics',       icon: TrendingUp,    permKey: 'analytics' },
+  { to: '/admin/locations',      label: 'Locations',       icon: MapPin,        permKey: 'locations' },
+  { to: '/admin/payroll-config', label: 'Payroll Config',  icon: Settings2,     permKey: 'payroll_config' },
+  { to: '/admin/billing',        label: 'Billing & Plan',  icon: CreditCard,    permKey: 'billing' },
+  { to: '/admin/settings',       label: 'Settings',        icon: Settings,      permKey: 'settings' },
 ];
+
+function NavItem({ to, label, icon: Icon }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 group',
+          isActive ? '' : ''
+        )
+      }
+      style={({ isActive }) =>
+        isActive
+          ? { background: 'var(--brand-light)', color: 'var(--brand)', boxShadow: 'inset 3px 0 0 var(--brand)' }
+          : { color: 'var(--text-secondary)' }
+      }
+      onMouseEnter={e => {
+        if (!e.currentTarget.style.boxShadow) {
+          e.currentTarget.style.background = 'var(--border-light)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }
+      }}
+      onMouseLeave={e => {
+        if (!e.currentTarget.style.boxShadow) {
+          e.currentTarget.style.background = '';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }
+      }}
+    >
+      <Icon size={16} className="shrink-0" />
+      <span>{label}</span>
+    </NavLink>
+  );
+}
 
 export default function Sidebar() {
-  const navigate   = useNavigate();
-  const isSubUser  = localStorage.getItem('payslip_is_sub_user') === 'true';
-  const subName    = localStorage.getItem('payslip_sub_user_name') || '';
-  const adminName  = isSubUser ? subName : (localStorage.getItem('employee_name') || 'Admin');
-  const initials   = adminName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const navigate    = useNavigate();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isSubUser   = localStorage.getItem('payslip_is_sub_user') === 'true';
+  const subName     = localStorage.getItem('payslip_sub_user_name') || '';
+  const adminName   = isSubUser ? subName : (localStorage.getItem('employee_name') || 'Admin');
+  const initials    = adminName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   // Parse permissions — only used for sub-users
   let permissions = {};
@@ -70,10 +88,9 @@ export default function Sidebar() {
     try { permissions = JSON.parse(localStorage.getItem('payslip_permissions') || '{}'); } catch {}
   }
 
-  // Check if a nav item is allowed for current user
   const allowed = (permKey) => {
-    if (!isSubUser) return true;         // main admin — see everything
-    if (!permKey) return true;           // dashboard always visible
+    if (!isSubUser) return true;
+    if (!permKey) return true;
     return permissions[permKey] === true;
   };
 
@@ -83,202 +100,113 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  const visibleCore = CORE_NAV.filter(n => allowed(n.permKey));
+  const visibleMore = MORE_NAV.filter(n => allowed(n.permKey));
+
   return (
     <aside
-      className="w-[245px] shrink-0 flex flex-col h-screen sticky top-0"
+      className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0"
       style={{
         background: 'var(--sidebar-bg)',
         borderRight: '1px solid var(--border-light)',
         boxShadow: '2px 0 12px rgba(0,0,0,0.04)',
       }}
     >
-      {/* ── Brand ──────────────────────────────────────────── */}
-      <div className="px-5 pt-6 pb-5" style={{ borderBottom: '1px solid var(--border-light)' }}>
+      {/* ── Brand ── */}
+      <div className="px-4 pt-5 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 11, background: '#1A7A4A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(26,122,74,0.3)' }}>
-            <RupeeLeaf size={22} />
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: '#1A7A4A', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(26,122,74,0.3)',
+          }}>
+            <RupeeLeaf size={21} />
           </div>
           <div>
             <div style={{ lineHeight: 1.1 }}>
-              <span style={{ fontSize: 17, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.04em' }}>Pay</span>
-              <span style={{ fontSize: 17, fontWeight: 900, color: '#1A7A4A', letterSpacing: '-0.04em' }}>Leef</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.04em' }}>Pay</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: '#1A7A4A', letterSpacing: '-0.04em' }}>Leef</span>
             </div>
-            <span style={{ display: 'block', fontSize: 9.5, color: '#94A3B8', letterSpacing: '0.1em' }}>PAYROLL FOR INDIA</span>
+            <span style={{ display: 'block', fontSize: 9, color: '#94A3B8', letterSpacing: '0.12em' }}>PAYROLL FOR INDIA</span>
           </div>
         </div>
       </div>
 
-      {/* ── Navigation ─────────────────────────────────────── */}
-      <nav className="flex-1 py-4 px-3 overflow-y-auto">
+      {/* ── Navigation ── */}
+      <nav className="flex-1 py-3 px-2.5 overflow-y-auto space-y-0.5">
 
-        {/* ── MONTHLY WORKFLOW — numbered steps ── */}
-        <div className="mb-5">
-          <p
-            className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.08em]"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            📋 Monthly Steps — Do In Order
-          </p>
+        {/* Core nav */}
+        {visibleCore.map(item => (
+          <NavItem key={item.to} {...item} />
+        ))}
 
-          {/* Step connector line */}
-          <div className="relative">
-            {/* Vertical connector */}
-            <div style={{
-              position: 'absolute',
-              left: 22,
-              top: 22,
-              bottom: 22,
-              width: 2,
-              background: 'linear-gradient(to bottom, #1A7A4A44, #1A7A4A22)',
-              borderRadius: 2,
-            }} />
+        {/* More toggle */}
+        {visibleMore.length > 0 && (
+          <>
+            <div className="pt-1" />
+            <button
+              onClick={() => setMoreOpen(v => !v)}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              {moreOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <span>{moreOpen ? 'Less' : 'More'}</span>
+            </button>
 
-            <div className="space-y-[3px]">
-              {WORKFLOW_STEPS.filter(s => allowed(s.permKey)).map(({ step, to, label, icon: Icon, hint }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-150',
-                      isActive ? 'active-nav' : 'inactive-nav'
-                    )
-                  }
-                  style={({ isActive }) =>
-                    isActive
-                      ? { background: 'var(--brand-light)', color: 'var(--brand)', boxShadow: 'inset 3px 0 0 var(--brand)' }
-                      : { color: 'var(--text-secondary)' }
-                  }
-                  onMouseEnter={e => {
-                    if (!e.currentTarget.style.boxShadow) {
-                      e.currentTarget.style.background = 'var(--border-light)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!e.currentTarget.style.boxShadow) {
-                      e.currentTarget.style.background = '';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                >
-                  {/* Step number badge */}
-                  <StepBadge num={step} active={false} />
-                  <Icon size={15} className="shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="leading-tight font-semibold">{label}</div>
-                    <div className="text-[10px] opacity-60 leading-tight">{hint}</div>
-                  </div>
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        </div>
+            {moreOpen && (
+              <div className="space-y-0.5 pt-0.5">
+                {visibleMore.map(item => (
+                  <NavItem key={item.to} {...item} />
+                ))}
 
-        {/* ── Other pages ── */}
-        <div>
-          <p
-            className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.08em]"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            More
-          </p>
-          <div className="space-y-[2px]">
-            {OTHER_NAV.filter(n => allowed(n.permKey)).map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-150',
-                    isActive ? 'active-nav' : 'inactive-nav'
-                  )
-                }
-                style={({ isActive }) =>
-                  isActive
-                    ? { background: 'var(--brand-light)', color: 'var(--brand)', boxShadow: 'inset 3px 0 0 var(--brand)' }
-                    : { color: 'var(--text-secondary)' }
-                }
-                onMouseEnter={e => {
-                  if (!e.currentTarget.style.boxShadow) {
-                    e.currentTarget.style.background = 'var(--border-light)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!e.currentTarget.style.boxShadow) {
-                    e.currentTarget.style.background = '';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }
-                }}
-              >
-                <Icon size={15} className="shrink-0" />
-                <span className="flex-1">{label}</span>
-              </NavLink>
-            ))}
-
-            {/* Team Access — only visible to main admin, not sub-users */}
-            {!isSubUser && (
-              <NavLink
-                to="/admin/users"
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-3 py-[9px] rounded-xl text-[13px] font-medium transition-all duration-150',
-                    isActive ? 'active-nav' : 'inactive-nav'
-                  )
-                }
-                style={({ isActive }) =>
-                  isActive
-                    ? { background: 'var(--brand-light)', color: 'var(--brand)', boxShadow: 'inset 3px 0 0 var(--brand)' }
-                    : { color: 'var(--text-secondary)' }
-                }
-                onMouseEnter={e => {
-                  if (!e.currentTarget.style.boxShadow) {
-                    e.currentTarget.style.background = 'var(--border-light)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!e.currentTarget.style.boxShadow) {
-                    e.currentTarget.style.background = '';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }
-                }}
-              >
-                <UserCog size={15} className="shrink-0" />
-                <span className="flex-1">Team Access</span>
-              </NavLink>
+                {/* Team Access — main admin only */}
+                {!isSubUser && (
+                  <NavItem to="/admin/users" label="Team Access" icon={UserCog} />
+                )}
+              </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
+
+        {/* Team Access when more is not shown (admin with no more items) */}
+        {visibleMore.length === 0 && !isSubUser && (
+          <NavItem to="/admin/users" label="Team Access" icon={UserCog} />
+        )}
+
       </nav>
 
-      {/* ── User profile + Logout ──────────────────────────── */}
-      <div className="px-3 py-4" style={{ borderTop: '1px solid var(--border-light)' }}>
+      {/* ── User + Logout ── */}
+      <div className="px-2.5 py-3" style={{ borderTop: '1px solid var(--border-light)' }}>
         <div
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl mb-1"
           style={{ background: 'var(--border-light)' }}
         >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-            style={{ background: isSubUser ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%)' }}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+            style={{
+              background: isSubUser
+                ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+                : 'linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%)',
+            }}
           >
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
               {adminName || 'Admin'}
             </p>
-            <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-[10.5px] truncate" style={{ color: 'var(--text-muted)' }}>
               {isSubUser ? 'Team Member' : 'Admin'}
             </p>
           </div>
         </div>
         <button
           onClick={logout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-[13px] transition-all"
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[13px] transition-all"
           style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626'; }}
           onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text-muted)'; }}
         >
           <LogOut size={14} />
