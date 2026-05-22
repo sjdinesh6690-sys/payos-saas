@@ -247,7 +247,7 @@ h1.hero-title .accent{color:var(--green-light)}
 .pricing{background:var(--off-white)}
 .pricing-intro{text-align:center;max-width:640px;margin:0 auto 64px}
 .pricing-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
-.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+.pricing-grid{display:grid;grid-template-columns:1fr;gap:24px;align-items:start;max-width:520px;margin:0 auto}
 .price-card{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:28px;position:relative;transition:all .3s}
 .price-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 .price-card.featured{border-color:var(--green);background:#fff;box-shadow:0 8px 40px rgba(26,122,74,.15)}
@@ -268,8 +268,11 @@ h1.hero-title .accent{color:var(--green-light)}
 .price-btn-outline:hover{border-color:var(--green);color:var(--green)}
 .price-note{text-align:center;margin-top:28px;font-size:14px;color:var(--slate-light)}
 .price-note strong{color:var(--green)}
-@media(max-width:1100px){.pricing-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:640px){.pricing-grid{grid-template-columns:1fr}}
+.contact-cta-box{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:36px 40px;text-align:center;max-width:520px;margin:24px auto 0}
+.contact-cta-box h3{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.contact-cta-box p{font-size:15px;color:var(--slate-mid);margin-bottom:24px;line-height:1.6}
+.contact-cta-box .price-btn{display:inline-block;width:auto;padding:13px 36px}
+@media(max-width:640px){.contact-cta-box{padding:28px 24px}}
 
 /* ── TESTIMONIALS ── */
 .testimonials{background:#fff}
@@ -807,87 +810,49 @@ footer{background:var(--slate);padding:64px 0 32px}
   <div class="container">
     <div class="pricing-intro reveal">
       <div class="tag"><span class="tag-dot"></span> Simple, transparent pricing</div>
-      <h2>Honest Pricing. No Surprises.</h2>
-      <p>Plans start from just 10 employees. Need more? Business plan lets you add employees at ₹75 each. Every plan includes a 30-day free trial — no card needed.</p>
+      <h2>One Plan. Everything Included.</h2>
+      <p>No confusing tiers. Get started with 5 employees and add more whenever you need. Every account includes a 30-day free trial — no card needed.</p>
     </div>
     <div class="pricing-grid">
-      <!-- Starter -->
-      <div class="price-card reveal">
-        <div class="price-plan">Starter</div>
+      <!-- Single Plan -->
+      <div class="price-card featured reveal">
+        <div class="price-plan">PayLeef Pro</div>
         <div class="price-amount"><sup>₹</sup>999<sub>/month</sub></div>
-        <div class="price-employees">Up to <strong>10 employees</strong> included</div>
-        <div class="price-features">
-          <div class="price-feature"><span class="price-check">✓</span> Payroll processing</div>
-          <div class="price-feature"><span class="price-check">✓</span> Payslip generation (PDF)</div>
-          <div class="price-feature"><span class="price-check">✓</span> Employee management</div>
-          <div class="price-feature"><span class="price-check">✓</span> Salary reports</div>
-          <div class="price-feature"><span class="price-check">✓</span> Email support</div>
-          <div class="price-feature"><span class="price-cross">✗</span> Attendance sync</div>
-          <div class="price-feature"><span class="price-cross">✗</span> Multi-location</div>
-          <div class="price-feature"><span class="price-cross">✗</span> Approval workflows</div>
-        </div>
-        <a href="/register" class="price-btn price-btn-outline">Start Free Trial</a>
-      </div>
-      <!-- Growth -->
-      <div class="price-card featured reveal reveal-delay-1">
-        <div class="price-plan">Growth</div>
-        <div class="price-amount"><sup>₹</sup>2,499<sub>/month</sub></div>
-        <div class="price-employees">Up to <strong>50 employees</strong> included</div>
-        <div class="price-features">
-          <div class="price-feature"><span class="price-check">✓</span> Everything in Starter</div>
-          <div class="price-feature"><span class="price-check">✓</span> Attendance sync</div>
-          <div class="price-feature"><span class="price-check">✓</span> PF, ESI, PT reports</div>
-          <div class="price-feature"><span class="price-check">✓</span> Overtime calculation</div>
-          <div class="price-feature"><span class="price-check">✓</span> Employee self-service portal</div>
-          <div class="price-feature"><span class="price-check">✓</span> WhatsApp support</div>
-          <div class="price-feature"><span class="price-cross">✗</span> Multi-location payroll</div>
-          <div class="price-feature"><span class="price-cross">✗</span> Custom workflows</div>
-        </div>
-        <a href="/register" class="price-btn price-btn-primary">Start Free Trial</a>
-      </div>
-      <!-- Business -->
-      <div class="price-card reveal reveal-delay-2">
-        <div class="price-plan">Business</div>
-        <div class="price-amount"><sup>₹</sup>4,999<sub>/month</sub></div>
-        <div class="price-employees">Up to <strong>50 employees</strong> included</div>
-        <div style="background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">➕</span>
+        <div class="price-employees">Includes <strong>5 employees</strong> · add more anytime</div>
+
+        <!-- Top-up callout -->
+        <div style="background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:10px;padding:11px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px">➕</span>
           <div>
             <div style="font-size:12px;font-weight:800;color:#1A7A4A">₹75 per additional employee</div>
-            <div style="font-size:11px;color:#64748b;margin-top:1px">Add as many as your business needs</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px">Buy in packs of 10 · added instantly</div>
           </div>
         </div>
+
         <div class="price-features">
-          <div class="price-feature"><span class="price-check">✓</span> Everything in Growth</div>
-          <div class="price-feature"><span class="price-check">✓</span> Multi-location payroll</div>
-          <div class="price-feature"><span class="price-check">✓</span> Approval workflows</div>
-          <div class="price-feature"><span class="price-check">✓</span> Role-based access</div>
-          <div class="price-feature"><span class="price-check">✓</span> Bank transfer advice sheet</div>
-          <div class="price-feature"><span class="price-check">✓</span> Priority WhatsApp support</div>
-          <div class="price-feature"><span class="price-check">✓</span> Dedicated onboarding</div>
+          <div class="price-feature"><span class="price-check">✓</span> Payroll processing &amp; payslip generation (PDF)</div>
+          <div class="price-feature"><span class="price-check">✓</span> Employee management with bank &amp; statutory details</div>
+          <div class="price-feature"><span class="price-check">✓</span> PF, ESI, PT government compliance reports</div>
+          <div class="price-feature"><span class="price-check">✓</span> Attendance tracking with LOP auto-calculation</div>
+          <div class="price-feature"><span class="price-check">✓</span> Multi-location / branch support</div>
+          <div class="price-feature"><span class="price-check">✓</span> Email payslips directly to employees</div>
+          <div class="price-feature"><span class="price-check">✓</span> Analytics &amp; salary reports (Excel + PDF)</div>
+          <div class="price-feature"><span class="price-check">✓</span> 30-day free trial — no credit card needed</div>
         </div>
-        <a href="/register" class="price-btn price-btn-outline">Start Free Trial</a>
-        <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">Example: 100 employees = ₹4,999 + ₹3,750 = <strong style="color:#1A7A4A">₹8,749/mo</strong></div>
-      </div>
-      <!-- Enterprise -->
-      <div class="price-card reveal reveal-delay-3">
-        <div class="price-plan">Enterprise</div>
-        <div class="price-amount" style="font-size:28px;padding-top:4px">Custom<br><span style="font-size:14px;color:#64748b;font-weight:500">Tailored pricing</span></div>
-        <div class="price-employees">Factories · Manufacturing · Warehouses</div>
-        <div class="price-features">
-          <div class="price-feature"><span class="price-check">✓</span> Everything in Business</div>
-          <div class="price-feature"><span class="price-check">✓</span> Custom payroll workflows</div>
-          <div class="price-feature"><span class="price-check">✓</span> Biometric integration</div>
-          <div class="price-feature"><span class="price-check">✓</span> API access</div>
-          <div class="price-feature"><span class="price-check">✓</span> Custom reports</div>
-          <div class="price-feature"><span class="price-check">✓</span> Dedicated account manager</div>
-          <div class="price-feature"><span class="price-check">✓</span> On-site implementation</div>
-          <div class="price-feature"><span class="price-check">✓</span> SLA guarantee</div>
-        </div>
-        <a href="#contact" class="price-btn price-btn-outline">Talk to Us →</a>
+        <a href="/register" class="price-btn price-btn-primary">Start Free Trial →</a>
+        <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">All prices + 18% GST &nbsp;·&nbsp; Cancel anytime</div>
       </div>
     </div>
-    <div class="price-note reveal">No hidden charges. No setup fees. <strong>Cancel anytime</strong> — no questions asked. GST extra where applicable.
+
+    <!-- Contact for Custom Requirements -->
+    <div class="contact-cta-box reveal">
+      <div style="font-size:28px;margin-bottom:10px">🤝</div>
+      <h3>Need Something Custom?</h3>
+      <p>Larger teams, special workflows, biometric integration, or industry-specific requirements? We'll build a solution that fits your business perfectly.</p>
+      <a href="#contact" class="price-btn price-btn-outline">Contact Us for Customisation →</a>
+    </div>
+
+    <div class="price-note reveal">No hidden charges. No setup fees. <strong>Cancel anytime</strong> — no questions asked. GST applicable on all transactions.
     </div>
   </div>
 </section>
