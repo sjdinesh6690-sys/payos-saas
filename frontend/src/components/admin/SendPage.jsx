@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   CheckCircle2, AlertCircle, Send, FileText, Users, Mail,
   ChevronLeft, ChevronRight, Search, X, UserMinus, Settings2,
-  Plus, Building2, Eye, FileSpreadsheet, Upload, Info,
+  Plus, Building2, Eye, FileSpreadsheet, Upload, Info, MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -510,11 +510,17 @@ export default function SendPage() {
   const leftEmps      = employees.filter(e => e.status === 'inactive');
   const selectedCount = employees.length - excludeList.length;
 
-  // Department summary — only active
+  // Department summary
   const deptMap = {};
   employees.forEach(e => {
     const d = e.department || 'No Dept';
     deptMap[d] = (deptMap[d] || 0) + 1;
+  });
+
+  // Location summary
+  const locMap = {};
+  employees.forEach(e => {
+    if (e.location) locMap[e.location] = (locMap[e.location] || 0) + 1;
   });
 
   // Build adjustments object for API
@@ -898,6 +904,17 @@ export default function SendPage() {
                     </span>
                   ))}
                 </div>
+                {/* Location chips */}
+                {Object.keys(locMap).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(locMap).map(([loc, count]) => (
+                      <span key={loc} className="inline-flex items-center gap-1.5 text-xs bg-green-50 border border-green-200 rounded-full px-2.5 py-1 text-green-700">
+                        <MapPin size={10} className="text-green-400" />
+                        {loc} <span className="font-semibold">{count}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* SECTION A — LOP */}

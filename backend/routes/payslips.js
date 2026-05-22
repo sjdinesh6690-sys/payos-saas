@@ -15,13 +15,19 @@ const INR = (n) =>
 router.get('/', async (req, res) => {
   try {
     const { month, year } = req.query;
-    let query  = 'SELECT * FROM payslips WHERE admin_id = $1';
+    let query  = `
+      SELECT p.*, COALESCE(e.location, '') AS location
+      FROM payslips p
+      LEFT JOIN employees e
+        ON e.employee_id = p.employee_id AND e.admin_id = p.admin_id
+      WHERE p.admin_id = $1
+    `;
     const vals = [req.admin_id];
     let idx = 2;
 
-    if (month) { query += ` AND month = $${idx++}`;  vals.push(parseInt(month)); }
-    if (year)  { query += ` AND year  = $${idx++}`;  vals.push(parseInt(year));  }
-    query += ' ORDER BY year DESC, month DESC, employee_name ASC';
+    if (month) { query += ` AND p.month = $${idx++}`;  vals.push(parseInt(month)); }
+    if (year)  { query += ` AND p.year  = $${idx++}`;  vals.push(parseInt(year));  }
+    query += ' ORDER BY p.year DESC, p.month DESC, p.employee_name ASC';
 
     const result = await pool.query(query, vals);
     res.json(result.rows);

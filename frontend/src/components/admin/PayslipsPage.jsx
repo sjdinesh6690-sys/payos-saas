@@ -270,6 +270,7 @@ export default function PayslipsPage() {
   // Filters
   const [search, setSearch]         = useState('');
   const [filterMonth, setFilterMonth] = useState('');
+  const [filterLoc, setFilterLoc]   = useState('');
 
   // Sort
   const [sortKey, setSortKey] = useState('year');
@@ -301,6 +302,12 @@ export default function PayslipsPage() {
       return { label: `${MONTH_NAMES[parseInt(mo)]} ${y}`, value: m };
     }), [months]);
 
+  // Location filter options (derived from payslips data via JOIN)
+  const locationOptions = useMemo(() => {
+    const locs = [...new Set(payslips.map(p => p.location).filter(Boolean))].sort();
+    return locs.map(l => ({ label: l, value: l }));
+  }, [payslips]);
+
   // Filtered + sorted
   const filtered = useMemo(() => {
     let list = [...payslips];
@@ -318,6 +325,10 @@ export default function PayslipsPage() {
       list = list.filter(p => String(p.year) === y && String(p.month).padStart(2, '0') === m);
     }
 
+    if (filterLoc) {
+      list = list.filter(p => p.location === filterLoc);
+    }
+
     list.sort((a, b) => {
       let av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
       if (sortKey === 'salary' || sortKey === 'year' || sortKey === 'month') {
@@ -330,7 +341,7 @@ export default function PayslipsPage() {
       return 0;
     });
     return list;
-  }, [payslips, search, filterMonth, sortKey, sortDir]);
+  }, [payslips, search, filterMonth, filterLoc, sortKey, sortDir]);
 
   // Selection
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
@@ -547,9 +558,15 @@ export default function PayslipsPage() {
       <DataFilters
         search={search}
         onSearch={setSearch}
-        filters={[{ key: 'month', label: 'All Months', options: monthOptions }]}
-        values={{ month: filterMonth }}
-        onChange={(k, v) => k === 'month' && setFilterMonth(v)}
+        filters={[
+          { key: 'month', label: 'All Months',    options: monthOptions },
+          { key: 'loc',   label: 'All Locations', options: locationOptions },
+        ]}
+        values={{ month: filterMonth, loc: filterLoc }}
+        onChange={(k, v) => {
+          if (k === 'month') setFilterMonth(v);
+          if (k === 'loc')   setFilterLoc(v);
+        }}
       />
 
       {/* Table */}
