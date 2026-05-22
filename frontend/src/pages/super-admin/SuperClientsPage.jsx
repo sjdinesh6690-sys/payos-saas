@@ -1,170 +1,480 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, CheckCircle2, XCircle, AlertCircle,
-  ToggleLeft, ToggleRight, Clock, Plus, Zap, TimerOff,
+  Search, CheckCircle2, XCircle, AlertCircle, Clock,
+  ToggleLeft, ToggleRight, Plus, Zap, TimerOff, CreditCard,
+  IndianRupee, Users, FileText, Phone, Calendar, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 const superApi = {
-  get: (path)       => api.get(path,      { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
-  put: (path, body) => api.put(path, body, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  get:  (path)       => api.get(path, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  put:  (path, body) => api.put(path, body,  { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  post: (path, body) => api.post(path, body, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
 };
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const INR  = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+const DATE = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-const PLANS = ['starter', 'professional', 'enterprise'];
-
-// Trial badge shown in client list
-function TrialBadge({ client }) {
-  const days = client.trial_days_remaining ?? null;
-  const active = client.trial_active;
-
-  if (days === null) return <span className="text-[10px] text-slate-400">—</span>;
-  if (!active)
-    return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">Expired</span>;
-  if (days <= 3)
-    return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">{days}d left</span>;
-  return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">{days}d left</span>;
+function TypeBadge({ type }) {
+  const map = {
+    paid:    { bg: '#DCFCE7', color: '#15803D', label: '✅ Paid' },
+    trial:   { bg: '#FFF7ED', color: '#C2410C', label: '🕐 Trial' },
+    expired: { bg: '#FEE2E2', color: '#DC2626', label: '❌ Expired' },
+  };
+  const s = map[type] || map.trial;
+  return (
+    <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap' }}>
+      {s.label}
+    </span>
+  );
 }
 
-export default function SuperClientsPage() {
-  const qc = useQueryClient();
-  const [search, setSearch]       = useState('');
-  const [selected, setSelected]   = useState(null);
-  const [extendDays, setExtendDays] = useState('30');
-  const [trialLoading, setTrialLoading] = useState(false);
+// ── CLIENT DETAIL PANEL ───────────────────────────────────────────────────────
+function ClientDetail({ client, onClose, onRefresh }) {
+  const [extendDays,   setExtendDays]   = useState('30');
+  const [grantMonths,  setGrantMonths]  = useState('1');
+  const [loading,      setLoading]      = useState(false);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['super-clients'],
-    queryFn: () => superApi.get('/super-admin/clients').then(r => r.data),
-  });
-
-  const clients = useMemo(() => {
-    const all = data?.clients || [];
-    if (!search) return all;
-    const q = search.toLowerCase();
-    return all.filter(c =>
-      (c.company_name || '').toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q)
-    );
-  }, [data, search]);
-
-  const toggleStatus = async (client) => {
-    const newStatus = client.status === 'active' ? 'suspended' : 'active';
+  const act = async (label, fn) => {
+    setLoading(true);
     try {
-      await superApi.put(`/super-admin/clients/${client.id}/status`, { status: newStatus });
-      toast.success(`Client ${newStatus === 'active' ? 'activated' : 'suspended'}`);
-      qc.invalidateQueries({ queryKey: ['super-clients'] });
-      if (selected?.id === client.id) setSelected(c => ({ ...c, status: newStatus }));
-    } catch { toast.error('Could not update client status'); }
+      await fn();
+      toast.success(label);
+      await onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Action failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const changePlan = async (client, plan) => {
-    try {
-      await superApi.put(`/super-admin/clients/${client.id}/status`, { plan });
-      toast.success(`Plan updated to ${plan}`);
-      qc.invalidateQueries({ queryKey: ['super-clients'] });
-      if (selected?.id === client.id) setSelected(c => ({ ...c, plan }));
-    } catch { toast.error('Could not update plan'); }
-  };
-
-  const updateTrial = async (client, action, days) => {
-    setTrialLoading(true);
-    try {
-      await superApi.put(`/super-admin/clients/${client.id}/trial`, { action, days: parseInt(days) || 30 });
-      const labels = { extend: `Trial extended by ${days} days`, activate: `Trial activated (${days} days)`, expire: 'Trial expired immediately' };
-      toast.success(labels[action] || 'Trial updated');
-      await qc.invalidateQueries({ queryKey: ['super-clients'] });
-      // Update selected with fresh data
-      const fresh = await superApi.get('/super-admin/clients').then(r => r.data);
-      const updated = (fresh.clients || []).find(c => c.id === client.id);
-      if (updated) setSelected(updated);
-    } catch { toast.error('Could not update trial'); }
-    finally { setTrialLoading(false); }
-  };
+  const daysLeft = client.sub_active
+    ? Math.max(0, Math.ceil((new Date(client.sub_paid_until) - new Date()) / (1000*60*60*24)))
+    : client.trial_active
+    ? client.trial_days_remaining
+    : 0;
 
   return (
-    <div className="flex h-[calc(100vh-56px)]">
-      {/* ── Client list ─────────────────────────────────────────────── */}
-      <div className={`flex flex-col ${selected ? 'w-1/2' : 'flex-1'} bg-white border-r border-slate-100 transition-all`}>
-        <div className="px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">All Clients</h1>
-              <p className="text-xs text-slate-500">{clients.length} companies registered</p>
-            </div>
+    <div style={{ width: 380, background: '#fff', borderLeft: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+      {/* Header */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Client Detail</h3>
+        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#F1F5F9', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}>×</button>
+      </div>
+
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Avatar + identity */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: '#E85C2F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 900, flexShrink: 0 }}>
+            {(client.company_name || client.email)[0].toUpperCase()}
           </div>
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by company or email…"
-              className="w-full h-9 pl-9 pr-3 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white" />
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 3 }}>{client.company_name || '—'}</p>
+            <p style={{ fontSize: 12, color: '#64748B' }}>{client.email}</p>
+            {client.company_phone && client.company_phone !== '—' && (
+              <p style={{ fontSize: 12, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <Phone size={11} /> {client.company_phone}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <TypeBadge type={client.account_type} />
+              <span style={{
+                background: client.status === 'active' ? '#DCFCE7' : '#FEE2E2',
+                color: client.status === 'active' ? '#15803D' : '#DC2626',
+                fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+              }}>{client.status || 'active'}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        {/* Quick stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {[
+            { icon: Users,        value: client.employee_count, label: 'Employees' },
+            { icon: FileText,     value: client.payslip_count,  label: 'Payslips' },
+            { icon: IndianRupee,  value: INR(client.total_paid), label: 'Total Paid' },
+          ].map(({ icon: Icon, value, label }) => (
+            <div key={label} style={{ background: '#F8FAFC', borderRadius: 12, padding: '12px 10px', textAlign: 'center', border: '1px solid #F1F5F9' }}>
+              <Icon size={14} color="#64748B" style={{ marginBottom: 4 }} />
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>{value}</p>
+              <p style={{ fontSize: 10, color: '#94A3B8' }}>{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Subscription status */}
+        <div style={{ background: client.sub_active ? '#F0FDF4' : client.trial_active ? '#FFFBEB' : '#FEF2F2', borderRadius: 14, padding: '14px 16px', border: `1.5px solid ${client.sub_active ? '#86EFAC' : client.trial_active ? '#FDE68A' : '#FECACA'}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A', marginBottom: 2 }}>
+                {client.sub_active
+                  ? `Paid Plan — ${client.sub_employee_limit} slots`
+                  : client.trial_active
+                  ? `Free Trial — ${client.trial_days_remaining} days left`
+                  : 'No Active Plan'}
+              </p>
+              <p style={{ fontSize: 11, color: '#64748B' }}>
+                {client.sub_active
+                  ? `Valid until ${DATE(client.sub_paid_until)} · ${daysLeft} days left`
+                  : client.trial_active
+                  ? `Expires ${DATE(client.trial_end_date)}`
+                  : 'Trial and subscription both expired'}
+              </p>
+            </div>
+            {client.payment_count > 0 && (
+              <span style={{ fontSize: 11, color: '#7C3AED', background: '#F5F3FF', padding: '3px 8px', borderRadius: 20, fontWeight: 700 }}>
+                {client.payment_count} payments
+              </span>
+            )}
+          </div>
+          {(client.sub_active || client.trial_active) && (
+            <div style={{ height: 5, background: 'rgba(0,0,0,0.08)', borderRadius: 4, overflow: 'hidden', marginTop: 4 }}>
+              <div style={{
+                height: '100%', borderRadius: 4,
+                background: client.sub_active ? '#16a34a' : '#D97706',
+                width: client.sub_active
+                  ? `${Math.min(100, (daysLeft / 31) * 100)}%`
+                  : `${Math.min(100, (client.trial_days_remaining / 30) * 100)}%`,
+              }} />
+            </div>
+          )}
+        </div>
+
+        {/* ── Grant Subscription ── */}
+        <div style={{ border: '1.5px solid #E2E8F0', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <CreditCard size={14} color="#1A7A4A" />
+            <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Grant / Extend Subscription</p>
+          </div>
+          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Grant for how many months?</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1', '3', '6', '12'].map(m => (
+                <button key={m} onClick={() => setGrantMonths(m)}
+                  style={{
+                    flex: 1, padding: '8px 0', borderRadius: 8, border: '1.5px solid',
+                    borderColor: grantMonths === m ? '#1A7A4A' : '#E2E8F0',
+                    background: grantMonths === m ? '#F0FDF4' : '#fff',
+                    color: grantMonths === m ? '#1A7A4A' : '#64748B',
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                  {m}mo
+                </button>
+              ))}
+            </div>
+            <button
+              disabled={loading}
+              onClick={() => act(`Subscription granted for ${grantMonths} month(s)`,
+                () => superApi.put(`/super-admin/clients/${client.id}/subscription`, { months: parseInt(grantMonths) })
+              )}
+              style={{
+                padding: '10px 0', borderRadius: 10, border: 'none',
+                background: '#1A7A4A', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              {loading ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={13} />}
+              Grant {grantMonths} Month{grantMonths !== '1' ? 's' : ''} Free
+            </button>
+          </div>
+        </div>
+
+        {/* ── Trial management ── */}
+        <div style={{ border: '1.5px solid #E2E8F0', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Clock size={14} color="#D97706" />
+            <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Trial Management</p>
+          </div>
+          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Extend trial by</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+              {['7', '14', '30', '60'].map(d => (
+                <button key={d} onClick={() => setExtendDays(d)}
+                  style={{
+                    flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid',
+                    borderColor: extendDays === d ? '#D97706' : '#E2E8F0',
+                    background: extendDays === d ? '#FFFBEB' : '#fff',
+                    color: extendDays === d ? '#D97706' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                  {d}d
+                </button>
+              ))}
+            </div>
+            <button
+              disabled={loading}
+              onClick={() => act(`Trial extended by ${extendDays} days`,
+                () => superApi.put(`/super-admin/clients/${client.id}/trial`, { action: 'extend', days: parseInt(extendDays) })
+              )}
+              style={{
+                padding: '9px 0', borderRadius: 10, border: '1.5px solid #D97706',
+                background: '#FFFBEB', color: '#D97706', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Plus size={12} /> Extend Trial
+            </button>
+            <button
+              disabled={loading}
+              onClick={() => act('Fresh 30-day trial given',
+                () => superApi.put(`/super-admin/clients/${client.id}/trial`, { action: 'activate', days: 30 })
+              )}
+              style={{
+                padding: '9px 0', borderRadius: 10, border: '1.5px solid #86EFAC',
+                background: '#F0FDF4', color: '#15803D', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Zap size={12} /> Give Fresh 30-Day Trial
+            </button>
+            <button
+              disabled={loading}
+              onClick={() => {
+                if (!window.confirm('Force expire this trial immediately?')) return;
+                act('Trial expired', () => superApi.put(`/super-admin/clients/${client.id}/trial`, { action: 'expire' }));
+              }}
+              style={{
+                padding: '9px 0', borderRadius: 10, border: '1.5px solid #FECACA',
+                background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <TimerOff size={12} /> Force Expire Now
+            </button>
+          </div>
+        </div>
+
+        {/* Account actions */}
+        <div style={{ border: '1.5px solid #E2E8F0', borderRadius: 14, padding: '14px 16px' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 10 }}>ACCOUNT ACTIONS</p>
+          <button
+            disabled={loading}
+            onClick={() => {
+              const newStatus = client.status === 'active' ? 'suspended' : 'active';
+              if (newStatus === 'suspended' && !window.confirm('Suspend this client? They won\'t be able to login.')) return;
+              act(`Client ${newStatus}`,
+                () => superApi.put(`/super-admin/clients/${client.id}/status`, { status: newStatus })
+              );
+            }}
+            style={{
+              width: '100%', padding: '10px 0', borderRadius: 10, border: '1.5px solid',
+              borderColor: client.status === 'active' ? '#FECACA' : '#86EFAC',
+              background: client.status === 'active' ? '#FEF2F2' : '#F0FDF4',
+              color: client.status === 'active' ? '#DC2626' : '#15803D',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            }}
+          >
+            {client.status === 'active'
+              ? <><XCircle size={14} /> Suspend Client</>
+              : <><CheckCircle2 size={14} /> Activate Client</>}
+          </button>
+        </div>
+
+        {/* Dates */}
+        <div style={{ fontSize: 12, color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Registered</span><strong style={{ color: '#64748B' }}>{DATE(client.created_at)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Last Active</span><strong style={{ color: '#64748B' }}>{DATE(client.last_active)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Last Payslip</span><strong style={{ color: '#64748B' }}>{DATE(client.last_payslip)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Last Payment</span><strong style={{ color: '#64748B' }}>{DATE(client.last_payment_at)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Onboarding</span>
+            <strong style={{ color: client.onboarding_completed ? '#15803D' : '#D97706' }}>
+              {client.onboarding_completed ? '✅ Done' : '⏳ Pending'}
+            </strong>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
+export default function SuperClientsPage() {
+  const qc = useQueryClient();
+  const [search,   setSearch]   = useState('');
+  const [filter,   setFilter]   = useState('all');  // all | paid | trial | expired
+  const [selected, setSelected] = useState(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['super-clients'],
+    queryFn:  () => superApi.get('/super-admin/clients').then(r => r.data),
+  });
+
+  const refresh = async () => {
+    await qc.invalidateQueries({ queryKey: ['super-clients'] });
+    // Re-select with fresh data
+    const fresh = await superApi.get('/super-admin/clients').then(r => r.data);
+    if (selected) {
+      const updated = (fresh.clients || []).find(c => c.id === selected.id);
+      if (updated) setSelected(updated);
+    }
+  };
+
+  const clients = useMemo(() => {
+    let all = data?.clients || [];
+    if (filter !== 'all') all = all.filter(c => c.account_type === filter);
+    if (search) {
+      const q = search.toLowerCase();
+      all = all.filter(c => (c.company_name || '').toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
+    }
+    return all;
+  }, [data, search, filter]);
+
+  const counts = useMemo(() => {
+    const all = data?.clients || [];
+    return {
+      all:     all.length,
+      paid:    all.filter(c => c.account_type === 'paid').length,
+      trial:   all.filter(c => c.account_type === 'trial').length,
+      expired: all.filter(c => c.account_type === 'expired').length,
+    };
+  }, [data]);
+
+  const FILTERS = [
+    { key: 'all',     label: `All (${counts.all})` },
+    { key: 'paid',    label: `✅ Paid (${counts.paid})` },
+    { key: 'trial',   label: `🕐 Trial (${counts.trial})` },
+    { key: 'expired', label: `❌ Expired (${counts.expired})` },
+  ];
+
+  return (
+    <div style={{ display: 'flex', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
+
+      {/* ── Left: client list ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', borderRight: '1px solid #F1F5F9' }}>
+
+        {/* Toolbar */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <h1 style={{ fontSize: 17, fontWeight: 900, color: '#0F172A' }}>All Clients</h1>
+              <p style={{ fontSize: 12, color: '#94A3B8' }}>{clients.length} shown</p>
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {FILTERS.map(f => (
+              <button key={f.key} onClick={() => setFilter(f.key)}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, border: '1.5px solid',
+                  borderColor: filter === f.key ? '#1A7A4A' : '#E2E8F0',
+                  background:  filter === f.key ? '#F0FDF4' : '#fff',
+                  color:       filter === f.key ? '#1A7A4A' : '#64748B',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by company or email…"
+              style={{
+                width: '100%', padding: '8px 12px 8px 32px', borderRadius: 10,
+                border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none',
+                background: '#F8FAFC', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
           {isLoading ? (
-            <div className="py-16 text-center text-slate-400 text-sm">Loading clients…</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>Loading clients…</div>
           ) : clients.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 text-sm">No clients found</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>No clients found</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead style={{ background: '#F8FAFC', position: 'sticky', top: 0, zIndex: 5 }}>
                 <tr>
-                  {['Company', 'Plan', 'Trial', 'Employees', 'Onboarding', 'Status', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                  {['Company', 'Status', 'Sub / Trial', 'Employees', 'Total Paid', 'Registered', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap', borderBottom: '1px solid #F1F5F9' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {clients.map(c => (
                   <tr
                     key={c.id}
                     onClick={() => setSelected(c)}
-                    className={`cursor-pointer hover:bg-slate-50 transition-colors ${selected?.id === c.id ? 'bg-orange-50' : ''}`}
+                    style={{
+                      borderBottom: '1px solid #F8FAFC',
+                      cursor: 'pointer',
+                      background: selected?.id === c.id ? '#FFF7ED' : 'transparent',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = '#F8FAFC'; }}
+                    onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: '#E85C2F' }}>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 9, background: '#E85C2F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
                           {(c.company_name || c.email || '?')[0].toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900 text-xs truncate max-w-[110px]">{c.company_name || '—'}</p>
-                          <p className="text-[10px] text-slate-400 truncate max-w-[110px]">{c.email}</p>
+                          <p style={{ fontWeight: 700, color: '#0F172A', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.company_name || '—'}</p>
+                          <p style={{ color: '#94A3B8', fontSize: 10, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        c.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                        c.plan === 'professional' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>{c.plan || 'starter'}</span>
-                    </td>
-                    <td className="px-4 py-3"><TrialBadge client={c} /></td>
-                    <td className="px-4 py-3 text-slate-700 font-medium text-xs">{c.employee_count}</td>
-                    <td className="px-4 py-3">
-                      {c.onboarding_completed
-                        ? <span className="flex items-center gap-1 text-[10px] text-green-600"><CheckCircle2 size={11} /> Done</span>
-                        : <span className="flex items-center gap-1 text-[10px] text-amber-600"><AlertCircle size={11} /> Pending</span>
+                    <td style={{ padding: '11px 14px' }}><TypeBadge type={c.account_type} /></td>
+                    <td style={{ padding: '11px 14px', color: '#64748B' }}>
+                      {c.sub_active
+                        ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <CreditCard size={11} color="#16a34a" />
+                            <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                              {Math.max(0, Math.ceil((new Date(c.sub_paid_until) - new Date()) / (1000*60*60*24)))}d left
+                            </span>
+                          </span>
+                        : c.trial_active
+                        ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Clock size={11} color="#D97706" />
+                            <span style={{ color: '#D97706', fontWeight: 700 }}>{c.trial_days_remaining}d left</span>
+                          </span>
+                        : <span style={{ color: '#DC2626', fontWeight: 700 }}>Expired</span>
                       }
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        c.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-                      }`}>{c.status || 'active'}</span>
+                    <td style={{ padding: '11px 14px', color: '#374151', fontWeight: 700 }}>{c.employee_count}</td>
+                    <td style={{ padding: '11px 14px', fontWeight: 700, color: c.total_paid > 0 ? '#16a34a' : '#94A3B8' }}>
+                      {c.total_paid > 0 ? INR(c.total_paid) : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={{ padding: '11px 14px', color: '#94A3B8' }}>{DATE(c.created_at)}</td>
+                    <td style={{ padding: '11px 14px' }}>
                       <button
-                        onClick={e => { e.stopPropagation(); toggleStatus(c); }}
-                        className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                        onClick={e => {
+                          e.stopPropagation();
+                          const newStatus = c.status === 'active' ? 'suspended' : 'active';
+                          superApi.put(`/super-admin/clients/${c.id}/status`, { status: newStatus })
+                            .then(() => { toast.success(`Client ${newStatus}`); qc.invalidateQueries({ queryKey: ['super-clients'] }); })
+                            .catch(() => toast.error('Could not update'));
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
                         title={c.status === 'active' ? 'Suspend' : 'Activate'}
                       >
                         {c.status === 'active'
-                          ? <ToggleRight size={18} className="text-green-500" />
-                          : <ToggleLeft  size={18} className="text-slate-300" />}
+                          ? <ToggleRight size={18} color="#16a34a" />
+                          : <ToggleLeft  size={18} color="#94A3B8" />}
                       </button>
                     </td>
                   </tr>
@@ -175,199 +485,13 @@ export default function SuperClientsPage() {
         </div>
       </div>
 
-      {/* ── Detail drawer ────────────────────────────────────────────── */}
+      {/* ── Right: detail panel ── */}
       {selected && (
-        <div className="w-1/2 bg-white flex flex-col overflow-y-auto">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-            <h2 className="text-sm font-bold text-slate-900">Client Detail</h2>
-            <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
-          </div>
-
-          <div className="p-6 space-y-6">
-            {/* Avatar + name */}
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black" style={{ background: '#E85C2F' }}>
-                {(selected.company_name || selected.email || '?')[0].toUpperCase()}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{selected.company_name || '—'}</h3>
-                <p className="text-sm text-slate-500">{selected.email}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    selected.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-                  }`}>{selected.status || 'active'}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    selected.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                    selected.plan === 'professional' ? 'bg-blue-100 text-blue-700' :
-                    'bg-slate-100 text-slate-600'
-                  }`}>{selected.plan || 'starter'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Employees', value: selected.employee_count },
-                { label: 'Payslips',  value: selected.payslip_count },
-                { label: 'Industry',  value: selected.company_industry || '—' },
-              ].map((s, i) => (
-                <div key={i} className="rounded-xl p-3 bg-slate-50 border border-slate-100 text-center">
-                  <p className="text-xl font-black text-slate-900">{s.value}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Trial Status Card ──────────────────────────────────── */}
-            <div className="rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                <Clock size={14} className="text-slate-500" />
-                <h4 className="text-xs font-bold text-slate-700">Free Trial</h4>
-              </div>
-              <div className="p-4">
-                {/* Trial status row */}
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">
-                      {selected.trial_active
-                        ? `${selected.trial_days_remaining} days remaining`
-                        : 'Trial expired'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {selected.trial_end_date
-                        ? `Ends ${fmtDate(selected.trial_end_date)}`
-                        : 'No trial date set'}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    selected.trial_active
-                      ? selected.trial_days_remaining <= 3
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-green-100 text-green-700'
-                      : 'bg-red-100 text-red-600'
-                  }`}>
-                    {selected.trial_active ? 'Active' : 'Expired'}
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                {selected.trial_active && (
-                  <div className="mb-4">
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(100, (selected.trial_days_remaining / (selected.trial_days || 30)) * 100)}%`,
-                          background: selected.trial_days_remaining <= 3 ? '#F59E0B' : '#E85C2F',
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Extend trial */}
-                <div className="space-y-2">
-                  <label className="block text-[11px] font-semibold text-slate-600">Extend trial by</label>
-                  <div className="flex gap-2">
-                    <div className="flex gap-1.5">
-                      {['7', '14', '30', '60'].map(d => (
-                        <button key={d}
-                          onClick={() => setExtendDays(d)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                            extendDays === d
-                              ? 'border-orange-500 text-orange-600 bg-orange-50'
-                              : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                          }`}>
-                          {d}d
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      disabled={trialLoading}
-                      onClick={() => updateTrial(selected, 'extend', extendDays)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                      style={{ background: '#E85C2F' }}
-                    >
-                      <Plus size={12} /> Extend
-                    </button>
-                  </div>
-
-                  {/* Activate fresh trial */}
-                  <button
-                    disabled={trialLoading}
-                    onClick={() => updateTrial(selected, 'activate', 30)}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border-2 border-green-200 text-green-700 hover:bg-green-50 transition-all disabled:opacity-50"
-                  >
-                    <Zap size={13} /> Give Fresh 30-Day Trial
-                  </button>
-
-                  {/* Force expire */}
-                  <button
-                    disabled={trialLoading}
-                    onClick={() => {
-                      if (window.confirm('Force-expire this client\'s trial immediately?')) {
-                        updateTrial(selected, 'expire');
-                      }
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
-                  >
-                    <TimerOff size={13} /> Force Expire Now
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Company info */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Company Info</h4>
-              {[
-                { label: 'Company Size', value: selected.company_size || '—' },
-                { label: 'Registered',   value: fmtDate(selected.created_at) },
-                { label: 'Last Active',  value: fmtDate(selected.last_active) },
-                { label: 'Onboarding',   value: selected.onboarding_completed ? '✅ Completed' : '⏳ Pending' },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between py-2 border-b border-slate-50">
-                  <span className="text-xs text-slate-500">{label}</span>
-                  <span className="text-xs font-semibold text-slate-800">{value}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Plan + status actions */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Account Actions</h4>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Change Plan</label>
-                <div className="flex gap-2">
-                  {PLANS.map(p => (
-                    <button key={p} onClick={() => changePlan(selected, p)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all capitalize ${
-                        (selected.plan || 'starter') === p
-                          ? 'border-orange-500 text-orange-600 bg-orange-50'
-                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                      }`}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={() => toggleStatus(selected)}
-                className={`w-full py-2.5 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2 ${
-                  selected.status === 'active'
-                    ? 'border-red-200 text-red-600 hover:bg-red-50'
-                    : 'border-green-200 text-green-600 hover:bg-green-50'
-                }`}>
-                {selected.status === 'active'
-                  ? <><XCircle size={15} /> Suspend Client</>
-                  : <><CheckCircle2 size={15} /> Activate Client</>}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ClientDetail
+          client={selected}
+          onClose={() => setSelected(null)}
+          onRefresh={refresh}
+        />
       )}
     </div>
   );

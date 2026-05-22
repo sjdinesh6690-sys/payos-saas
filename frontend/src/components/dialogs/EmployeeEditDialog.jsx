@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { MapPin } from 'lucide-react';
 
 const EMPTY = {
   employee_id: '', employee_name: '', email: '',
@@ -13,8 +14,16 @@ const EMPTY = {
 
 export default function EmployeeEditDialog({ open, onOpenChange, employee, onSaved }) {
   const isNew = !employee;
-  const [form, setForm]   = useState(EMPTY);
-  const [saving, setSaving] = useState(false);
+  const [form, setForm]       = useState(EMPTY);
+  const [saving, setSaving]   = useState(false);
+  const [locations, setLocations] = useState([]);   // list from /api/locations
+
+  // Fetch locations whenever dialog opens
+  useEffect(() => {
+    if (open) {
+      api.get('/locations').then(r => setLocations(r.data)).catch(() => setLocations([]));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (employee) {
@@ -111,8 +120,42 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Branch / Location</label>
-              <Input value={form.location} onChange={set('location')} placeholder="e.g. Chennai Head Office, Warehouse B" />
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <MapPin size={12} /> Branch / Location
+                </span>
+              </label>
+              {locations.length > 0 ? (
+                <select
+                  value={form.location}
+                  onChange={set('location')}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: form.location ? '#0F172A' : '#94A3B8',
+                    background: '#fff',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">— Select location —</option>
+                  {locations.map(l => (
+                    <option key={l.id} value={l.name}>
+                      {l.name}{l.city ? ` (${l.city})` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <Input value={form.location} onChange={set('location')} placeholder="e.g. Chennai Head Office, Warehouse B" />
+                  <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                    💡 Add locations in <strong>Locations</strong> settings for a dropdown here.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Salary Info Banner */}

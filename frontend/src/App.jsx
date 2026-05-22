@@ -26,12 +26,14 @@ import AnalyticsPage          from '@/components/admin/AnalyticsPage';
 import AttendancePage         from '@/pages/AttendancePage';
 import BillingPage            from '@/pages/BillingPage';
 import LeavePolicyPage        from '@/pages/LeavePolicyPage';
+import LocationsPage          from '@/pages/LocationsPage';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
 import SuperAdminLayout       from '@/pages/super-admin/SuperAdminLayout';
 import SuperDashboardPage     from '@/pages/super-admin/SuperDashboardPage';
 import SuperClientsPage       from '@/pages/super-admin/SuperClientsPage';
+import SuperPaymentsPage      from '@/pages/super-admin/SuperPaymentsPage';
 import ErrorMonitorPage       from '@/pages/super-admin/ErrorMonitorPage';
 
 export default function App() {
@@ -72,6 +74,7 @@ export default function App() {
             <Route path="billing"        element={<BillingPage />} />
             <Route path="payroll-config" element={<PayrollConfigPage />} />
             <Route path="leave-policy"   element={<LeavePolicyPage />} />
+            <Route path="locations"      element={<LocationsPage />} />
             <Route path="settings"       element={<SettingsPage />} />
           </Route>
 
@@ -81,6 +84,7 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<SuperDashboardPage />} />
             <Route path="clients"   element={<SuperClientsPage />} />
+            <Route path="payments"  element={<SuperPaymentsPage />} />
             <Route path="analytics" element={<SuperDashboardPage />} />
             <Route path="errors"    element={<ErrorMonitorPage />} />
           </Route>

@@ -26,30 +26,40 @@ function calcAmounts(base) {
 }
 
 // ── GET /api/billing/status ───────────────────────────────────────────────────
-// Returns current plan status, limits, employee count, trial info
+// Returns current plan status, employee count, trial info — clean and accurate
 router.get('/status', async (req, res) => {
   try {
     const adminId = req.admin_id;
     const now     = new Date();
 
-    // Admin info (for trial)
+    // Admin info
     const adminRes = await pool.query(
-      'SELECT trial_end_date, company_name, company_gstin FROM admins WHERE id = $1',
+      `SELECT created_at, trial_start_date, trial_end_date, trial_days, company_name
+       FROM admins WHERE id = $1`,
       [adminId]
     );
     const admin = adminRes.rows[0] || {};
-    const trialActive = admin.trial_end_date && new Date(admin.trial_end_date) > now;
-    const trialDaysLeft = trialActive
-      ? Math.ceil((new Date(admin.trial_end_date) - now) / (1000 * 60 * 60 * 24))
-      : 0;
 
-    // Subscription info
+    // Trial: end date = trial_end_date (set on signup) OR created_at + 30 days fallback
+    const trialEnd = admin.trial_end_date
+      ? new Date(admin.trial_end_date)
+      : new Date(new Date(admin.created_at).getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const trialDaysLeft  = Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24)));
+    const trialActive    = trialDaysLeft > 0;
+
+    // Trial start = trial_start_date or created_at
+    const trialStart = admin.trial_start_date
+      ? new Date(admin.trial_start_date)
+      : new Date(admin.created_at);
+
+    // Subscription info (paid plan)
     const subRes = await pool.query(
       'SELECT * FROM subscriptions WHERE admin_id = $1',
       [adminId]
     );
-    const sub        = subRes.rows[0];
-    const subActive  = sub && sub.status === 'active' && new Date(sub.paid_until) > now;
+    const sub       = subRes.rows[0];
+    const subActive = sub && sub.status === 'active' && new Date(sub.paid_until) > now;
 
     // Active employee count
     const empRes = await pool.query(
@@ -59,39 +69,46 @@ router.get('/status', async (req, res) => {
     );
     const employeeCount = parseInt(empRes.rows[0].cnt);
 
-    // Effective limit & can_generate
-    let employeeLimit   = 0;
-    let canGenerate     = false;
-    let planLabel       = 'No Plan';
-    let paidUntil       = null;
+    // ── Determine what to show ────────────────────────────────────────────────
+    // Priority: paid subscription > free trial > expired
+    let planLabel    = 'Trial Ended';
+    let paidUntil    = null;
+    let daysLeft     = 0;
+    let isFreeTrial  = false;
 
     if (subActive) {
-      employeeLimit = sub.employee_limit;
-      canGenerate   = employeeCount <= employeeLimit;
-      planLabel     = 'PayLeef Pro';
-      paidUntil     = sub.paid_until;
+      // Paid plan — show subscription expiry, ignore trial countdown
+      planLabel   = 'PayLeef Pro';
+      paidUntil   = sub.paid_until;
+      const subDays = Math.max(0, Math.ceil((new Date(sub.paid_until) - now) / (1000 * 60 * 60 * 24)));
+      daysLeft    = subDays;
+      isFreeTrial = false;
     } else if (trialActive) {
-      employeeLimit = BASE_PLAN_SLOTS; // 5-employee trial
-      canGenerate   = employeeCount <= employeeLimit;
-      planLabel     = 'Free Trial';
-      paidUntil     = admin.trial_end_date;
+      // Free trial — show trial countdown
+      planLabel   = 'Free Trial';
+      paidUntil   = trialEnd.toISOString();
+      daysLeft    = trialDaysLeft;
+      isFreeTrial = true;
     }
 
     res.json({
-      plan_label:       planLabel,
-      sub_active:       !!subActive,
-      trial_active:     !!trialActive,
-      trial_days_left:  trialDaysLeft,
-      employee_limit:   employeeLimit,
-      employee_count:   employeeCount,
-      can_generate:     canGenerate,
-      paid_until:       paidUntil,
-      // Pricing info for the UI
-      base_plan_price:  BASE_PLAN_PRICE,
-      base_plan_slots:  BASE_PLAN_SLOTS,
+      plan_label:           planLabel,
+      sub_active:           !!subActive,
+      trial_active:         !!trialActive,
+      is_free_trial:        isFreeTrial,
+      trial_days_left:      trialDaysLeft,
+      days_left:            daysLeft,          // unified days left (trial or subscription)
+      employee_count:       employeeCount,
+      employee_limit:       subActive ? sub.employee_limit : 0,  // 0 = unlimited (trial)
+      can_generate:         subActive || trialActive,            // no slot restriction
+      paid_until:           paidUntil,
+      trial_started_on:     trialStart.toISOString(),
+      trial_ends_on:        trialEnd.toISOString(),
+      // Pricing info for UI
+      base_plan_price:      BASE_PLAN_PRICE,
+      base_plan_slots:      BASE_PLAN_SLOTS,
       topup_price_per_slot: TOPUP_PRICE_PER_SLOT,
-      min_topup_slots:  MIN_TOPUP_SLOTS,
-      gst_rate:         GST_RATE,
+      gst_rate:             GST_RATE,
     });
   } catch (err) {
     console.error('billing/status error:', err.message);

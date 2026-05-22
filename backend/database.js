@@ -225,6 +225,19 @@ async function initDB() {
       )
     `);
 
+    // ── Locations (branches / offices) ───────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS locations (
+        id         SERIAL PRIMARY KEY,
+        admin_id   INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        name       VARCHAR(100) NOT NULL,
+        city       VARCHAR(100),
+        state      VARCHAR(100),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(admin_id, name)
+      )
+    `);
+
     // audit logs — security & compliance
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (

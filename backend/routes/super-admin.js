@@ -33,7 +33,7 @@ router.post('/login', (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /clients — all registered companies ────────────────────────────────
+// ── GET /clients — all registered companies with subscription + payment data ──
 router.get('/clients', superAuthCheck, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -41,37 +41,80 @@ router.get('/clients', superAuthCheck, async (req, res) => {
         a.id, a.company_name, a.email, a.plan, a.status,
         a.onboarding_completed, a.company_industry, a.company_size,
         a.last_active, a.created_at, a.trial_start_date, a.trial_end_date,
-        COUNT(DISTINCT e.id)::int                                                    AS employee_count,
-        COUNT(DISTINCT p.id)::int                                                    AS payslip_count,
-        MAX(p.created_at)                                                            AS last_payslip,
-        GREATEST(0, CEIL(EXTRACT(EPOCH FROM (a.trial_end_date - NOW())) / 86400))::int AS trial_days_remaining,
-        (NOW() < a.trial_end_date)                                                   AS trial_active
+        a.company_phone,
+        COUNT(DISTINCT e.id)::int                                                              AS employee_count,
+        COUNT(DISTINCT ps.id)::int                                                             AS payslip_count,
+        MAX(ps.created_at)                                                                     AS last_payslip,
+        GREATEST(0, CEIL(EXTRACT(EPOCH FROM (
+          COALESCE(a.trial_end_date, a.created_at + INTERVAL '30 days') - NOW()
+        )) / 86400))::int                                                                      AS trial_days_remaining,
+        (NOW() < COALESCE(a.trial_end_date, a.created_at + INTERVAL '30 days'))               AS trial_active,
+        -- Subscription info
+        sub.status                                                                             AS sub_status,
+        sub.paid_until                                                                         AS sub_paid_until,
+        sub.employee_limit                                                                     AS sub_employee_limit,
+        -- Payment totals for this client
+        COALESCE(pay_agg.total_paid, 0)::numeric                                              AS total_paid,
+        COALESCE(pay_agg.payment_count, 0)::int                                               AS payment_count,
+        pay_agg.last_payment_at                                                                AS last_payment_at
       FROM admins a
       LEFT JOIN employees e ON e.admin_id = a.id
-      LEFT JOIN payslips  p ON p.admin_id = a.id
-      GROUP BY a.id
+      LEFT JOIN payslips  ps ON ps.admin_id = a.id
+      LEFT JOIN subscriptions sub ON sub.admin_id = a.id
+      LEFT JOIN (
+        SELECT admin_id,
+               SUM(total_amount) FILTER (WHERE status = 'success')  AS total_paid,
+               COUNT(*)          FILTER (WHERE status = 'success')   AS payment_count,
+               MAX(created_at)   FILTER (WHERE status = 'success')   AS last_payment_at
+        FROM payments
+        GROUP BY admin_id
+      ) pay_agg ON pay_agg.admin_id = a.id
+      GROUP BY a.id, sub.status, sub.paid_until, sub.employee_limit, pay_agg.total_paid, pay_agg.payment_count, pay_agg.last_payment_at
       ORDER BY a.created_at DESC
     `);
 
-    const clients = result.rows.map(a => ({
-      id:                   a.id,
-      company_name:         a.company_name || '—',
-      email:                a.email,
-      plan:                 a.plan         || 'starter',
-      status:               a.status       || 'active',
-      onboarding_completed: a.onboarding_completed || false,
-      company_industry:     a.company_industry     || '—',
-      company_size:         a.company_size         || '—',
-      employee_count:       a.employee_count,
-      payslip_count:        a.payslip_count,
-      last_active:          a.last_active,
-      last_payslip:         a.last_payslip,
-      created_at:           a.created_at,
-      trial_start_date:     a.trial_start_date,
-      trial_end_date:       a.trial_end_date,
-      trial_days_remaining: a.trial_days_remaining,
-      trial_active:         a.trial_active,
-    }));
+    const now = new Date();
+    const clients = result.rows.map(a => {
+      const subActive = a.sub_status === 'active' && a.sub_paid_until && new Date(a.sub_paid_until) > now;
+      const trialEnd  = a.trial_end_date || new Date(new Date(a.created_at).getTime() + 30*24*60*60*1000);
+      const trialActive = new Date(trialEnd) > now;
+
+      let accountType = 'expired';
+      if (subActive)        accountType = 'paid';
+      else if (trialActive) accountType = 'trial';
+
+      return {
+        id:                   a.id,
+        company_name:         a.company_name || '—',
+        email:                a.email,
+        company_phone:        a.company_phone || '—',
+        plan:                 a.plan         || 'starter',
+        status:               a.status       || 'active',
+        onboarding_completed: a.onboarding_completed || false,
+        company_industry:     a.company_industry     || '—',
+        company_size:         a.company_size         || '—',
+        employee_count:       a.employee_count,
+        payslip_count:        a.payslip_count,
+        last_active:          a.last_active,
+        last_payslip:         a.last_payslip,
+        created_at:           a.created_at,
+        trial_start_date:     a.trial_start_date,
+        trial_end_date:       trialEnd,
+        trial_days_remaining: a.trial_days_remaining,
+        trial_active:         trialActive,
+        // Subscription
+        sub_status:           a.sub_status || 'inactive',
+        sub_paid_until:       a.sub_paid_until,
+        sub_employee_limit:   a.sub_employee_limit || 5,
+        sub_active:           !!subActive,
+        // Payment summary
+        total_paid:           parseFloat(a.total_paid) || 0,
+        payment_count:        a.payment_count || 0,
+        last_payment_at:      a.last_payment_at,
+        // Derived
+        account_type:         accountType,   // 'paid' | 'trial' | 'expired'
+      };
+    });
 
     res.json({ clients });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -179,21 +222,22 @@ router.put('/clients/:id/trial', superAuthCheck, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── GET /stats — platform-wide overview ───────────────────────────────────
+// ── GET /stats — platform-wide overview + revenue ────────────────────────────
 router.get('/stats', superAuthCheck, async (req, res) => {
   try {
     const now   = new Date();
     const month = now.getMonth() + 1;
     const year  = now.getFullYear();
 
-    const [clients, employees, payslips, thisMonth, signups] = await Promise.all([
+    const [clients, employees, payslips, thisMonth, signups, revenue, subStats, expiring] = await Promise.all([
       pool.query(`
         SELECT
           COUNT(*)::int                                                AS total,
-          COUNT(*) FILTER (WHERE status = 'active')::int              AS active
+          COUNT(*) FILTER (WHERE status = 'active')::int              AS active,
+          COUNT(*) FILTER (WHERE status = 'suspended')::int           AS suspended
         FROM admins
       `),
-      pool.query('SELECT COUNT(*)::int AS total FROM employees'),
+      pool.query('SELECT COUNT(*)::int AS total FROM employees WHERE status = \'active\' OR status IS NULL'),
       pool.query(`
         SELECT
           COUNT(*)::int                            AS total,
@@ -213,20 +257,132 @@ router.get('/stats', superAuthCheck, async (req, res) => {
         GROUP BY month_key
         ORDER BY month_key
       `),
+      // Revenue: total collected via Razorpay (success payments)
+      pool.query(`
+        SELECT
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'success'), 0)::numeric AS total_revenue,
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'success' AND created_at >= DATE_TRUNC('month', NOW())), 0)::numeric AS revenue_this_month,
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'success' AND created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+                                                                       AND created_at <  DATE_TRUNC('month', NOW())), 0)::numeric AS revenue_last_month,
+          COUNT(*) FILTER (WHERE status = 'success')::int AS successful_payments
+        FROM payments
+      `),
+      // Subscription health
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE s.status = 'active' AND s.paid_until > NOW())::int  AS paid_clients,
+          COUNT(*) FILTER (WHERE s.status != 'active' OR s.paid_until <= NOW())::int AS lapsed_clients
+        FROM subscriptions s
+      `),
+      // Subscriptions expiring in next 7 days
+      pool.query(`
+        SELECT a.id, a.company_name, a.email, sub.paid_until, sub.employee_limit
+        FROM subscriptions sub
+        JOIN admins a ON a.id = sub.admin_id
+        WHERE sub.status = 'active'
+          AND sub.paid_until BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+        ORDER BY sub.paid_until ASC
+        LIMIT 10
+      `),
     ]);
 
     const signupsByMonth = {};
     signups.rows.forEach(r => { signupsByMonth[r.month_key] = r.count; });
 
+    // Client breakdown by account type
+    const allAdmins = await pool.query(`
+      SELECT
+        a.id, a.trial_end_date, a.created_at,
+        sub.status AS sub_status, sub.paid_until
+      FROM admins a
+      LEFT JOIN subscriptions sub ON sub.admin_id = a.id
+    `);
+    let paidCount = 0, trialCount = 0, expiredCount = 0;
+    for (const a of allAdmins.rows) {
+      const subActive = a.sub_status === 'active' && a.paid_until && new Date(a.paid_until) > now;
+      const trialEnd  = a.trial_end_date || new Date(new Date(a.created_at).getTime() + 30*24*60*60*1000);
+      if (subActive)              paidCount++;
+      else if (new Date(trialEnd) > now) trialCount++;
+      else                        expiredCount++;
+    }
+
     res.json({
       total_clients:       clients.rows[0].total,
       active_clients:      clients.rows[0].active,
+      suspended_clients:   clients.rows[0].suspended,
+      paid_clients:        paidCount,
+      trial_clients:       trialCount,
+      expired_clients:     expiredCount,
       total_employees:     employees.rows[0].total,
       total_payslips:      payslips.rows[0].total,
       payslips_this_month: thisMonth.rows[0].total,
       total_disbursed:     parseFloat(payslips.rows[0].total_disbursed) || 0,
       signups_by_month:    signupsByMonth,
+      // Revenue
+      total_revenue:       parseFloat(revenue.rows[0].total_revenue) || 0,
+      revenue_this_month:  parseFloat(revenue.rows[0].revenue_this_month) || 0,
+      revenue_last_month:  parseFloat(revenue.rows[0].revenue_last_month) || 0,
+      successful_payments: revenue.rows[0].successful_payments,
+      // Subscriptions expiring soon
+      expiring_soon:       expiring.rows,
     });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /payments — all platform payments ────────────────────────────────────
+router.get('/payments', superAuthCheck, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        pay.id, pay.admin_id, pay.payment_type, pay.employee_slots,
+        pay.base_amount, pay.gst_amount, pay.total_amount, pay.status,
+        pay.razorpay_payment_id, pay.razorpay_order_id, pay.notes, pay.created_at,
+        a.company_name, a.email
+      FROM payments pay
+      JOIN admins a ON a.id = pay.admin_id
+      ORDER BY pay.created_at DESC
+      LIMIT 200
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PUT /clients/:id/subscription — grant or extend paid subscription ─────────
+router.put('/clients/:id/subscription', superAuthCheck, async (req, res) => {
+  try {
+    const id     = parseInt(req.params.id);
+    const { months = 1, employee_limit = 5 } = req.body;
+
+    const check = await pool.query('SELECT id FROM admins WHERE id = $1', [id]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Client not found' });
+
+    const now = new Date();
+    const existing = await pool.query('SELECT * FROM subscriptions WHERE admin_id = $1', [id]);
+
+    if (existing.rows.length) {
+      const cur    = existing.rows[0];
+      const base   = cur.status === 'active' && new Date(cur.paid_until) > now ? new Date(cur.paid_until) : now;
+      const newEnd = new Date(base);
+      newEnd.setMonth(newEnd.getMonth() + parseInt(months));
+
+      await pool.query(
+        `UPDATE subscriptions
+         SET status = 'active', paid_until = $1,
+             employee_limit = GREATEST(employee_limit, $2), updated_at = NOW()
+         WHERE admin_id = $3`,
+        [newEnd, employee_limit, id]
+      );
+    } else {
+      const newEnd = new Date(now);
+      newEnd.setMonth(newEnd.getMonth() + parseInt(months));
+      await pool.query(
+        `INSERT INTO subscriptions (admin_id, employee_limit, paid_until, status)
+         VALUES ($1, $2, $3, 'active')`,
+        [id, employee_limit, newEnd]
+      );
+    }
+
+    res.json({ success: true, message: `Subscription granted for ${months} month(s)` });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

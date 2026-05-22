@@ -130,11 +130,13 @@ export default function BillingPage() {
   );
 
   const isActive      = status?.sub_active;
-  const isTrial       = status?.trial_active && !isActive;
+  const isTrial       = status?.is_free_trial;        // true ONLY when on free trial (not paid)
   const isExpired     = !isActive && !isTrial;
   const empCount      = status?.employee_count || 0;
-  const daysLeft      = status?.trial_days_left || 0;
+  const daysLeft      = status?.days_left || 0;       // unified: sub days or trial days
   const planExpiry    = status?.paid_until;
+  const trialStarted  = status?.trial_started_on;
+  const trialEnds     = status?.trial_ends_on;
 
   return (
     <div className="p-6 max-w-2xl space-y-6">
@@ -167,22 +169,22 @@ export default function BillingPage() {
             background: isActive ? '#dcfce7' : isTrial ? '#fef3c7' : '#fee2e2',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {isActive  ? <CheckCircle  size={20} color="#16a34a" /> :
-             isTrial   ? <Clock        size={20} color="#d97706" /> :
+            {isActive  ? <CheckCircle   size={20} color="#16a34a" /> :
+             isTrial   ? <Clock         size={20} color="#d97706" /> :
                          <AlertTriangle size={20} color="#dc2626" />}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, color: isActive ? '#15803d' : isTrial ? '#92400e' : '#991b1b' }}>
-              {isActive ? 'PayLeef Pro — Active'
-               : isTrial ? `Free Trial — ${daysLeft} days left`
-               : 'Trial Ended'}
-            </div>
-            <div style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
               {isActive
-                ? `Valid until ${fmtDate(planExpiry)} · ${empCount} employee${empCount !== 1 ? 's' : ''} on account`
+                ? '✅ PayLeef Pro — Active'
                 : isTrial
-                ? `${empCount} employee${empCount !== 1 ? 's' : ''} · All features unlocked during trial`
-                : 'Purchase a plan below to continue generating payslips'}
+                ? `🕐 Free Trial — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`
+                : '❌ Trial Ended — Action Required'}
+            </div>
+            <div style={{ fontSize: 13, color: '#64748B', marginTop: 3, lineHeight: 1.6 }}>
+              {isActive && `Subscription valid until ${fmtDate(planExpiry)} · ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left · ${empCount} employee${empCount !== 1 ? 's' : ''}`}
+              {isTrial  && `Free trial runs for 30 days from account creation · expires ${fmtDate(trialEnds)} · No restrictions during trial`}
+              {isExpired && 'Your free trial has ended. Purchase the plan below to continue generating payslips.'}
             </div>
           </div>
         </div>
