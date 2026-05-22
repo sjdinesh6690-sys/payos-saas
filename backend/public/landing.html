@@ -841,15 +841,43 @@ footer{background:var(--slate);padding:64px 0 32px}
         </div>
         <a href="/register" class="price-btn price-btn-primary">Start Free Trial →</a>
         <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">All prices + 18% GST &nbsp;·&nbsp; Cancel anytime</div>
+
+        <!-- Customisation divider inside card -->
+        <div style="margin-top:24px;padding-top:20px;border-top:1.5px dashed #e2e8f0">
+          <div style="text-align:center;margin-bottom:14px">
+            <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em">Need more than this?</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
+              <span style="color:#7c3aed;font-weight:700">✦</span> Biometric attendance integration
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
+              <span style="color:#7c3aed;font-weight:700">✦</span> Multi-shift &amp; factory payroll
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
+              <span style="color:#7c3aed;font-weight:700">✦</span> Custom approval workflows
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
+              <span style="color:#7c3aed;font-weight:700">✦</span> WhatsApp payslip delivery
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
+              <span style="color:#7c3aed;font-weight:700">✦</span> Role-based access &amp; audit logs
+            </div>
+          </div>
+          <button onclick="openCustomModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            🛠️ Request Custom Build →
+          </button>
+          <div style="text-align:center;margin-top:8px;font-size:11px;color:#94a3b8">Free consultation · We call you back within 24 hrs</div>
+        </div>
       </div>
     </div>
 
-    <!-- Contact for Custom Requirements -->
+    <!-- Contact for Custom Requirements box below grid -->
     <div class="contact-cta-box reveal">
-      <div style="font-size:28px;margin-bottom:10px">🤝</div>
+      <div style="font-size:32px;margin-bottom:10px">🤝</div>
       <h3>Need Something Custom?</h3>
-      <p>Larger teams, special workflows, biometric integration, or industry-specific requirements? We'll build a solution that fits your business perfectly.</p>
-      <a href="#contact" class="price-btn price-btn-outline">Contact Us for Customisation →</a>
+      <p>Larger teams, special workflows, biometric integration, or industry-specific requirements? We'll design and build a solution that fits your business perfectly — at an affordable price.</p>
+      <button onclick="openCustomModal()" class="price-btn price-btn-outline" style="border:1.5px solid #1A7A4A;cursor:pointer;background:#fff;color:#1A7A4A;font-weight:700">Contact Us for Customisation →</button>
     </div>
 
     <div class="price-note reveal">No hidden charges. No setup fees. <strong>Cancel anytime</strong> — no questions asked. GST applicable on all transactions.
@@ -1277,6 +1305,151 @@ if (trustSection) {
   new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting) animateCounters();
   }, { threshold: 0.3 }).observe(trustSection);
+}
+</script>
+<!-- ═══════════════════════════════════════════════════════════════════
+     CUSTOMISATION ENQUIRY MODAL
+════════════════════════════════════════════════════════════════════ -->
+<div id="custom-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,.25);position:relative">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0F172A,#1E293B);border-radius:24px 24px 0 0;padding:28px 32px 24px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.02em">🛠️ Custom Requirements</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:4px">Tell us what you need — we'll build it for you</div>
+        </div>
+        <button onclick="closeCustomModal()" style="background:rgba(255,255,255,.1);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form id="custom-form" onsubmit="submitCustomForm(event)" style="padding:28px 32px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Your Name *</label>
+          <input name="name" required placeholder="Ramesh Kumar" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;transition:border .2s" onfocus="this.style.borderColor='#1A7A4A'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Phone *</label>
+          <input name="phone" required type="tel" placeholder="+91 98765 43210" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;transition:border .2s" onfocus="this.style.borderColor='#1A7A4A'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Email</label>
+          <input name="email" type="email" placeholder="you@company.com" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;transition:border .2s" onfocus="this.style.borderColor='#1A7A4A'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Company Name *</label>
+          <input name="company" required placeholder="Your Company Pvt Ltd" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;transition:border .2s" onfocus="this.style.borderColor='#1A7A4A'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">No. of Employees</label>
+          <select name="employees" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;background:#fff;cursor:pointer">
+            <option value="">Select range</option>
+            <option>1 – 25</option>
+            <option>26 – 50</option>
+            <option>51 – 100</option>
+            <option>101 – 250</option>
+            <option>250+</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Industry</label>
+          <select name="industry" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;background:#fff;cursor:pointer">
+            <option value="">Select industry</option>
+            <option>Manufacturing</option>
+            <option>Warehouse / Logistics</option>
+            <option>Retail</option>
+            <option>Construction</option>
+            <option>IT / Software</option>
+            <option>Healthcare</option>
+            <option>Hospitality</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">What do you need? *</label>
+          <textarea name="requirements" required rows="4" placeholder="Example: We need biometric attendance integration, multi-shift payroll, site-wise salary reports, and WhatsApp payslip delivery for our 3 factories..." style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;transition:border .2s" onfocus="this.style.borderColor='#1A7A4A'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" id="custom-submit-btn" style="width:100%;margin-top:20px;padding:14px;background:#1A7A4A;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#15603b'" onmouseout="this.style.background='#1A7A4A'">
+        Send My Requirements →
+      </button>
+
+      <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:12px;margin-bottom:0">
+        We'll call you back within 24 hours · No spam, ever
+      </p>
+
+      <!-- Success state (hidden by default) -->
+      <div id="custom-success" style="display:none;text-align:center;padding:20px 0">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px">Thank you! We'll be in touch.</div>
+        <div style="font-size:14px;color:#64748b">Our team will call you within 24 hours to discuss your requirements.</div>
+        <button onclick="closeCustomModal()" style="margin-top:20px;padding:11px 28px;background:#1A7A4A;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Close</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCustomModal() {
+  const m = document.getElementById('custom-modal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeCustomModal() {
+  const m = document.getElementById('custom-modal');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+  // Reset form
+  document.getElementById('custom-form').reset();
+  document.getElementById('custom-success').style.display = 'none';
+  document.getElementById('custom-submit-btn').style.display = 'block';
+}
+// Close on backdrop click
+document.getElementById('custom-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCustomModal();
+});
+
+async function submitCustomForm(e) {
+  e.preventDefault();
+  const btn  = document.getElementById('custom-submit-btn');
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form));
+  data.type  = 'customisation';
+
+  btn.textContent = 'Sending…';
+  btn.disabled    = true;
+  btn.style.opacity = '0.7';
+
+  try {
+    const res = await fetch('/api/contact', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+    if (res.ok) {
+      btn.style.display = 'none';
+      document.getElementById('custom-success').style.display = 'block';
+    } else {
+      throw new Error('Server error');
+    }
+  } catch (err) {
+    btn.textContent  = 'Send My Requirements →';
+    btn.disabled     = false;
+    btn.style.opacity = '1';
+    alert('Something went wrong. Please call us directly or try again.');
+  }
 }
 </script>
 </body>
