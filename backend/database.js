@@ -137,6 +137,26 @@ async function initDB() {
       )
     `);
 
+    // ── Leave Policy (company-wide) ───────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS leave_policies (
+        id                      SERIAL PRIMARY KEY,
+        admin_id                INTEGER UNIQUE REFERENCES admins(id) ON DELETE CASCADE,
+        casual_leave_days       INTEGER     DEFAULT 12,
+        sick_leave_days         INTEGER     DEFAULT 12,
+        earned_leave_days       INTEGER     DEFAULT 15,
+        working_days_per_month  INTEGER     DEFAULT 26,
+        leave_year_start_month  INTEGER     DEFAULT 4,
+        created_at              TIMESTAMPTZ DEFAULT NOW(),
+        updated_at              TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Add leave type columns to attendance table
+    await client.query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS casual_leave  INTEGER DEFAULT 0`);
+    await client.query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS sick_leave    INTEGER DEFAULT 0`);
+    await client.query(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS earned_leave  INTEGER DEFAULT 0`);
+
     // ── Billing: Subscriptions ────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS subscriptions (

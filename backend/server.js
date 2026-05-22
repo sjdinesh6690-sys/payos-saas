@@ -97,6 +97,7 @@ initDB().then(async () => {
   app.use('/api/contact',        require('./routes/contact'));
   app.use('/api/attendance',     require('./routes/attendance'));
   app.use('/api/billing',        require('./routes/billing'));
+  app.use('/api/leave-policy',   require('./routes/leave-policy'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));

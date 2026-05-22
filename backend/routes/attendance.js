@@ -1,4 +1,5 @@
 // attendance.js — monthly attendance tracking per employee
+// Supports CL / SL / EL leave types with automatic LOP calculation
 const express   = require('express');
 const router    = express.Router();
 const { pool }  = require('../database');
@@ -6,56 +7,153 @@ const authCheck = require('../middleware/auth');
 
 router.use(authCheck);
 
-// GET /api/attendance?month=5&year=2026
-// Returns attendance records for all employees for the given month
+// Helper: get leave policy for admin (returns defaults if none set)
+async function getLeavePolicy(adminId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM leave_policies WHERE admin_id = $1', [adminId]
+  );
+  return rows[0] || {
+    casual_leave_days: 12, sick_leave_days: 12, earned_leave_days: 15,
+    working_days_per_month: 26, leave_year_start_month: 4,
+  };
+}
+
+// Helper: get YTD leave usage for all employees (before the given month)
+async function getYtdUsage(adminId, month, year, leaveYearStartMonth) {
+  // Build the leave year month range UP TO (but not including) the current month
+  const pairs = [];
+  let m = leaveYearStartMonth;
+  const startYear = (month >= leaveYearStartMonth) ? year : year - 1;
+  let y = startYear;
+
+  for (let i = 0; i < 12; i++) {
+    // Stop when we reach the current month
+    if (y === parseInt(year) && m === parseInt(month)) break;
+    if (y > parseInt(year)) break;
+    pairs.push({ month: m, year: y });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+
+  if (pairs.length === 0) return {};
+
+  const values = [adminId];
+  const placeholders = pairs.map((_, i) => `($${i * 2 + 2}, $${i * 2 + 3})`).join(',');
+  pairs.forEach(p => { values.push(p.month); values.push(p.year); });
+
+  const { rows } = await pool.query(
+    `SELECT employee_id,
+            SUM(COALESCE(casual_leave, 0)) AS cl_used,
+            SUM(COALESCE(sick_leave,   0)) AS sl_used,
+            SUM(COALESCE(earned_leave, 0)) AS el_used
+     FROM attendance
+     WHERE admin_id = $1
+       AND (month, year) IN (${placeholders})
+     GROUP BY employee_id`,
+    values
+  );
+
+  const map = {};
+  rows.forEach(r => {
+    map[r.employee_id] = {
+      cl_used: parseInt(r.cl_used) || 0,
+      sl_used: parseInt(r.sl_used) || 0,
+      el_used: parseInt(r.el_used) || 0,
+    };
+  });
+  return map;
+}
+
+// ── GET /api/attendance?month=5&year=2026 ────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const { month, year } = req.query;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
-    // Get all active employees
+    const policy = await getLeavePolicy(req.admin_id);
+    const ytd    = await getYtdUsage(req.admin_id, month, year, policy.leave_year_start_month);
+
+    // All active employees
     const empResult = await pool.query(
       `SELECT employee_id, employee_name, department, location
-         FROM employees
-        WHERE admin_id = $1 AND (status IS NULL OR status = 'active')
-        ORDER BY employee_name`,
+       FROM employees
+       WHERE admin_id = $1 AND (status IS NULL OR status = 'active')
+       ORDER BY employee_name`,
       [req.admin_id]
     );
 
-    // Get existing attendance records for this month
+    // Existing attendance records for this month
     const attResult = await pool.query(
-      `SELECT employee_id, working_days, present_days, lop_days, notes
-         FROM attendance
-        WHERE admin_id = $1 AND month = $2 AND year = $3`,
+      `SELECT employee_id, working_days, present_days, lop_days,
+              COALESCE(casual_leave, 0) AS casual_leave,
+              COALESCE(sick_leave,   0) AS sick_leave,
+              COALESCE(earned_leave, 0) AS earned_leave,
+              notes
+       FROM attendance
+       WHERE admin_id = $1 AND month = $2 AND year = $3`,
       [req.admin_id, parseInt(month), parseInt(year)]
     );
 
-    // Map attendance by employee_id for fast lookup
     const attMap = {};
     attResult.rows.forEach(r => { attMap[r.employee_id] = r; });
 
-    // Merge — if no record exists, default to full attendance
-    const records = empResult.rows.map(emp => ({
-      employee_id:   emp.employee_id,
-      employee_name: emp.employee_name,
-      department:    emp.department || '',
-      location:      emp.location   || '',
-      working_days:  attMap[emp.employee_id]?.working_days ?? 26,
-      present_days:  attMap[emp.employee_id]?.present_days ?? 26,
-      lop_days:      attMap[emp.employee_id]?.lop_days     ?? 0,
-      notes:         attMap[emp.employee_id]?.notes        || '',
-      saved:         !!attMap[emp.employee_id],
-    }));
+    const defaultWD = policy.working_days_per_month || 26;
 
-    res.json({ records, month: parseInt(month), year: parseInt(year) });
+    const records = empResult.rows.map(emp => {
+      const att     = attMap[emp.employee_id];
+      const ytdEmp  = ytd[emp.employee_id] || { cl_used: 0, sl_used: 0, el_used: 0 };
+
+      // This month's leave usage (already saved or default 0)
+      const cl_this = att ? parseInt(att.casual_leave) || 0 : 0;
+      const sl_this = att ? parseInt(att.sick_leave)   || 0 : 0;
+      const el_this = att ? parseInt(att.earned_leave) || 0 : 0;
+
+      // Remaining balance AFTER this month's usage
+      const cl_balance = policy.casual_leave_days  - ytdEmp.cl_used - cl_this;
+      const sl_balance = policy.sick_leave_days    - ytdEmp.sl_used - sl_this;
+      const el_balance = policy.earned_leave_days  - ytdEmp.el_used - el_this;
+
+      const wd  = att ? parseInt(att.working_days) || defaultWD : defaultWD;
+      const pd  = att ? parseInt(att.present_days) ?? wd : wd;
+      const lop = att ? parseInt(att.lop_days) || 0 : 0;
+
+      return {
+        employee_id:    emp.employee_id,
+        employee_name:  emp.employee_name,
+        department:     emp.department || '',
+        location:       emp.location   || '',
+        working_days:   wd,
+        present_days:   pd,
+        casual_leave:   cl_this,
+        sick_leave:     sl_this,
+        earned_leave:   el_this,
+        lop_days:       lop,
+        notes:          att?.notes || '',
+        saved:          !!att,
+        // YTD balances (before this month — for reference)
+        cl_used_ytd:    ytdEmp.cl_used,
+        sl_used_ytd:    ytdEmp.sl_used,
+        el_used_ytd:    ytdEmp.el_used,
+        // Remaining after this month
+        cl_balance,
+        sl_balance,
+        el_balance,
+      };
+    });
+
+    res.json({
+      records,
+      month:  parseInt(month),
+      year:   parseInt(year),
+      policy,
+    });
   } catch (err) {
     console.error('[attendance/get]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/attendance — bulk save attendance for a month
-// Body: { month, year, records: [{ employee_id, working_days, present_days, lop_days, notes }] }
+// ── POST /api/attendance — bulk save ─────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
     const { month, year, records } = req.body;
@@ -65,20 +163,47 @@ router.post('/', async (req, res) => {
 
     let saved = 0;
     for (const r of records) {
-      const { employee_id, working_days = 26, present_days, lop_days = 0, notes = '' } = r;
+      const {
+        employee_id,
+        working_days = 26,
+        present_days,
+        casual_leave  = 0,
+        sick_leave    = 0,
+        earned_leave  = 0,
+        lop_days,
+        notes = '',
+      } = r;
       if (!employee_id) continue;
 
-      // Calculate lop_days from present_days if not explicitly set
       const wd  = parseInt(working_days)  || 26;
       const pd  = parseInt(present_days)  ?? wd;
-      const lop = parseInt(lop_days)      || Math.max(0, wd - pd);
+      const cl  = Math.max(0, parseInt(casual_leave)  || 0);
+      const sl  = Math.max(0, parseInt(sick_leave)    || 0);
+      const el  = Math.max(0, parseInt(earned_leave)  || 0);
+
+      // LOP = absent days minus paid leaves, minimum 0
+      const absent  = Math.max(0, wd - pd);
+      const leavesUsed = cl + sl + el;
+      const lop = lop_days !== undefined
+        ? Math.max(0, parseInt(lop_days) || 0)
+        : Math.max(0, absent - leavesUsed);
 
       await pool.query(
-        `INSERT INTO attendance (admin_id, employee_id, month, year, working_days, present_days, lop_days, notes, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-         ON CONFLICT (admin_id, employee_id, month, year)
-         DO UPDATE SET working_days = $5, present_days = $6, lop_days = $7, notes = $8, updated_at = NOW()`,
-        [req.admin_id, employee_id, parseInt(month), parseInt(year), wd, pd, lop, notes.slice(0, 255)]
+        `INSERT INTO attendance
+           (admin_id, employee_id, month, year, working_days, present_days,
+            casual_leave, sick_leave, earned_leave, lop_days, notes, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+         ON CONFLICT (admin_id, employee_id, month, year) DO UPDATE SET
+           working_days  = $5,
+           present_days  = $6,
+           casual_leave  = $7,
+           sick_leave    = $8,
+           earned_leave  = $9,
+           lop_days      = $10,
+           notes         = $11,
+           updated_at    = NOW()`,
+        [req.admin_id, employee_id, parseInt(month), parseInt(year),
+         wd, pd, cl, sl, el, lop, notes.slice(0, 255)]
       );
       saved++;
     }
@@ -90,15 +215,18 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/attendance/for-employee/:employee_id — get attendance for one employee (last 12 months)
+// ── GET /api/attendance/for-employee/:id ─────────────────────────────────────
 router.get('/for-employee/:employee_id', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT month, year, working_days, present_days, lop_days
-         FROM attendance
-        WHERE admin_id = $1 AND employee_id = $2
-        ORDER BY year DESC, month DESC
-        LIMIT 12`,
+      `SELECT month, year, working_days, present_days,
+              COALESCE(casual_leave,0) AS casual_leave,
+              COALESCE(sick_leave,0)   AS sick_leave,
+              COALESCE(earned_leave,0) AS earned_leave,
+              lop_days
+       FROM attendance
+       WHERE admin_id = $1 AND employee_id = $2
+       ORDER BY year DESC, month DESC LIMIT 12`,
       [req.admin_id, req.params.employee_id]
     );
     res.json({ records: result.rows });
@@ -107,20 +235,22 @@ router.get('/for-employee/:employee_id', async (req, res) => {
   }
 });
 
-// GET /api/attendance/month-summary?month=5&year=2026 — quick summary for send page
+// ── GET /api/attendance/month-summary ────────────────────────────────────────
 router.get('/month-summary', async (req, res) => {
   try {
     const { month, year } = req.query;
     if (!month || !year) return res.status(400).json({ records: [] });
 
     const result = await pool.query(
-      `SELECT employee_id, working_days, present_days, lop_days
-         FROM attendance
-        WHERE admin_id = $1 AND month = $2 AND year = $3`,
+      `SELECT employee_id, working_days, present_days, lop_days,
+              COALESCE(casual_leave,0) AS casual_leave,
+              COALESCE(sick_leave,0)   AS sick_leave,
+              COALESCE(earned_leave,0) AS earned_leave
+       FROM attendance
+       WHERE admin_id = $1 AND month = $2 AND year = $3`,
       [req.admin_id, parseInt(month), parseInt(year)]
     );
 
-    // Return as a map for easy lookup
     const map = {};
     result.rows.forEach(r => { map[r.employee_id] = r; });
     res.json({ attendance: map, count: result.rows.length });

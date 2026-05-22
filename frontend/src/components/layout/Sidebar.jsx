@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Upload,
-  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings, CalendarCheck, CreditCard,
+  Send, BarChart3, TrendingUp, LogOut, Settings2, Settings, CalendarCheck, CreditCard, Umbrella,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +48,7 @@ const WORKFLOW_STEPS = [
 const OTHER_NAV = [
   { to: '/admin/dashboard',     label: 'Dashboard',       icon: LayoutDashboard },
   { to: '/admin/attendance',    label: 'Attendance',      icon: CalendarCheck },
+  { to: '/admin/leave-policy',  label: 'Leave Policy',    icon: Umbrella },
   { to: '/admin/billing',       label: 'Billing & Plan',  icon: CreditCard },
   { to: '/admin/payslips',      label: 'Payslip History', icon: FileText },
   { to: '/admin/analytics',     label: 'Analytics',       icon: TrendingUp },
