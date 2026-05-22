@@ -77,6 +77,7 @@ export default function EmployeesPage() {
   // Filters
   const [search, setSearch]         = useState('');
   const [filterDept, setFilterDept] = useState('');
+  const [filterLoc,  setFilterLoc]  = useState('');
 
   // Sort
   const [sortKey, setSortKey] = useState('employee_name');
@@ -117,6 +118,11 @@ export default function EmployeesPage() {
     return [...set].sort().map(d => ({ label: d, value: d }));
   }, [employees]);
 
+  const locations = useMemo(() => {
+    const set = new Set(employees.map(e => e.location).filter(Boolean));
+    return [...set].sort().map(l => ({ label: l, value: l }));
+  }, [employees]);
+
   // Filtered + sorted list
   const filtered = useMemo(() => {
     let list = [...employees];
@@ -132,6 +138,7 @@ export default function EmployeesPage() {
       );
     }
     if (filterDept) list = list.filter(e => e.department === filterDept);
+    if (filterLoc)  list = list.filter(e => e.location  === filterLoc);
 
     list.sort((a, b) => {
       let av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
@@ -142,7 +149,7 @@ export default function EmployeesPage() {
       return 0;
     });
     return list;
-  }, [employees, search, filterDept, sortKey, sortDir]);
+  }, [employees, search, filterDept, filterLoc, sortKey, sortDir]);
 
   // Selection helpers
   const allSelected  = filtered.length > 0 && filtered.every(e => selected.has(e.id));
@@ -328,9 +335,15 @@ export default function EmployeesPage() {
       <DataFilters
         search={search}
         onSearch={setSearch}
-        filters={[{ key: 'dept', label: 'All Departments', options: departments }]}
-        values={{ dept: filterDept }}
-        onChange={(k, v) => k === 'dept' && setFilterDept(v)}
+        filters={[
+          { key: 'dept', label: 'All Departments', options: departments },
+          { key: 'loc',  label: 'All Locations',   options: locations  },
+        ]}
+        values={{ dept: filterDept, loc: filterLoc }}
+        onChange={(k, v) => {
+          if (k === 'dept') setFilterDept(v);
+          if (k === 'loc')  setFilterLoc(v);
+        }}
       />
 
       {/* Table */}

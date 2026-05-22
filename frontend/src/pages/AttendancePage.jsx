@@ -215,16 +215,6 @@ export default function AttendancePage() {
               </span>
             )}
             <div className="ml-auto flex gap-2">
-              {showLocations && (
-                <select
-                  value={filterLocation}
-                  onChange={e => setFilterLocation(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-green-500 outline-none"
-                >
-                  <option value="">All Locations</option>
-                  {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              )}
               <button
                 onClick={setAllFull}
                 className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
@@ -238,7 +228,7 @@ export default function AttendancePage() {
 
       {/* ── Step 3: Enter attendance ───────────────────────────────────────── */}
       <Card className="border-slate-200 shadow-sm">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center">3</div>
             <div>
@@ -250,7 +240,30 @@ export default function AttendancePage() {
               </p>
             </div>
           </div>
-          {isLoading && <RefreshCw size={14} className="text-slate-400 animate-spin" />}
+          <div className="flex items-center gap-3">
+            {showLocations && (
+              <div className="flex items-center gap-2">
+                <MapPin size={13} className="text-slate-400" />
+                <select
+                  value={filterLocation}
+                  onChange={e => setFilterLocation(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-green-500 outline-none"
+                  style={{ minWidth: 150 }}
+                >
+                  <option value="">All Locations</option>
+                  {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                {filterLocation && (
+                  <button
+                    onClick={() => setFilterLocation('')}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                    title="Clear filter"
+                  >✕</button>
+                )}
+              </div>
+            )}
+            {isLoading && <RefreshCw size={14} className="text-slate-400 animate-spin" />}
+          </div>
         </div>
 
         {filteredRows.length === 0 ? (
