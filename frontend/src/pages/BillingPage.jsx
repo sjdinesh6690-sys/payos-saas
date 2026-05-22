@@ -164,7 +164,7 @@ export default function BillingPage() {
   const slotsUsed   = status?.employee_count || 0;
   const slotsTotal  = status?.employee_limit || 0;
   const slotsPct    = slotsTotal > 0 ? Math.min(100, (slotsUsed / slotsTotal) * 100) : 100;
-  const slotsOver   = slotsUsed > slotsTotal;
+  const slotsOver   = false; // slot limit not enforced — no blocking
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
@@ -228,43 +228,13 @@ export default function BillingPage() {
 
         {/* Employee slot usage — only show limits for paid subscribers */}
         <div className="mt-5">
-          {status?.trial_active && !status?.sub_active ? (
-            /* Free trial — no slot restrictions */
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fefce8', borderRadius: 10, border: '1px solid #fde68a' }}>
-              <CheckCircle size={15} style={{ color: '#d97706', flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-                Free trial — generate payslips for all {slotsUsed} employee{slotsUsed !== 1 ? 's' : ''} with no restrictions.
-              </span>
-            </div>
-          ) : (
-            /* Paid plan — show slot usage bar */
-            <>
-              <div className="flex items-center justify-between mb-1.5">
-                <span style={{ fontSize: 13, fontWeight: 600, color: planColor.text }}>
-                  Employee Slots
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: slotsOver ? '#dc2626' : planColor.text }}>
-                  {slotsUsed} / {slotsTotal} used
-                  {slotsOver && <span className="ml-2 text-red-600 font-bold">⚠ Over limit</span>}
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#e2e8f0' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${slotsPct}%`,
-                    background: slotsOver ? '#dc2626' : slotsPct > 80 ? '#d97706' : '#16a34a',
-                  }}
-                />
-              </div>
-              {slotsOver && (
-                <p className="mt-2 text-sm font-medium" style={{ color: '#dc2626' }}>
-                  You have {slotsUsed - slotsTotal} more employee{slotsUsed - slotsTotal > 1 ? 's' : ''} than your current slots.
-                  Payslip generation is blocked. Please top up.
-                </p>
-              )}
-            </>
-          )}
+          {/* Employee count — informational only, no blocking */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#F0FFF4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
+            <CheckCircle size={15} style={{ color: '#16a34a', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: '#15803d', fontWeight: 600 }}>
+              {slotsUsed} active employee{slotsUsed !== 1 ? 's' : ''} — payslip generation fully unlocked.
+            </span>
+          </div>
         </div>
       </div>
 

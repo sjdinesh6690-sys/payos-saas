@@ -127,25 +127,7 @@ router.post('/generate', async (req, res) => {
       });
     }
 
-    // Check employee slot limit — only for paid subscribers, not during free trial
-    if (subActive) {
-      const slotLimit = parseInt(sub.employee_limit);
-      const empCntRes = await pool.query(
-        `SELECT COUNT(*) AS cnt FROM employees
-         WHERE admin_id = $1 AND (status = 'active' OR status IS NULL)`,
-        [req.admin_id]
-      );
-      const activeEmpCount = parseInt(empCntRes.rows[0].cnt);
-
-      if (activeEmpCount > slotLimit) {
-        return res.status(402).json({
-          error: `You have ${activeEmpCount} active employees but only ${slotLimit} payslip slots. Please top up to continue.`,
-          code:  'LIMIT_EXCEEDED',
-          employee_count: activeEmpCount,
-          employee_limit: slotLimit,
-        });
-      }
-    }
+    // NOTE: Slot limit enforcement is disabled until live Razorpay keys are configured.
     // ── End billing check ───────────────────────────────────────────────────────
 
     // Block future month generation (more than 1 month ahead)
