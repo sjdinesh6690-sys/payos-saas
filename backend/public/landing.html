@@ -247,7 +247,8 @@ h1.hero-title .accent{color:var(--green-light)}
 .pricing{background:var(--off-white)}
 .pricing-intro{text-align:center;max-width:640px;margin:0 auto 64px}
 .pricing-intro p{font-size:18px;color:var(--slate-mid);margin-top:16px}
-.pricing-grid{display:grid;grid-template-columns:1fr;gap:24px;align-items:start;max-width:520px;margin:0 auto}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;max-width:900px;margin:0 auto}
+@media(max-width:700px){.pricing-grid{grid-template-columns:1fr}}
 .price-card{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:28px;position:relative;transition:all .3s}
 .price-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 .price-card.featured{border-color:var(--green);background:#fff;box-shadow:0 8px 40px rgba(26,122,74,.15)}
@@ -814,13 +815,13 @@ footer{background:var(--slate);padding:64px 0 32px}
       <p>No confusing tiers. Get started with 5 employees and add more whenever you need. Every account includes a 30-day free trial — no card needed.</p>
     </div>
     <div class="pricing-grid">
-      <!-- Single Plan -->
+
+      <!-- ── Column 1: PayLeef Pro ── -->
       <div class="price-card featured reveal">
         <div class="price-plan">PayLeef Pro</div>
         <div class="price-amount"><sup>₹</sup>999<sub>/month</sub></div>
         <div class="price-employees">Includes <strong>5 employees</strong> · add more anytime</div>
 
-        <!-- Top-up callout -->
         <div style="background:rgba(26,122,74,.07);border:1px solid rgba(26,122,74,.2);border-radius:10px;padding:11px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
           <span style="font-size:18px">➕</span>
           <div>
@@ -841,43 +842,42 @@ footer{background:var(--slate);padding:64px 0 32px}
         </div>
         <a href="/register" class="price-btn price-btn-primary">Start Free Trial →</a>
         <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">All prices + 18% GST &nbsp;·&nbsp; Cancel anytime</div>
-
-        <!-- Customisation divider inside card -->
-        <div style="margin-top:24px;padding-top:20px;border-top:1.5px dashed #e2e8f0">
-          <div style="text-align:center;margin-bottom:14px">
-            <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em">Need more than this?</span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
-              <span style="color:#7c3aed;font-weight:700">✦</span> Biometric attendance integration
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
-              <span style="color:#7c3aed;font-weight:700">✦</span> Multi-shift &amp; factory payroll
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
-              <span style="color:#7c3aed;font-weight:700">✦</span> Custom approval workflows
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
-              <span style="color:#7c3aed;font-weight:700">✦</span> WhatsApp payslip delivery
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
-              <span style="color:#7c3aed;font-weight:700">✦</span> Role-based access &amp; audit logs
-            </div>
-          </div>
-          <button onclick="openCustomModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-            🛠️ Request Custom Build →
-          </button>
-          <div style="text-align:center;margin-top:8px;font-size:11px;color:#94a3b8">Free consultation · We call you back within 24 hrs</div>
-        </div>
       </div>
-    </div>
 
-    <!-- Contact for Custom Requirements box below grid -->
-    <div class="contact-cta-box reveal">
-      <div style="font-size:32px;margin-bottom:10px">🤝</div>
-      <h3>Need Something Custom?</h3>
-      <p>Larger teams, special workflows, biometric integration, or industry-specific requirements? We'll design and build a solution that fits your business perfectly — at an affordable price.</p>
-      <button onclick="openCustomModal()" class="price-btn price-btn-outline" style="border:1.5px solid #1A7A4A;cursor:pointer;background:#fff;color:#1A7A4A;font-weight:700">Contact Us for Customisation →</button>
+      <!-- ── Column 2: Customisation ── -->
+      <div class="price-card reveal reveal-delay-1" style="border-color:#7c3aed;background:linear-gradient(160deg,#faf5ff 0%,#fff 60%)">
+        <div class="price-plan" style="color:#7c3aed">Customisation</div>
+        <div class="price-amount" style="font-size:28px;padding-top:6px;color:#4c1d95">
+          Custom<br>
+          <span style="font-size:14px;font-weight:500;color:#64748b">Tailored to your business</span>
+        </div>
+        <div class="price-employees">Factories · Warehouses · Large Teams</div>
+
+        <div style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:11px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px">🤝</span>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#7c3aed">Free consultation included</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px">We call you back within 24 hours</div>
+          </div>
+        </div>
+
+        <div class="price-features">
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Everything in PayLeef Pro</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Biometric attendance integration</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Multi-shift &amp; factory payroll</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Custom approval workflows</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> WhatsApp payslip delivery</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Role-based access &amp; audit logs</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Custom reports for your industry</div>
+          <div class="price-feature"><span class="price-check" style="color:#7c3aed">✓</span> Dedicated onboarding &amp; support</div>
+        </div>
+
+        <button onclick="openCustomModal()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s;margin-top:4px" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          🛠️ Get a Custom Quote →
+        </button>
+        <div style="text-align:center;margin-top:10px;font-size:11px;color:#94a3b8">No commitment · We understand your needs first</div>
+      </div>
+
     </div>
 
     <div class="price-note reveal">No hidden charges. No setup fees. <strong>Cancel anytime</strong> — no questions asked. GST applicable on all transactions.
