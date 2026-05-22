@@ -1,41 +1,56 @@
 import { useState, useEffect } from 'react';
-import { Save, RefreshCw, Info, CalendarDays, Briefcase, Heart, Award } from 'lucide-react';
+import { Save, RefreshCw, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 const MONTH_NAMES = ['January','February','March','April','May','June',
                      'July','August','September','October','November','December'];
 
-const Field = ({ label, value, onChange, min = 0, max = 365, suffix = 'days/year', description }) => (
-  <div style={{ background: '#fff', border: '1.5px solid var(--border-light)', borderRadius: 14, padding: '18px 20px' }}>
-    <div className="flex items-start justify-between mb-3">
-      <div>
-        <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 3 }}>{label}</p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{description}</p>
-      </div>
+// Simple big-number input card
+const LeaveCard = ({ emoji, title, subtitle, value, onChange, min = 0, max = 60 }) => (
+  <div style={{
+    background: '#fff',
+    border: '2px solid #E2E8F0',
+    borderRadius: 16,
+    padding: '20px 22px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 20,
+    transition: 'border-color 0.15s',
+  }}
+    onMouseEnter={e => e.currentTarget.style.borderColor = '#1A7A4A'}
+    onMouseLeave={e => e.currentTarget.style.borderColor = '#E2E8F0'}
+  >
+    <div style={{ fontSize: 32, lineHeight: 1 }}>{emoji}</div>
+    <div style={{ flex: 1 }}>
+      <p style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 2 }}>{title}</p>
+      <p style={{ fontSize: 12, color: '#94A3B8', lineHeight: 1.5 }}>{subtitle}</p>
     </div>
-    <div className="flex items-center gap-3">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <input
         type="number"
         value={value}
-        onChange={e => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || 0)))}
+        onChange={e => {
+          const v = parseInt(e.target.value);
+          if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+        }}
         min={min}
         max={max}
         style={{
-          width: 80,
-          padding: '8px 12px',
-          border: '1.5px solid var(--border-light)',
-          borderRadius: 8,
-          fontSize: 18,
+          width: 72,
+          padding: '10px 8px',
+          border: '2px solid #E2E8F0',
+          borderRadius: 12,
+          fontSize: 22,
           fontWeight: 800,
-          color: 'var(--text-primary)',
+          color: '#0F172A',
           textAlign: 'center',
           outline: 'none',
         }}
         onFocus={e => e.target.style.borderColor = '#1A7A4A'}
-        onBlur={e => e.target.style.borderColor = 'var(--border-light)'}
+        onBlur={e => e.target.style.borderColor = '#E2E8F0'}
       />
-      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{suffix}</span>
+      <span style={{ fontSize: 13, color: '#94A3B8', whiteSpace: 'nowrap' }}>days / year</span>
     </div>
   </div>
 );
@@ -48,8 +63,9 @@ export default function LeavePolicyPage() {
     working_days_per_month: 26,
     leave_year_start_month: 4,
   });
-  const [loading, setLoading]   = useState(true);
-  const [saving,  setSaving]    = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
 
   useEffect(() => {
     api.get('/leave-policy')
@@ -64,7 +80,9 @@ export default function LeavePolicyPage() {
     setSaving(true);
     try {
       await api.post('/leave-policy', policy);
-      toast.success('Leave policy saved successfully!');
+      setSaved(true);
+      toast.success('Leave policy saved!');
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Save failed');
     } finally {
@@ -72,7 +90,7 @@ export default function LeavePolicyPage() {
     }
   };
 
-  const totalLeaves = policy.casual_leave_days + policy.sick_leave_days + policy.earned_leave_days;
+  const total = policy.casual_leave_days + policy.sick_leave_days + policy.earned_leave_days;
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -81,134 +99,197 @@ export default function LeavePolicyPage() {
   );
 
   return (
-    <div className="p-6 max-w-3xl space-y-6">
+    <div className="p-6 max-w-2xl space-y-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
-            Leave Policy
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-            Set your company's annual leave entitlement. Used to calculate LOP in attendance.
-          </p>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: '#1A7A4A', color: '#fff',
-            border: 'none', borderRadius: 10,
-            padding: '10px 20px', fontSize: 14, fontWeight: 700,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            opacity: saving ? 0.7 : 1,
-          }}
-        >
-          {saving ? <><RefreshCw size={14} className="animate-spin" /> Saving…</> : <><Save size={14} /> Save Policy</>}
-        </button>
-      </div>
-
-      {/* Summary strip */}
-      <div style={{ background: '#F0FFF4', border: '1.5px solid #bbf7d0', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <CalendarDays size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
-        <span style={{ fontSize: 13, color: '#15803d', fontWeight: 600 }}>
-          Total annual leave entitlement per employee: <strong>{totalLeaves} days</strong>
-          &nbsp;·&nbsp; Leave year starts: <strong>{MONTH_NAMES[(policy.leave_year_start_month - 1)]} 1</strong>
-          &nbsp;·&nbsp; Working days/month: <strong>{policy.working_days_per_month}</strong>
-        </span>
-      </div>
-
-      {/* Leave type fields */}
       <div>
-        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-          Leave Entitlements (per employee per year)
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', marginBottom: 6 }}>
+          Leave Policy
+        </h1>
+        <p style={{ fontSize: 14, color: '#64748B' }}>
+          Set this once. These rules apply to every employee when you track attendance.
         </p>
-        <div className="grid grid-cols-1 gap-3">
+      </div>
 
-          <Field
-            label="Casual Leave (CL)"
+      {/* Big summary pill */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1A7A4A 0%, #16a34a 100%)',
+        borderRadius: 16,
+        padding: '18px 24px',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12,
+      }}>
+        <div>
+          <p style={{ fontSize: 13, opacity: 0.8, marginBottom: 4 }}>Every employee gets per year</p>
+          <p style={{ fontSize: 28, fontWeight: 900 }}>{total} leave days</p>
+        </div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {[
+            { label: 'Casual',   val: policy.casual_leave_days },
+            { label: 'Sick',     val: policy.sick_leave_days },
+            { label: 'Privilege', val: policy.earned_leave_days },
+          ].map(({ label, val }) => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 20, fontWeight: 800 }}>{val}</p>
+              <p style={{ fontSize: 11, opacity: 0.75 }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Leave type cards */}
+      <div>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+          How many days off does each employee get per year?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          <LeaveCard
+            emoji="🏠"
+            title="Casual Leave"
+            subtitle="For personal work, family events, or unexpected situations. Employee can take without medical certificate."
             value={policy.casual_leave_days}
             onChange={v => set('casual_leave_days', v)}
-            description="For personal reasons, emergencies, or short unplanned absences. Usually 12 days/year. Cannot be carried forward."
           />
 
-          <Field
-            label="Sick Leave (SL)"
+          <LeaveCard
+            emoji="🤒"
+            title="Sick Leave"
+            subtitle="When the employee is unwell or needs medical attention. Usually requires a doctor's note."
             value={policy.sick_leave_days}
             onChange={v => set('sick_leave_days', v)}
-            description="For illness or medical appointments with a doctor's certificate. Usually 12 days/year. Cannot be carried forward."
           />
 
-          <Field
-            label="Earned / Privilege Leave (EL / PL)"
+          <LeaveCard
+            emoji="🌴"
+            title="Privilege / Earned Leave"
+            subtitle="Planned holidays that employees earn over time. Can usually be carried forward to next year."
             value={policy.earned_leave_days}
             onChange={v => set('earned_leave_days', v)}
-            description="Earned through service. Usually 15 days/year (1.25 days per month worked). Can be carried forward (up to limits per company policy)."
           />
+
         </div>
       </div>
 
-      {/* Working days + leave year */}
+      {/* Working days + year start */}
       <div>
-        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-          Payroll Defaults
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+          Payroll settings
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
-          <Field
-            label="Working Days per Month"
-            value={policy.working_days_per_month}
-            onChange={v => set('working_days_per_month', v)}
-            min={1}
-            max={31}
-            suffix="days/month"
-            description="Default working days used in each month for salary calculation. Common: 26 (6-day week) or 22 (5-day week)."
-          />
+          {/* Working days */}
+          <div style={{ background: '#fff', border: '2px solid #E2E8F0', borderRadius: 16, padding: '20px 22px' }}>
+            <p style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 4 }}>📅 Working Days per Month</p>
+            <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 14 }}>
+              Used as the default when you open attendance each month.<br />
+              <strong>26</strong> = 6-day week &nbsp;·&nbsp; <strong>22</strong> = 5-day week
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input
+                type="number"
+                value={policy.working_days_per_month}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  if (!isNaN(v)) set('working_days_per_month', Math.max(1, Math.min(31, v)));
+                }}
+                min={1} max={31}
+                style={{
+                  width: 72,
+                  padding: '10px 8px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: 12,
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: '#0F172A',
+                  textAlign: 'center',
+                  outline: 'none',
+                }}
+                onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+                onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+              />
+              <span style={{ fontSize: 13, color: '#94A3B8' }}>days / month</span>
+            </div>
+          </div>
 
-          <div style={{ background: '#fff', border: '1.5px solid var(--border-light)', borderRadius: 14, padding: '18px 20px' }}>
-            <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 3 }}>Leave Year Start</p>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>
-              Month when annual leave balance resets. April for Indian financial year, January for calendar year.
+          {/* Leave year start */}
+          <div style={{ background: '#fff', border: '2px solid #E2E8F0', borderRadius: 16, padding: '20px 22px' }}>
+            <p style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 4 }}>🔄 Leave Year Starts In</p>
+            <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 14 }}>
+              When leave balances reset each year.<br />
+              Most Indian companies use <strong>April</strong> (financial year).
             </p>
             <select
               value={policy.leave_year_start_month}
               onChange={e => set('leave_year_start_month', parseInt(e.target.value))}
               style={{
-                padding: '8px 12px',
-                border: '1.5px solid var(--border-light)',
-                borderRadius: 8,
+                padding: '10px 14px',
+                border: '2px solid #E2E8F0',
+                borderRadius: 12,
                 fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text-primary)',
+                fontWeight: 700,
+                color: '#0F172A',
                 background: '#fff',
                 outline: 'none',
                 cursor: 'pointer',
+                width: '100%',
               }}
+              onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+              onBlur={e => e.target.style.borderColor = '#E2E8F0'}
             >
               {MONTH_NAMES.map((m, i) => (
                 <option key={i} value={i + 1}>{m}</option>
               ))}
             </select>
           </div>
+
         </div>
       </div>
 
-      {/* How LOP is calculated */}
-      <div style={{ background: '#EFF6FF', border: '1.5px solid #bfdbfe', borderRadius: 12, padding: '16px 18px' }}>
-        <div className="flex items-start gap-3">
-          <Info size={16} style={{ color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <p style={{ fontWeight: 700, fontSize: 13, color: '#1e40af', marginBottom: 6 }}>How LOP is calculated in Attendance</p>
-            <p style={{ fontSize: 13, color: '#1d4ed8', lineHeight: 1.7 }}>
-              <strong>Absent days</strong> = Working Days − Present Days<br />
-              <strong>Leaves used</strong> = CL taken + SL taken + EL taken (entered in Attendance)<br />
-              <strong>LOP</strong> = MAX(0, Absent days − Leaves used)<br />
-              <br />
-              Example: 26 working days, 22 present → 4 absent. Employee takes 2 CL + 1 SL = 3 leaves.
-              LOP = 4 − 3 = <strong>1 day LOP</strong>. Salary is deducted for 1 day only.
-            </p>
-          </div>
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{
+          width: '100%',
+          padding: '14px 24px',
+          background: saved ? '#16a34a' : '#1A7A4A',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 14,
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: saving ? 'not-allowed' : 'pointer',
+          opacity: saving ? 0.8 : 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          transition: 'background 0.2s',
+        }}
+      >
+        {saving
+          ? <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</>
+          : saved
+          ? <><CheckCircle size={16} /> Policy Saved!</>
+          : <><Save size={16} /> Save Leave Policy</>}
+      </button>
+
+      {/* Simple explainer */}
+      <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: 14, padding: '16px 20px' }}>
+        <p style={{ fontWeight: 700, fontSize: 13, color: '#374151', marginBottom: 10 }}>
+          ℹ️ How this works with Attendance
+        </p>
+        <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.9 }}>
+          When you record attendance each month, enter how many days the employee was present and how many approved leaves they took.
+          <br />
+          <strong style={{ color: '#0F172A' }}>LOP (Loss of Pay)</strong> = Days absent − Approved leaves taken.
+          <br />
+          <em>Example: Employee absent 4 days, took 3 approved leaves → LOP = 1 day → salary cut for 1 day only.</em>
         </div>
       </div>
 
