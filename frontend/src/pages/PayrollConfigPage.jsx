@@ -400,11 +400,15 @@ export default function PayrollConfigPage() {
   const { data: loaded, isLoading } = useQuery({
     queryKey: ['payroll-config'],
     queryFn: () => api.get('/payroll-config').then(r => r.data),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const { data: brandingLoaded } = useQuery({
     queryKey: ['payroll-branding'],
     queryFn: () => api.get('/payroll-config/branding').then(r => r.data),
+    staleTime: 0,          // always re-fetch so saved template never reverts
+    refetchOnWindowFocus: true,
   });
 
   const [earnings,   setEarnings]   = useState([]);

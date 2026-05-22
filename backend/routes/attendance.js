@@ -215,6 +215,157 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ── POST /api/attendance/parse-csv — parse CSV and return preview ─────────────
+// Accepts CSV text in body: { csv: "...", month, year, working_days }
+// Supports two formats:
+//   Format A: Employee ID, Present Days, Leave Days, Notes
+//   Format B: Employee ID, Present Days, CL, SL, EL, Notes
+router.post('/parse-csv', async (req, res) => {
+  try {
+    const { csv, month, year, working_days = 26 } = req.body;
+    if (!csv || !month || !year) return res.status(400).json({ error: 'csv, month and year required' });
+
+    const wd = parseInt(working_days) || 26;
+
+    // Simple CSV parser — handles quoted fields
+    function parseCSV(text) {
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      return lines.map(line => {
+        const cols = [];
+        let cur = '', inQ = false;
+        for (const ch of line) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        cols.push(cur.trim());
+        return cols;
+      }).filter(r => r.some(c => c !== ''));
+    }
+
+    const rows = parseCSV(csv);
+    if (rows.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
+
+    // Detect format from header
+    const header = rows[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const isFormatB = header.some(h => h === 'cl' || h === 'sl' || h === 'el' || h.includes('casual') || h.includes('sick') || h.includes('earned'));
+    const data = rows.slice(1);
+
+    // Load all employees for this admin to match Employee IDs
+    const empResult = await pool.query(
+      `SELECT employee_id, employee_name, department, location
+       FROM employees WHERE admin_id = $1 AND (status IS NULL OR status = 'active')`,
+      [req.admin_id]
+    );
+    const empMap = {};
+    empResult.rows.forEach(e => { empMap[e.employee_id.toUpperCase()] = e; });
+
+    const matched   = [];
+    const unmatched = [];
+
+    for (const row of data) {
+      if (!row[0]) continue;
+      const rawId = row[0].trim();
+      const emp   = empMap[rawId.toUpperCase()];
+
+      let pd, cl, sl, el, notes;
+      if (isFormatB) {
+        pd    = parseInt(row[1]) ?? wd;
+        cl    = Math.max(0, parseInt(row[2]) || 0);
+        sl    = Math.max(0, parseInt(row[3]) || 0);
+        el    = Math.max(0, parseInt(row[4]) || 0);
+        notes = (row[5] || '').slice(0, 255);
+      } else {
+        pd    = parseInt(row[1]) ?? wd;
+        cl    = Math.max(0, parseInt(row[2]) || 0);
+        sl    = 0;
+        el    = 0;
+        notes = (row[3] || '').slice(0, 255);
+      }
+
+      // Validate
+      if (isNaN(pd) || pd < 0) pd = wd;
+      if (pd > wd) pd = wd;
+
+      const absent  = Math.max(0, wd - pd);
+      const leaves  = cl + sl + el;
+      const lop     = Math.max(0, absent - leaves);
+
+      const record = {
+        employee_id:   rawId,
+        present_days:  pd,
+        casual_leave:  cl,
+        sick_leave:    sl,
+        earned_leave:  el,
+        lop_days:      lop,
+        working_days:  wd,
+        notes,
+      };
+
+      if (emp) {
+        matched.push({ ...record, employee_name: emp.employee_name, department: emp.department || '', location: emp.location || '', found: true });
+      } else {
+        unmatched.push({ ...record, employee_name: 'Unknown', found: false });
+      }
+    }
+
+    // Also list employees NOT in CSV (will default to full attendance)
+    const csvIds = new Set([...matched, ...unmatched].map(r => r.employee_id.toUpperCase()));
+    const notInCsv = empResult.rows
+      .filter(e => !csvIds.has(e.employee_id.toUpperCase()))
+      .map(e => ({
+        employee_id:   e.employee_id,
+        employee_name: e.employee_name,
+        department:    e.department || '',
+        location:      e.location   || '',
+        present_days:  wd,
+        casual_leave:  0,
+        sick_leave:    0,
+        earned_leave:  0,
+        lop_days:      0,
+        working_days:  wd,
+        notes:         '',
+        found:         true,
+        not_in_csv:    true,
+      }));
+
+    res.json({
+      matched,
+      unmatched,
+      not_in_csv:   notInCsv,
+      total_employees: empResult.rows.length,
+      matched_count:   matched.length,
+      working_days:    wd,
+      month: parseInt(month),
+      year:  parseInt(year),
+    });
+  } catch (err) {
+    console.error('[attendance/parse-csv]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/attendance/template-csv — download blank CSV template ────────────
+router.get('/template-csv', async (req, res) => {
+  try {
+    const empResult = await pool.query(
+      `SELECT employee_id, employee_name, department FROM employees
+       WHERE admin_id = $1 AND (status IS NULL OR status = 'active')
+       ORDER BY employee_name`,
+      [req.admin_id]
+    );
+
+    let csv = 'Employee ID,Employee Name,Present Days,Leave Days,Notes\n';
+    empResult.rows.forEach(e => {
+      csv += `${e.employee_id},"${e.employee_name}",26,0,\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="PayLeef_Attendance_Template.csv"');
+    res.send(csv);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── GET /api/attendance/for-employee/:id ─────────────────────────────────────
 router.get('/for-employee/:employee_id', async (req, res) => {
   try {
