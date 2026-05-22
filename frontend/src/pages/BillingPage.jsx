@@ -226,31 +226,44 @@ export default function BillingPage() {
           </button>
         </div>
 
-        {/* Employee slot usage bar */}
+        {/* Employee slot usage — only show limits for paid subscribers */}
         <div className="mt-5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span style={{ fontSize: 13, fontWeight: 600, color: planColor.text }}>
-              Employee Slots
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: slotsOver ? '#dc2626' : planColor.text }}>
-              {slotsUsed} / {slotsTotal} used
-              {slotsOver && <span className="ml-2 text-red-600 font-bold">⚠ Over limit</span>}
-            </span>
-          </div>
-          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#e2e8f0' }}>
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${slotsPct}%`,
-                background: slotsOver ? '#dc2626' : slotsPct > 80 ? '#d97706' : '#16a34a',
-              }}
-            />
-          </div>
-          {slotsOver && (
-            <p className="mt-2 text-sm font-medium" style={{ color: '#dc2626' }}>
-              You have {slotsUsed - slotsTotal} more employee{slotsUsed - slotsTotal > 1 ? 's' : ''} than your current slots.
-              Payslip generation is blocked. Please top up.
-            </p>
+          {status?.trial_active && !status?.sub_active ? (
+            /* Free trial — no slot restrictions */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fefce8', borderRadius: 10, border: '1px solid #fde68a' }}>
+              <CheckCircle size={15} style={{ color: '#d97706', flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+                Free trial — generate payslips for all {slotsUsed} employee{slotsUsed !== 1 ? 's' : ''} with no restrictions.
+              </span>
+            </div>
+          ) : (
+            /* Paid plan — show slot usage bar */
+            <>
+              <div className="flex items-center justify-between mb-1.5">
+                <span style={{ fontSize: 13, fontWeight: 600, color: planColor.text }}>
+                  Employee Slots
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: slotsOver ? '#dc2626' : planColor.text }}>
+                  {slotsUsed} / {slotsTotal} used
+                  {slotsOver && <span className="ml-2 text-red-600 font-bold">⚠ Over limit</span>}
+                </span>
+              </div>
+              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#e2e8f0' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${slotsPct}%`,
+                    background: slotsOver ? '#dc2626' : slotsPct > 80 ? '#d97706' : '#16a34a',
+                  }}
+                />
+              </div>
+              {slotsOver && (
+                <p className="mt-2 text-sm font-medium" style={{ color: '#dc2626' }}>
+                  You have {slotsUsed - slotsTotal} more employee{slotsUsed - slotsTotal > 1 ? 's' : ''} than your current slots.
+                  Payslip generation is blocked. Please top up.
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -282,11 +295,11 @@ export default function BillingPage() {
 
           <ul className="space-y-2 mb-6 flex-1">
             {[
-              '5 employee payslip slots',
+              '5 employee slots (add more for ₹75/slot)',
               'Unlimited payslip generation',
               'Email delivery via Resend',
               'PDF & Excel reports',
-              'Attendance tracking',
+              'Attendance & leave tracking',
             ].map((f) => (
               <li key={f} className="flex items-center gap-2" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                 <CheckCircle size={14} style={{ color: '#16a34a', flexShrink: 0 }} />
