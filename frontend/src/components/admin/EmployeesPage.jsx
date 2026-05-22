@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
 import {
   Plus, Trash2, Pencil, Upload, MoreHorizontal,
-  Users, Download, ChevronUp, ChevronDown, UserX, UserCheck, FileText, FileSpreadsheet,
+  Users, Download, ChevronUp, ChevronDown, UserX, UserCheck, FileText, FileSpreadsheet, MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -127,7 +127,8 @@ export default function EmployeesPage() {
         e.employee_id?.toLowerCase().includes(q) ||
         e.email?.toLowerCase().includes(q) ||
         e.department?.toLowerCase().includes(q) ||
-        e.designation?.toLowerCase().includes(q)
+        e.designation?.toLowerCase().includes(q) ||
+        e.location?.toLowerCase().includes(q)
       );
     }
     if (filterDept) list = list.filter(e => e.department === filterDept);
@@ -202,6 +203,7 @@ export default function EmployeesPage() {
       'Phone':             e.phone || '',
       'Department':        e.department || '',
       'Designation':       e.designation || '',
+      'Location':          e.location || '',
       'Date of Joining':   e.date_of_joining || '',
       'Status':            e.status === 'inactive' ? 'Left / Inactive' : 'Active',
       'Date of Exit':      e.date_of_exit || '',
@@ -344,6 +346,7 @@ export default function EmployeesPage() {
                   { key: 'employee_id',   label: 'ID' },
                   { key: 'employee_name', label: 'Name' },
                   { key: 'department',    label: 'Dept / Role' },
+                  { key: 'location',      label: 'Location' },
                   { key: 'email',         label: 'Email' },
                   { key: 'salary',        label: 'Salary' },
                   { key: 'last_payslip',  label: 'Last Payslip' },
@@ -364,10 +367,10 @@ export default function EmployeesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-10 text-slate-400">Loading…</td></tr>
+                <tr><td colSpan={10} className="text-center py-10 text-slate-400">Loading…</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-16">
+                  <td colSpan={10} className="text-center py-16">
                     <Users size={32} className="mx-auto text-slate-200 mb-2" />
                     <p className="text-slate-400 text-sm">No employees found</p>
                     <Button className="mt-3 h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white" onClick={openAdd}>
@@ -395,6 +398,13 @@ export default function EmployeesPage() {
                       <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs">{emp.department}</Badge>
                     )}
                     {emp.designation && <div className="text-xs text-slate-500 mt-0.5">{emp.designation}</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {emp.location
+                      ? <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, color:'#374151', background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:20, padding:'2px 9px', fontWeight:600 }}>
+                          <MapPin size={10} color="#16a34a" />{emp.location}
+                        </span>
+                      : <span className="text-slate-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3 text-slate-600 text-xs">{emp.email || <span className="text-slate-300">—</span>}</td>
                   <td className="px-4 py-3">
