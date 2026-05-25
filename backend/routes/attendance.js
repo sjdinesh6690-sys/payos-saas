@@ -227,15 +227,19 @@ router.post('/parse-csv', async (req, res) => {
 
     const wd = parseInt(working_days) || 26;
 
-    // Simple CSV parser — handles quoted fields
-    function parseCSV(text) {
+    // Auto-detect delimiter (comma for CSV, tab for TSV)
+    const firstLine  = csv.split(/\r?\n/)[0] || '';
+    const delimiter  = firstLine.includes('\t') ? '\t' : ',';
+
+    function parseDelimited(text, delim) {
       const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       return lines.map(line => {
+        if (delim === '\t') return line.split('\t').map(c => c.trim()); // TSV: no quoting needed
         const cols = [];
         let cur = '', inQ = false;
         for (const ch of line) {
           if (ch === '"') { inQ = !inQ; }
-          else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+          else if (ch === delim && !inQ) { cols.push(cur.trim()); cur = ''; }
           else { cur += ch; }
         }
         cols.push(cur.trim());
@@ -243,7 +247,7 @@ router.post('/parse-csv', async (req, res) => {
       }).filter(r => r.some(c => c !== ''));
     }
 
-    const rows = parseCSV(csv);
+    const rows = parseDelimited(csv, delimiter);
     if (rows.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
 
     // Detect format from header
@@ -345,7 +349,7 @@ router.post('/parse-csv', async (req, res) => {
   }
 });
 
-// ── GET /api/attendance/template-csv — download blank CSV template ────────────
+// ── GET /api/attendance/template-csv — download blank CSV template (Format B) ──
 router.get('/template-csv', async (req, res) => {
   try {
     const empResult = await pool.query(
@@ -355,15 +359,122 @@ router.get('/template-csv', async (req, res) => {
       [req.admin_id]
     );
 
-    let csv = 'Employee ID,Employee Name,Present Days,Leave Days,Notes\n';
+    // Format B: separate CL / SL / EL columns — supports biometric export matching
+    let csv = 'Employee ID,Employee Name,Present Days,CL (Casual Leave),SL (Sick Leave),EL (Earned Leave),Notes\n';
     empResult.rows.forEach(e => {
-      csv += `${e.employee_id},"${e.employee_name}",26,0,\n`;
+      csv += `${e.employee_id},"${e.employee_name}",26,0,0,0,\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="PayLeef_Attendance_Template.csv"');
     res.send(csv);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST /api/attendance/parse-excel — parse xlsx/xls file ───────────────────
+// Accepts: { fileData: base64, month, year, working_days }
+router.post('/parse-excel', async (req, res) => {
+  try {
+    const { fileData, month, year, working_days = 26 } = req.body;
+    if (!fileData || !month || !year)
+      return res.status(400).json({ error: 'fileData, month and year required' });
+
+    const wd     = parseInt(working_days) || 26;
+    const buffer = Buffer.from(fileData, 'base64');
+
+    const ExcelJS   = require('exceljs');
+    const workbook  = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+
+    const worksheet = workbook.worksheets[0];
+    const rows = [];
+    worksheet.eachRow((row) => {
+      // ExcelJS row.values is 1-indexed; index 0 is undefined
+      const vals = row.values.slice(1).map(v => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'object' && v.text) return String(v.text).trim(); // rich text
+        return String(v).trim();
+      });
+      if (vals.some(c => c !== '')) rows.push(vals);
+    });
+
+    if (rows.length < 2)
+      return res.status(400).json({ error: 'File must have a header row and at least one data row' });
+
+    // Detect Format A vs Format B from headers
+    const header  = rows[0].map(h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const isFormatB = header.some(h => h === 'cl' || h === 'sl' || h === 'el'
+                                    || h.includes('casual') || h.includes('sick') || h.includes('earned'));
+    const data = rows.slice(1);
+
+    // Load employees for matching
+    const empResult = await pool.query(
+      `SELECT employee_id, employee_name, department, location
+       FROM employees WHERE admin_id = $1 AND (status IS NULL OR status = 'active')`,
+      [req.admin_id]
+    );
+    const empMap = {};
+    empResult.rows.forEach(e => { empMap[e.employee_id.toUpperCase()] = e; });
+
+    const matched   = [];
+    const unmatched = [];
+
+    for (const row of data) {
+      if (!row[0]) continue;
+      const rawId = row[0].trim();
+      const emp   = empMap[rawId.toUpperCase()];
+
+      let pd, cl, sl, el, notes;
+      if (isFormatB) {
+        pd    = parseInt(row[1]) ?? wd;
+        cl    = Math.max(0, parseInt(row[2]) || 0);
+        sl    = Math.max(0, parseInt(row[3]) || 0);
+        el    = Math.max(0, parseInt(row[4]) || 0);
+        notes = (row[5] || '').slice(0, 255);
+      } else {
+        pd    = parseInt(row[1]) ?? wd;
+        cl    = Math.max(0, parseInt(row[2]) || 0);
+        sl    = 0;
+        el    = 0;
+        notes = (row[3] || '').slice(0, 255);
+      }
+
+      if (isNaN(pd) || pd < 0) pd = wd;
+      if (pd > wd) pd = wd;
+
+      const lop = Math.max(0, Math.max(0, wd - pd) - (cl + sl + el));
+
+      const record = { employee_id: rawId, present_days: pd, casual_leave: cl, sick_leave: sl, earned_leave: el, lop_days: lop, working_days: wd, notes };
+      if (emp) {
+        matched.push({ ...record, employee_name: emp.employee_name, department: emp.department || '', location: emp.location || '', found: true });
+      } else {
+        unmatched.push({ ...record, employee_name: 'Unknown', found: false });
+      }
+    }
+
+    // Employees not in file → default to full attendance
+    const fileIds   = new Set([...matched, ...unmatched].map(r => r.employee_id.toUpperCase()));
+    const notInFile = empResult.rows
+      .filter(e => !fileIds.has(e.employee_id.toUpperCase()))
+      .map(e => ({
+        employee_id: e.employee_id, employee_name: e.employee_name,
+        department: e.department || '', location: e.location || '',
+        present_days: wd, casual_leave: 0, sick_leave: 0, earned_leave: 0,
+        lop_days: 0, working_days: wd, notes: '', found: true, not_in_csv: true,
+      }));
+
+    res.json({
+      matched, unmatched, not_in_csv: notInFile,
+      total_employees: empResult.rows.length,
+      matched_count:   matched.length,
+      working_days:    wd,
+      month: parseInt(month),
+      year:  parseInt(year),
+    });
+  } catch (err) {
+    console.error('[attendance/parse-excel]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── GET /api/attendance/for-employee/:id ─────────────────────────────────────
