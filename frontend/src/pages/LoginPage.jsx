@@ -16,8 +16,9 @@ const RupeeLeaf = ({ size = 20 }) => (
 
 export default function LoginPage() {
   const [tab, setTab]                     = useState('admin');
-  const [adminEmail, setAdminEmail]       = useState('');
+  const [adminEmail, setAdminEmail]       = useState(() => localStorage.getItem('payslip_remember_email') || '');
   const [adminPassword, setAdminPassword] = useState('');
+  const [rememberMe, setRememberMe]       = useState(() => !!localStorage.getItem('payslip_remember_email'));
   const [empId, setEmpId]                 = useState('');
   const [empEmail, setEmpEmail]           = useState('');
   const [empPassword, setEmpPassword]     = useState('');
@@ -43,6 +44,9 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.token) {
+        // Handle remember me
+        if (rememberMe) localStorage.setItem('payslip_remember_email', adminEmail);
+        else localStorage.removeItem('payslip_remember_email');
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employer');
         // Store sub-user info if applicable
@@ -222,6 +226,19 @@ export default function LoginPage() {
                       </button>
                     </div>
                     <Input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="••••••••" required />
+                  </div>
+                  {/* Remember Me */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      id="rememberMe"
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 accent-green-700 cursor-pointer"
+                    />
+                    <label htmlFor="rememberMe" className="text-xs text-slate-600 cursor-pointer select-none">
+                      Remember my email
+                    </label>
                   </div>
                   <Button type="submit" disabled={loading} className="w-full h-10 text-white" style={{ background: '#1A7A4A' }}>
                     {loading ? 'Signing in…' : 'Sign In'}

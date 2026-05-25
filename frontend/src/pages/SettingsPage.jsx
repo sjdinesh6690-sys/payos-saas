@@ -352,9 +352,19 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <h2 className="font-semibold text-gray-800">Company Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Company Name" required>
-                <input value={form.company_name} onChange={e => set('company_name', e.target.value)}
-                  placeholder="e.g. Acme Pvt. Ltd." className={inp} />
+              <Field label="Company Name">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    value={form.company_name}
+                    readOnly
+                    disabled
+                    className={inp}
+                    style={{ background: '#F8FAFC', color: '#64748B', cursor: 'not-allowed' }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                  🔒 Company name is set during registration. Contact support to update.
+                </p>
               </Field>
               <Field label="HR / Payroll Email">
                 <input value={form.company_email} onChange={e => set('company_email', e.target.value)}

@@ -232,6 +232,22 @@ function renderForm16PDF(doc, data) {
   const ACC   = '#C8A63D'; // gold accent
 
   let y = 0;
+  let isFirstPage = true;
+
+  // ── Page break helper — adds new page when content would overflow ──────────
+  function checkPageBreak(neededHeight = 40) {
+    if (y + neededHeight > PH - 50) {
+      doc.addPage();
+      isFirstPage = false;
+      y = 40;
+      // Subtle page continuation header
+      doc.rect(0, 0, PW, 22).fill('#F1F5F9');
+      doc.fillColor(MUTED).fontSize(7).font('Helvetica')
+         .text(`${data.company_name}  ·  Form 16 Part B  ·  A.Y. ${data.ay}  ·  ${data.employee_name} (${data.employee_id})`,
+           ML, 7, { width: W, align: 'center' });
+      y = 28;
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HEADER
@@ -310,6 +326,7 @@ function renderForm16PDF(doc, data) {
     const bg     = isHead ? '#EFF4FB' : isTot ? '#DBEAFE' : (opts.alt ? '#F8FAFC' : 'white');
     const color  = isTot ? NAVY : BLACK;
 
+    checkPageBreak(rh + 4);
     doc.rect(ML, y, W, rh).fill(bg).lineWidth(0.3).stroke('#E2E8F0');
 
     // Number column
@@ -430,6 +447,7 @@ function renderForm16PDF(doc, data) {
   const balanceBg   = data.balance_tax > 0 ? '#FEE2E2' : data.balance_tax < 0 ? '#DCFCE7' : '#F1F5F9';
   const balanceClr  = data.balance_tax > 0 ? '#B91C1C' : data.balance_tax < 0 ? '#166534' : NAVY;
 
+  checkPageBreak(30);
   doc.rect(ML, y, W, 20).fill(balanceBg).lineWidth(0.3).stroke('#E2E8F0');
   doc.fillColor(NAVY).fontSize(7).font('Helvetica').text('19', ML + 4, y + 6, { width: 18 });
   doc.fillColor(balanceClr).fontSize(8).font('Helvetica-Bold')
@@ -446,6 +464,7 @@ function renderForm16PDF(doc, data) {
   // ═══════════════════════════════════════════════════════════════════════════
   // ANNUAL SALARY COMPONENT SUMMARY
   // ═══════════════════════════════════════════════════════════════════════════
+  checkPageBreak(100);
   doc.rect(ML, y, W, 18).fill(NAVY);
   doc.fillColor('white').fontSize(8).font('Helvetica-Bold')
      .text(`ANNUAL SALARY BREAKUP — F.Y. ${data.fy} (${data.payslip_count} month${data.payslip_count !== 1 ? 's' : ''} of data)`, ML + 10, y + 5, { width: W - 20, align: 'center' });
@@ -508,6 +527,7 @@ function renderForm16PDF(doc, data) {
   // ═══════════════════════════════════════════════════════════════════════════
   // VERIFICATION / SIGNATURE
   // ═══════════════════════════════════════════════════════════════════════════
+  checkPageBreak(120);
   doc.rect(ML, y, W, 70).fill('#FAFAFA').lineWidth(0.5).stroke('#CBD5E1');
   doc.fillColor(NAVY).fontSize(7.5).font('Helvetica-Bold')
      .text('VERIFICATION', ML + 10, y + 8, { width: W - 20 });
@@ -528,6 +548,7 @@ function renderForm16PDF(doc, data) {
   // ═══════════════════════════════════════════════════════════════════════════
   // FOOTER
   // ═══════════════════════════════════════════════════════════════════════════
+  checkPageBreak(40);
   doc.moveTo(ML, y + 4).lineTo(ML + W, y + 4).lineWidth(0.4).stroke('#CBD5E1');
   doc.fillColor('#94A3B8').fontSize(6.5).font('Helvetica')
      .text(

@@ -46,14 +46,18 @@ function DropdownMenuContent({ open, className, children, align = 'end', ...prop
   );
 }
 
-function DropdownMenuItem({ className, children, onClick, disabled, ...props }) {
+function DropdownMenuItem({ className, children, onClick, disabled, variant, ...props }) {
+  const isDestructive = variant === 'destructive';
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left',
+        isDestructive
+          ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
+          : 'text-slate-700 hover:bg-slate-50',
         className
       )}
       {...props}

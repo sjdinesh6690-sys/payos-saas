@@ -641,8 +641,8 @@ export default function PayslipsPage() {
                         <Pencil size={14} /> Edit Payslip
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600" onClick={() => promptDelete(p)}>
-                        <Trash2 size={14} /> Delete
+                      <DropdownMenuItem variant="destructive" onClick={() => promptDelete(p)}>
+                        <Trash2 size={14} className="shrink-0" /> Delete
                       </DropdownMenuItem>
                     </SimpleDropdown>
                   </td>

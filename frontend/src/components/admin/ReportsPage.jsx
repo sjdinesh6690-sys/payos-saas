@@ -156,7 +156,13 @@ export default function ReportsPage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('payslip_token')}` },
       });
       if (!res.ok) {
-        toast.error('Could not generate report — please try again');
+        // Try to read JSON error message from backend
+        try {
+          const errData = await res.json();
+          toast.error(errData.error || 'Could not generate report — please try again');
+        } catch {
+          toast.error('Could not generate report — please try again');
+        }
         return;
       }
       const blob  = await res.blob();

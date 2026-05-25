@@ -34,7 +34,9 @@ function validateForm(form, isNew) {
   if (!form.employee_name.trim())
     errors.employee_name = 'Employee name is required';
 
-  if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+  if (form.portal_access_enabled && !form.email.trim())
+    errors.email = 'Email address is required to enable portal access';
+  else if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
     errors.email = 'Enter a valid email address';
 
   if (form.phone && form.phone.trim() && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone.trim()))

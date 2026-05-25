@@ -1,7 +1,53 @@
-const express = require('express');
-const router  = express.Router();
-const jwt     = require('jsonwebtoken');
-const { pool } = require('../database');
+const express    = require('express');
+const router     = express.Router();
+const jwt        = require('jsonwebtoken');
+const { Resend } = require('resend');
+const { pool }   = require('../database');
+
+// ── OTP store (in-memory, 5-minute TTL) ───────────────────────────────────
+const otpStore = new Map(); // email → { otp, expiresAt }
+
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+}
+
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+async function sendOtpEmail(email, otp) {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[super-admin 2FA] No RESEND_API_KEY. OTP for ${email}: ${otp}`);
+    return;
+  }
+  await resend.emails.send({
+    from: 'PayLeef Security <payroll@dinmind.com>',
+    to:   email,
+    subject: `${otp} — Your PayLeef Super Admin OTP`,
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;background:#f8fafc;padding:32px 24px;border-radius:16px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span style="font-size:22px;font-weight:900;color:#0f172a">Pay</span><span style="font-size:22px;font-weight:900;color:#1A7A4A">Leef</span>
+          <p style="font-size:11px;color:#94a3b8;letter-spacing:.08em;margin:2px 0 0">MASTER CONTROL PANEL</p>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:28px 24px;border:1px solid #e2e8f0;text-align:center;">
+          <div style="width:48px;height:48px;background:#0f172a;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <span style="font-size:24px;">🔐</span>
+          </div>
+          <h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 8px">Two-Factor Verification</h2>
+          <p style="font-size:13px;color:#64748b;margin:0 0 24px">Use the code below to complete your Super Admin login. This code expires in <strong>5 minutes</strong>.</p>
+          <div style="background:#0f172a;border-radius:10px;padding:20px;margin-bottom:24px;">
+            <p style="font-size:36px;font-weight:900;color:#4ADE80;letter-spacing:.2em;margin:0;font-family:monospace;">${otp}</p>
+          </div>
+          <p style="font-size:11px;color:#94a3b8;">If you didn't request this, please secure your Super Admin credentials immediately.</p>
+        </div>
+        <p style="text-align:center;font-size:10px;color:#cbd5e1;margin-top:16px;">PayLeef Master Control © ${new Date().getFullYear()}</p>
+      </div>
+    `,
+  });
+}
 
 // ── Super admin auth middleware ────────────────────────────────────────────
 const superAuthCheck = (req, res, next) => {
@@ -16,18 +62,55 @@ const superAuthCheck = (req, res, next) => {
   }
 };
 
-// ── POST /login ───────────────────────────────────────────────────────────
-router.post('/login', (req, res) => {
+// ── POST /login — Step 1: verify credentials, send OTP ───────────────────
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const SA_EMAIL    = process.env.SUPER_ADMIN_EMAIL    || 'admin@payos.com';
     const SA_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'PayLeef@Master2025';
 
-    // Generic error to prevent credential enumeration
     if (email !== SA_EMAIL || password !== SA_PASSWORD) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Generate and store OTP (5 min TTL)
+    const otp = generateOtp();
+    otpStore.set(email, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+    // Send OTP email (fire-and-forget; if email fails, log OTP so access is never locked out)
+    try { await sendOtpEmail(email, otp); } catch (e) {
+      console.error('[super-admin 2FA] Email send failed:', e.message);
+      console.log(`[super-admin 2FA] OTP for ${email}: ${otp}`);
+    }
+
+    // Mask email for display
+    const [local, domain] = email.split('@');
+    const masked = `${local.slice(0, 2)}***@${domain}`;
+
+    res.json({ requires_otp: true, masked_email: masked });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST /verify-otp — Step 2: verify OTP, issue token ───────────────────
+router.post('/verify-otp', (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const SA_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'admin@payos.com';
+
+    if (email !== SA_EMAIL) return res.status(401).json({ error: 'Invalid request' });
+
+    const record = otpStore.get(email);
+    if (!record) return res.status(401).json({ error: 'OTP expired or not requested. Please log in again.' });
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(email);
+      return res.status(401).json({ error: 'OTP has expired. Please log in again.' });
+    }
+    if (record.otp !== String(otp).trim()) {
+      return res.status(401).json({ error: 'Incorrect OTP. Please check your email.' });
+    }
+
+    // OTP verified — issue JWT
+    otpStore.delete(email);
     const token = jwt.sign({ role: 'super_admin', email }, process.env.JWT_SECRET, { expiresIn: '8h' });
     res.json({ token, role: 'super_admin' });
   } catch (err) { res.status(500).json({ error: err.message }); }

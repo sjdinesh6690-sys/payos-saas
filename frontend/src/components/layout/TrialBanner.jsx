@@ -1,8 +1,10 @@
 import { Clock, AlertTriangle, CheckCircle, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTrial } from '@/lib/TrialContext';
 
 export default function TrialBanner() {
   const { trialActive, daysRemaining, isReadOnly, isPaid, loading } = useTrial();
+  const navigate = useNavigate();
 
   // Don't show if loading or if paid plan
   if (loading || isPaid) return null;
@@ -24,7 +26,7 @@ export default function TrialBanner() {
           </p>
         </div>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
+          href="/admin/billing"
           className="shrink-0 text-xs font-bold text-white px-4 py-2 rounded-xl transition-opacity hover:opacity-90"
           style={{ background: '#E85C2F' }}
         >
@@ -53,7 +55,7 @@ export default function TrialBanner() {
           </p>
         </div>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
+          href="/admin/billing"
           className="shrink-0 text-xs font-bold text-white px-4 py-2 rounded-xl transition-opacity hover:opacity-90"
           style={{ background: '#E85C2F' }}
         >
@@ -78,7 +80,7 @@ export default function TrialBanner() {
           &nbsp;·&nbsp; After that, you can still view your data while you decide.
         </p>
         <a
-          href="mailto:hello@payos.com?subject=Upgrade PayLeef Plan"
+          href="/admin/billing"
           className="shrink-0 text-xs font-semibold hover:underline"
           style={{ color: '#E85C2F' }}
         >

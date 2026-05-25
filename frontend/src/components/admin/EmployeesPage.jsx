@@ -292,6 +292,9 @@ export default function EmployeesPage() {
           <Button variant="outline" className="h-9 border-green-300 text-green-700 hover:bg-green-50" onClick={exportExcel}>
             <FileSpreadsheet size={14} className="mr-1.5" /> Export Excel
           </Button>
+          <Button variant="outline" className="h-9 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setUploadOpen(true)}>
+            <Upload size={14} className="mr-1.5" /> Import CSV/Excel
+          </Button>
           <Button className="h-9 bg-orange-600 hover:bg-orange-700 text-white" onClick={openAdd}>
             <Plus size={14} className="mr-1.5" /> Add Employee
           </Button>
@@ -487,8 +490,8 @@ export default function EmployeesPage() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600" onClick={() => promptDelete(emp)}>
-                        <Trash2 size={14} /> Delete Permanently
+                      <DropdownMenuItem variant="destructive" onClick={() => promptDelete(emp)}>
+                        <Trash2 size={14} className="shrink-0" /> Delete Permanently
                       </DropdownMenuItem>
                     </SimpleDropdown>
                   </td>

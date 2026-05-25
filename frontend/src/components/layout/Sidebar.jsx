@@ -21,8 +21,7 @@ const RupeeLeaf = ({ size = 20 }) => (
 // Core monthly workflow — always visible
 const CORE_NAV = [
   { to: '/admin/dashboard',  label: 'Dashboard',         icon: LayoutDashboard, permKey: null },
-  { to: '/admin/employees',  label: 'Employees',          icon: Users,           permKey: 'employees' },
-  { to: '/admin/upload',     label: 'Import Data',        icon: Upload,          permKey: 'upload' },
+  { to: '/admin/employees',  label: 'Employees & Import', icon: Users,           permKey: 'employees' },
   { to: '/admin/send',       label: 'Generate & Send',    icon: Send,            permKey: 'send' },
   { to: '/admin/reports',    label: 'Reports',            icon: BarChart3,       permKey: 'reports' },
 ];

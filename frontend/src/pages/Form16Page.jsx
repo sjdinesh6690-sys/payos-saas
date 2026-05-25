@@ -63,9 +63,9 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div
-        className="relative rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="relative rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
         style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)' }}
       >
         {/* Header */}
@@ -91,7 +91,7 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
             <p className="text-xs font-bold text-blue-900 flex items-center gap-1">
               <Settings size={12} /> Employer Details (one-time setup)
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">TAN Number</label>
                 <Input value={form.tan} onChange={e => upd('tan', e.target.value.toUpperCase())}
@@ -112,7 +112,7 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
             <label className="block text-xs font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
               Tax Regime (F.Y. {fy})
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { id: 'new',  label: 'New Regime', desc: 'Standard deduction ₹75,000. No 80C/80D. Default from FY 2024-25.', tag: 'Recommended' },
                 { id: 'old',  label: 'Old Regime', desc: 'Standard deduction ₹50,000. Allows 80C, 80D, HRA & other deductions.', tag: '' },
@@ -141,7 +141,7 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
             <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
               Section 10 Exemptions
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   HRA Exemption u/s 10(13A) (₹)
@@ -170,7 +170,7 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
               <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
                 <Info size={12} /> Chapter VI-A Deductions (Old Regime Only)
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     80C Investments (₹) — Max ₹1,50,000

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings } from 'lucide-react';
+import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings, LogOut } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TrialBanner from './TrialBanner';
@@ -386,7 +386,7 @@ export default function MainLayout() {
                 {/* Dropdown */}
                 {profileOpen && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-48 rounded-2xl py-1.5 z-50"
+                    className="absolute right-0 top-full mt-2 w-52 rounded-2xl py-1.5 z-50"
                     style={{
                       background: '#fff',
                       border: '1px solid var(--border)',
@@ -399,12 +399,13 @@ export default function MainLayout() {
                     </div>
                     <button
                       onClick={logout}
-                      className="flex items-center gap-2.5 w-full px-4 py-2.5 text-[13px] transition-all"
-                      style={{ color: 'var(--text-secondary)' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      className="flex items-center gap-2.5 w-full px-4 py-3 text-[13px] font-semibold transition-all rounded-b-2xl"
+                      style={{ color: '#DC2626' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = ''; }}
                     >
-                      Sign out
+                      <LogOut size={15} />
+                      Sign Out
                     </button>
                   </div>
                 )}
