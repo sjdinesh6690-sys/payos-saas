@@ -40,7 +40,8 @@ router.post('/send', async (req, res) => {
       pool.query('SELECT * FROM admins WHERE id = $1', [req.admin_id]),
       pool.query('SELECT branding FROM payroll_configs WHERE admin_id = $1', [req.admin_id]),
       pool.query(
-        `SELECT p.*, e.email AS employee_email
+        `SELECT p.*, e.email AS employee_email,
+                e.portal_access_enabled, e.is_temp_password
            FROM payslips p
            LEFT JOIN employees e ON e.employee_id = p.employee_id AND e.admin_id = p.admin_id
           WHERE p.admin_id = $1 AND p.month = $2 AND p.year = $3 AND p.emailed = false`,
@@ -140,9 +141,36 @@ router.post('/send', async (req, res) => {
               </div>
 
               <p style="color:#64748b;font-size:13px;margin:0;">
-                Your complete salary breakdown is in the attached PDF. You can also log in to the
-                employee portal to view all your payslips anytime.
+                Your complete salary breakdown is in the attached PDF.
               </p>
+              ${slip.portal_access_enabled ? `
+              <div style="margin-top:16px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:16px;">
+                <p style="font-size:12px;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">
+                  🔐 Payroll Portal Access
+                </p>
+                <p style="font-size:13px;color:#166534;margin:0 0 8px;">
+                  Log in anytime to view all your payslips and salary details:
+                </p>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:5px 0;font-size:12px;color:#15803D;">Portal URL</td>
+                    <td style="padding:5px 0;font-size:12px;font-weight:700;color:#15803D;text-align:right;">
+                      <a href="${process.env.APP_URL || 'https://payos-saas.onrender.com'}/login" style="color:#15803D;">
+                        ${process.env.APP_URL || 'https://payos-saas.onrender.com'}/login
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:5px 0;font-size:12px;color:#15803D;">Employee ID</td>
+                    <td style="padding:5px 0;font-size:12px;font-weight:700;color:#0f172a;text-align:right;">${slip.employee_id}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:5px 0;font-size:12px;color:#15803D;">Login Email</td>
+                    <td style="padding:5px 0;font-size:12px;font-weight:700;color:#0f172a;text-align:right;">${toEmail}</td>
+                  </tr>
+                </table>
+                ${slip.is_temp_password ? `<p style="font-size:11.5px;color:#92400e;margin:10px 0 0;background:#FEF9C3;border-radius:6px;padding:8px 10px;">⚠ You have a temporary password. Please log in and set your own password.</p>` : ''}
+              </div>` : ''}
             </div>
 
             <div style="background:#f8fafc;padding:20px 32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none;text-align:center;">

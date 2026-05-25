@@ -12,8 +12,10 @@ import ResetPasswordPage      from '@/pages/ResetPasswordPage';
 import TermsPage              from '@/pages/TermsPage';
 import PrivacyPage            from '@/pages/PrivacyPage';
 import OnboardingPage         from '@/pages/OnboardingPage';
-import EmployeePayslipsPage   from '@/pages/EmployeePayslipsPage';
-import PayrollConfigPage      from '@/pages/PayrollConfigPage';
+import EmployeePayslipsPage      from '@/pages/EmployeePayslipsPage';
+import EmployeeSetPasswordPage   from '@/pages/EmployeeSetPasswordPage';
+import EmployeeResetPasswordPage from '@/pages/EmployeeResetPasswordPage';
+import PayrollConfigPage         from '@/pages/PayrollConfigPage';
 import SettingsPage           from '@/pages/SettingsPage';
 import MainLayout             from '@/components/layout/MainLayout';
 import DashboardPage          from '@/components/admin/DashboardPage';
@@ -60,7 +62,9 @@ export default function App() {
           <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* ── Employee portal ───────────────────────────────────── */}
-          <Route path="/employee/payslips" element={<EmployeePayslipsPage />} />
+          <Route path="/employee/payslips"      element={<EmployeePayslipsPage />} />
+          <Route path="/employee/set-password"  element={<EmployeeSetPasswordPage />} />
+          <Route path="/employee/reset-password" element={<EmployeeResetPasswordPage />} />
 
           {/* ── Admin panel (protected via MainLayout) ────────────── */}
           <Route path="/admin" element={<MainLayout />}>

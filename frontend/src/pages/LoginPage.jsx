@@ -20,6 +20,11 @@ export default function LoginPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [empId, setEmpId]                 = useState('');
   const [empEmail, setEmpEmail]           = useState('');
+  const [empPassword, setEmpPassword]     = useState('');
+  const [showEmpForgot, setShowEmpForgot] = useState(false);
+  const [forgotEmail, setForgotEmail]     = useState('');
+  const [forgotMsg, setForgotMsg]         = useState('');
+  const [forgotSending, setForgotSending] = useState(false);
   const [error, setError]                 = useState('');
   const [loading, setLoading]             = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
@@ -78,17 +83,35 @@ export default function LoginPage() {
       const res  = await fetch('/api/auth/employee-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: empId, email: empEmail }),
+        body: JSON.stringify({ employee_id: empId, email: empEmail, password: empPassword }),
       });
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employee');
         localStorage.setItem('employee_name', data.employee_name || '');
-        navigate('/employee/payslips');
+        if (data.requires_password_change) {
+          navigate('/employee/set-password');
+        } else {
+          navigate('/employee/payslips');
+        }
       } else { setError(data.error || 'Login failed'); }
     } catch { setError('Cannot connect to server.'); }
     finally { setLoading(false); }
+  };
+
+  const sendEmpForgot = async (e) => {
+    e.preventDefault();
+    setForgotSending(true); setForgotMsg('');
+    try {
+      const res  = await fetch('/api/auth/employee-forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      setForgotMsg(data.message || 'Reset link sent!');
+    } catch { setForgotMsg('Failed to send. Please try again.'); }
+    finally { setForgotSending(false); }
   };
 
   return (
@@ -210,7 +233,28 @@ export default function LoginPage() {
                     </button>
                   </p>
                 </form>
+              ) : showEmpForgot ? (
+                /* ── Employee Forgot Password ── */
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 mb-1">Reset your password</p>
+                    <p className="text-xs text-slate-500 mb-4">Enter your registered email. We'll send a reset link.</p>
+                    <form onSubmit={sendEmpForgot} className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Address</label>
+                        <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="your@email.com" required />
+                      </div>
+                      {forgotMsg && <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">{forgotMsg}</p>}
+                      <Button type="submit" disabled={forgotSending} className="w-full h-10 text-white" style={{ background: '#1A7A4A' }}>
+                        {forgotSending ? 'Sending…' : 'Send Reset Link'}
+                      </Button>
+                    </form>
+                  </div>
+                  <button type="button" onClick={() => { setShowEmpForgot(false); setForgotMsg(''); setError(''); }}
+                    className="text-xs text-slate-500 hover:underline w-full text-center">← Back to Login</button>
+                </div>
               ) : (
+                /* ── Employee Login ── */
                 <form onSubmit={loginEmployee} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Employee ID</label>
@@ -220,10 +264,22 @@ export default function LoginPage() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Address</label>
                     <Input type="email" value={empEmail} onChange={e => setEmpEmail(e.target.value)} placeholder="your@email.com" required />
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700">Password</label>
+                      <button type="button" onClick={() => { setShowEmpForgot(true); setForgotEmail(empEmail); setError(''); }}
+                        className="text-xs hover:underline" style={{ color: '#1A7A4A' }}>
+                        Forgot password?
+                      </button>
+                    </div>
+                    <Input type="password" value={empPassword} onChange={e => setEmpPassword(e.target.value)} placeholder="••••••••" />
+                  </div>
                   <Button type="submit" disabled={loading} className="w-full h-10 text-white" style={{ background: '#1A7A4A' }}>
                     {loading ? 'Signing in…' : 'Sign In'}
                   </Button>
-                  <p className="text-center text-xs text-slate-500 pt-1">Contact your HR for your Employee ID</p>
+                  <p className="text-center text-xs text-slate-500 pt-1">
+                    Your temporary password was sent to your email by HR
+                  </p>
                 </form>
               )}
             </div>

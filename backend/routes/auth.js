@@ -272,28 +272,45 @@ router.post('/admin-login', async (req, res) => {
   }
 });
 
-// ── EMPLOYEE LOGIN — now requires password ────────────────────────────────────
+// ── EMPLOYEE LOGIN ────────────────────────────────────────────────────────────
+// Accepts: employee_id + email + password (password optional for legacy accounts)
 router.post('/employee-login', async (req, res) => {
   try {
     const { employee_id, email, password } = req.body;
-    if (!employee_id || !email || !password)
-      return res.status(400).json({ error: 'Employee ID, email and password required' });
+    if (!employee_id || !email)
+      return res.status(400).json({ error: 'Employee ID and email are required' });
 
     const result = await pool.query(
       'SELECT * FROM employees WHERE UPPER(employee_id) = $1 AND LOWER(email) = $2',
-      [employee_id.toUpperCase(), email.toLowerCase()]
+      [employee_id.toUpperCase().trim(), email.toLowerCase().trim()]
     );
     const employee = result.rows[0];
 
-    // Generic error to prevent enumeration
     if (!employee) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // If no password set yet, use employee_id as default (backwards compatibility)
-    const match = employee.password
-      ? await bcrypt.compare(password, employee.password)
-      : password === employee.employee_id; // Default: password = employee_id
+    // Portal access check — only enforce if portal_access_enabled is explicitly set
+    // (allows backwards compatibility for accounts created before portal feature)
+    if (employee.portal_access_enabled === false) {
+      return res.status(403).json({ error: 'Portal access is not enabled for your account. Please contact your HR admin.' });
+    }
 
-    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+    // Password check:
+    // 1. If employee has a hashed password, verify with bcrypt
+    // 2. If no password (legacy) and no password sent — allow (backwards compat)
+    // 3. If no password and password sent, treat employee_id as default password
+    if (password) {
+      let match = false;
+      if (employee.password) {
+        match = await bcrypt.compare(password, employee.password);
+      } else {
+        // Legacy: no password in DB, accept employee_id as password
+        match = (password === employee.employee_id);
+      }
+      if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+    } else if (employee.password) {
+      // Password field in DB but nothing sent — require password
+      return res.status(400).json({ error: 'Password is required' });
+    }
 
     const token = jwt.sign(
       { employee_id: employee.id, admin_id: employee.admin_id },
@@ -301,11 +318,150 @@ router.post('/employee-login', async (req, res) => {
       { expiresIn: '8h' }
     );
 
+    await pool.query('UPDATE employees SET is_temp_password = COALESCE(is_temp_password, true) WHERE id = $1', [employee.id]);
     await auditLog(employee.admin_id, 'employee_login', 'employees', employee.id, null, req.ip);
-    res.json({ token, role: 'employee', employee_name: employee.employee_name });
+
+    res.json({
+      token,
+      role:                     'employee',
+      employee_name:            employee.employee_name,
+      requires_password_change: employee.is_temp_password === true,
+    });
   } catch (err) {
     console.error('Employee login error:', err);
     res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+});
+
+// ── EMPLOYEE SET PASSWORD — after first login or forced reset ─────────────────
+router.post('/employee-set-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorised' });
+    const token  = authHeader.split(' ')[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { new_password } = req.body;
+    if (!new_password || new_password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const hash = await bcrypt.hash(new_password, 12);
+    await pool.query(
+      'UPDATE employees SET password = $1, is_temp_password = false WHERE id = $2 AND admin_id = $3',
+      [hash, payload.employee_id, payload.admin_id]
+    );
+
+    res.json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError') return res.status(401).json({ error: 'Session expired. Please log in again.' });
+    res.status(500).json({ error: 'Failed to update password.' });
+  }
+});
+
+// ── EMPLOYEE FORGOT PASSWORD ──────────────────────────────────────────────────
+router.post('/employee-forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const result = await pool.query(
+      `SELECT e.*, a.company_name FROM employees e
+       JOIN admins a ON a.id = e.admin_id
+       WHERE LOWER(e.email) = $1 LIMIT 1`,
+      [email.toLowerCase().trim()]
+    );
+    const employee = result.rows[0];
+
+    // Always return success to prevent account enumeration
+    if (!employee || !employee.portal_access_enabled) {
+      return res.json({ message: 'If this email has portal access, a reset link has been sent.' });
+    }
+
+    const token   = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await pool.query(
+      'UPDATE employees SET portal_reset_token = $1, portal_reset_expires = $2 WHERE id = $3',
+      [token, expires, employee.id]
+    );
+
+    const appUrl   = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const resetUrl = `${appUrl}/employee/reset-password?token=${token}`;
+
+    const resend = getResend();
+    if (resend) {
+      await resend.emails.send({
+        from:    `${employee.company_name} Payroll <payroll@dinmind.com>`,
+        to:      employee.email,
+        subject: `Reset your ${employee.company_name} Payroll Portal password`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;border-radius:12px;">
+            <div style="text-align:center;margin-bottom:24px;">
+              <span style="font-size:28px;font-weight:900;color:#0f172a;">Pay</span><span style="font-size:28px;font-weight:900;color:#1A7A4A;">Leef</span>
+            </div>
+            <h2 style="color:#0f172a;margin-bottom:8px;">Reset your payroll portal password</h2>
+            <p style="color:#475569;margin-bottom:8px;">Hi ${employee.employee_name},</p>
+            <p style="color:#475569;margin-bottom:24px;">
+              We received a request to reset your password for the <strong>${employee.company_name}</strong> payroll portal.
+              Click the button below to set a new password.
+            </p>
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${resetUrl}" style="display:inline-block;background:#1A7A4A;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:16px;">
+                Reset My Password
+              </a>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;">This link expires in <strong>1 hour</strong>. If you didn't request this, ignore this email.</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>
+            <p style="color:#94a3b8;font-size:12px;">Or copy: <a href="${resetUrl}" style="color:#1A7A4A;">${resetUrl}</a></p>
+          </div>`,
+      });
+    }
+
+    res.json({ message: 'If this email has portal access, a reset link has been sent.' });
+  } catch (err) {
+    console.error('Employee forgot password error:', err);
+    res.status(500).json({ error: 'Failed to process request.' });
+  }
+});
+
+// ── EMPLOYEE RESET PASSWORD — via token ───────────────────────────────────────
+router.post('/employee-reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const result = await pool.query(
+      'SELECT * FROM employees WHERE portal_reset_token = $1 AND portal_reset_expires > NOW()',
+      [token]
+    );
+    const employee = result.rows[0];
+    if (!employee) return res.status(400).json({ error: 'Reset link is invalid or has expired. Request a new one.' });
+
+    const hash = await bcrypt.hash(password, 12);
+    await pool.query(
+      'UPDATE employees SET password = $1, is_temp_password = false, portal_reset_token = NULL, portal_reset_expires = NULL WHERE id = $2',
+      [hash, employee.id]
+    );
+
+    res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// ── EMPLOYEE VERIFY RESET TOKEN ───────────────────────────────────────────────
+router.get('/employee-verify-reset-token', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.json({ valid: false });
+    const result = await pool.query(
+      'SELECT id FROM employees WHERE portal_reset_token = $1 AND portal_reset_expires > NOW()',
+      [token]
+    );
+    res.json({ valid: result.rows.length > 0 });
+  } catch (err) {
+    res.json({ valid: false });
   }
 });
 

@@ -119,6 +119,12 @@ async function initDB() {
     // Location / branch
     await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS location VARCHAR(100)`);
 
+    // Employee portal access
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS portal_access_enabled BOOLEAN DEFAULT false`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_temp_password BOOLEAN DEFAULT true`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS portal_reset_token VARCHAR(128)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS portal_reset_expires TIMESTAMPTZ`);
+
     // Attendance table — monthly attendance per employee
     await client.query(`
       CREATE TABLE IF NOT EXISTS attendance (

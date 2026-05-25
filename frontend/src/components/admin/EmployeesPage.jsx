@@ -470,6 +470,22 @@ export default function EmployeesPage() {
                           <UserCheck size={14} /> Reactivate
                         </DropdownMenuItem>
                       )}
+                      {emp.email && (
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            if (!window.confirm(`Reset portal password for ${emp.employee_name}? A new temporary password will be emailed to ${emp.email}.`)) return;
+                            try {
+                              const res = await api.post(`/employees/${emp.id}/reset-portal-password`);
+                              toast.success(res.data.message || 'Portal password reset & email sent!');
+                              refetch();
+                            } catch (err) {
+                              toast.error(err.response?.data?.error || 'Failed to reset portal password');
+                            }
+                          }}
+                        >
+                          <FileText size={14} /> Reset Portal Password
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => promptDelete(emp)}>
                         <Trash2 size={14} /> Delete Permanently

@@ -10,6 +10,7 @@ const EMPTY = {
   employee_id: '', employee_name: '', email: '',
   department: '', designation: '', phone: '', date_of_joining: '', location: '',
   pan_number: '', uan_number: '', bank_name: '', bank_account_number: '', ifsc_code: '',
+  portal_access_enabled: false,
 };
 
 // ── Inline field error helper ─────────────────────────────────────────────────
@@ -76,11 +77,12 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
         phone:               employee.phone               || '',
         date_of_joining:     employee.date_of_joining     || '',
         location:            employee.location            || '',
-        pan_number:          employee.pan_number          || '',
-        uan_number:          employee.uan_number          || '',
-        bank_name:           employee.bank_name           || '',
-        bank_account_number: employee.bank_account_number || '',
-        ifsc_code:           employee.ifsc_code           || '',
+        pan_number:           employee.pan_number           || '',
+        uan_number:           employee.uan_number           || '',
+        bank_name:            employee.bank_name            || '',
+        bank_account_number:  employee.bank_account_number  || '',
+        ifsc_code:            employee.ifsc_code            || '',
+        portal_access_enabled: employee.portal_access_enabled || false,
       });
     } else {
       setForm(EMPTY);
@@ -307,6 +309,42 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                   inputMode="numeric"
                 />
               </div>
+            </div>
+
+            {/* ── Portal Access ── */}
+            <div className="pt-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Payroll Portal Access</p>
+              <div
+                className="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all"
+                style={{ background: form.portal_access_enabled ? '#F0FDF4' : '#F8FAFC', border: `1.5px solid ${form.portal_access_enabled ? '#86EFAC' : '#E2E8F0'}` }}
+                onClick={() => setForm(f => ({ ...f, portal_access_enabled: !f.portal_access_enabled }))}
+              >
+                <div
+                  className="w-5 h-5 rounded flex items-center justify-center mt-0.5 shrink-0 transition-all"
+                  style={{ background: form.portal_access_enabled ? '#1A7A4A' : '#fff', border: `2px solid ${form.portal_access_enabled ? '#1A7A4A' : '#CBD5E1'}` }}
+                >
+                  {form.portal_access_enabled && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: form.portal_access_enabled ? '#15803D' : '#0F172A' }}>
+                    Enable Employee Portal Access
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#64748B' }}>
+                    {isNew
+                      ? 'Employee will receive a welcome email with temporary login credentials.'
+                      : form.portal_access_enabled
+                        ? 'Employee can log in to view and download their payslips.'
+                        : 'Employee cannot log in to the payslip portal.'}
+                  </p>
+                </div>
+              </div>
+              {!form.email && form.portal_access_enabled && (
+                <p className="text-xs text-amber-600 mt-2">⚠ Email address is required to enable portal access.</p>
+              )}
             </div>
 
           </div>
