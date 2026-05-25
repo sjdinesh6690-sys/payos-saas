@@ -58,9 +58,8 @@ function UserDialog({ user, onClose, onSaved }) {
     if (!form.name.trim())  e.name  = 'Name is required';
     if (!form.email.trim()) e.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Invalid email';
-    if (isNew && (!form.password || form.password.length < 6))
-      e.password = 'Password must be at least 6 characters';
-    if (!isNew && form.password && form.password.length < 6)
+    // Password is optional for new users (auto-generated if blank)
+    if (form.password && form.password.length < 6)
       e.password = 'Password must be at least 6 characters';
     return e;
   };
@@ -135,21 +134,28 @@ function UserDialog({ user, onClose, onSaved }) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {isNew ? 'Password' : 'New Password'} {isNew && <span className="text-red-500">*</span>}
-              {!isNew && <span className="text-slate-400 font-normal ml-1">(leave blank to keep current)</span>}
+              {isNew ? 'Password' : 'New Password'}
+              {isNew
+                ? <span className="text-slate-400 font-normal ml-1">(leave blank to auto-generate)</span>
+                : <span className="text-slate-400 font-normal ml-1">(leave blank to keep current)</span>}
             </label>
             <div className="relative">
               <Input
                 type={showPwd ? 'text' : 'password'}
                 value={form.password}
                 onChange={set('password')}
-                placeholder={isNew ? 'Min. 6 characters' : 'Enter new password to change'}
+                placeholder={isNew ? 'Leave blank — a password will be emailed to them' : 'Enter new password to change'}
               />
               <button type="button" onClick={() => setShowPwd(s => !s)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 {showPwd ? <EyeOff size={15}/> : <Eye size={15}/>}
               </button>
             </div>
+            {isNew && !form.password && (
+              <p className="text-xs text-green-700 mt-1 flex items-center gap-1">
+                ✉ A temporary password will be sent to their email automatically.
+              </p>
+            )}
             {errors.password && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={11}/>{errors.password}</p>}
           </div>
 

@@ -3,9 +3,101 @@
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
+const { Resend } = require('resend');
 const router   = express.Router();
 const { pool } = require('../database');
 const authCheck = require('../middleware/auth');
+
+// Lazy Resend init
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+// Generate a readable 10-char temp password (no ambiguous chars)
+function generateTempPassword() {
+  const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let pwd = '';
+  const bytes = crypto.randomBytes(10);
+  for (let i = 0; i < 10; i++) pwd += charset[bytes[i] % charset.length];
+  return pwd;
+}
+
+// Send welcome email to new team member
+async function sendTeamMemberWelcomeEmail({ toEmail, name, tempPassword, companyName, adminEmail }) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn('[users] Resend not configured — skipping welcome email');
+    return;
+  }
+  const loginUrl = process.env.APP_URL || 'https://payos-saas.onrender.com';
+  const brandColor = '#1A7A4A';
+
+  await resend.emails.send({
+    from:     `${companyName} Payroll <payroll@dinmind.com>`,
+    to:       [toEmail],
+    reply_to: adminEmail || undefined,
+    subject:  `Welcome to PayLeef — Your Team Account is Ready`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;padding:0;">
+        <div style="background:${brandColor};padding:28px 32px;border-radius:12px 12px 0 0;">
+          <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-.04em;">
+            Pay<span style="color:#4ADE80;">Leef</span>
+          </div>
+          <div style="color:rgba(255,255,255,.6);font-size:13px;margin-top:4px;">${companyName}</div>
+        </div>
+
+        <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;">
+          <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">
+            Welcome to the Team, ${name}! 👋
+          </h2>
+          <p style="color:#64748b;font-size:15px;margin:0 0 24px;">
+            Your PayLeef account has been created by <strong style="color:#0f172a;">${companyName}</strong>.
+            Use the credentials below to log in and access your assigned modules.
+          </p>
+
+          <div style="background:#f8fafc;border-radius:10px;padding:20px;border:1px solid #e2e8f0;margin-bottom:24px;">
+            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 12px;">Your Login Details</p>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:8px 0;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5f9;">Login URL</td>
+                <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0f172a;text-align:right;border-bottom:1px solid #f1f5f9;">
+                  <a href="${loginUrl}/login" style="color:${brandColor};">${loginUrl}/login</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5f9;">Email</td>
+                <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0f172a;text-align:right;border-bottom:1px solid #f1f5f9;">${toEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0 6px;font-size:13px;color:#64748b;font-weight:600;">Temporary Password</td>
+                <td style="padding:10px 0 6px;font-size:18px;font-weight:900;color:${brandColor};text-align:right;letter-spacing:0.04em;">${tempPassword}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:8px;padding:12px 14px;margin-bottom:20px;">
+            <p style="font-size:12.5px;color:#92400e;margin:0;">
+              ⚠ <strong>Please log in and change your password immediately.</strong> Do not share this email with anyone.
+            </p>
+          </div>
+
+          <p style="color:#64748b;font-size:13px;margin:0;">
+            If you have any questions, contact your administrator at <strong>${companyName}</strong>.
+          </p>
+        </div>
+
+        <div style="background:#f8fafc;padding:20px 32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">
+            This is an automated email from ${companyName} via PayLeef.<br/>
+            Please do not reply to this email.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
 
 // All routes except /login require admin auth
 router.use((req, res, next) => {
@@ -36,7 +128,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       return res.status(400).json({ error: 'Invalid email format' });
-    if (!password || password.length < 6)
+    if (password && password.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
     // Check duplicate email in admin_users (scoped to this admin)
@@ -47,12 +139,35 @@ router.post('/', async (req, res) => {
     if (exists.rows.length > 0)
       return res.status(409).json({ error: 'A user with this email already exists' });
 
-    const hashed = await bcrypt.hash(password, 10);
+    // Auto-generate password if not provided
+    const plainPassword = password && password.trim() ? password.trim() : generateTempPassword();
+    const hashed = await bcrypt.hash(plainPassword, 10);
+
     const result = await pool.query(
       `INSERT INTO admin_users (admin_id, name, email, password, role, permissions)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, name, email, role, permissions, status, created_at`,
       [req.admin_id, name.trim(), email.trim().toLowerCase(), hashed, role, JSON.stringify(permissions)]
     );
+
+    // Get admin info for the welcome email
+    try {
+      const adminResult = await pool.query(
+        'SELECT company_name, company_email FROM admins WHERE id = $1',
+        [req.admin_id]
+      );
+      const admin = adminResult.rows[0] || {};
+      await sendTeamMemberWelcomeEmail({
+        toEmail:     email.trim().toLowerCase(),
+        name:        name.trim(),
+        tempPassword: plainPassword,
+        companyName: admin.company_name || 'Your Company',
+        adminEmail:  admin.company_email || undefined,
+      });
+    } catch (emailErr) {
+      console.error('[users] Welcome email failed:', emailErr.message);
+      // Don't fail the whole request if email fails
+    }
+
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
