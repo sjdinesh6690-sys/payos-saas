@@ -28,6 +28,7 @@ import BillingPage            from '@/pages/BillingPage';
 import LeavePolicyPage        from '@/pages/LeavePolicyPage';
 import LocationsPage          from '@/pages/LocationsPage';
 import UsersPage              from '@/pages/UsersPage';
+import Form16Page             from '@/pages/Form16Page';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="locations"      element={<LocationsPage />} />
             <Route path="users"          element={<UsersPage />} />
             <Route path="settings"       element={<SettingsPage />} />
+            <Route path="form16"         element={<Form16Page />} />
           </Route>
 
           {/* ── Super Admin panel ─────────────────────────────────── */}

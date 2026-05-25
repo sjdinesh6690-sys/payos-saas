@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Upload, Send, BarChart3,
   LogOut, Settings, ChevronDown, ChevronUp,
   FileText, TrendingUp, Settings2, CalendarCheck,
-  CreditCard, Umbrella, MapPin, UserCog,
+  CreditCard, Umbrella, MapPin, UserCog, BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,7 @@ const CORE_NAV = [
 
 // Hidden behind "More" — advanced / infrequent pages
 const MORE_NAV = [
+  { to: '/admin/form16',         label: 'Form 16 Part B',  icon: BookOpen,     permKey: 'reports' },
   { to: '/admin/payslips',       label: 'Payslip History', icon: FileText,     permKey: 'payslips' },
   { to: '/admin/attendance',     label: 'Attendance',      icon: CalendarCheck, permKey: 'attendance' },
   { to: '/admin/leave-policy',   label: 'Leave Policy',    icon: Umbrella,      permKey: 'leave_policy' },
