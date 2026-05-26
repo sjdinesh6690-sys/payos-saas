@@ -366,7 +366,24 @@ router.get('/:id/download', async (req, res) => {
     const admin = adminResult.rows[0];
 
     const cfgResult = await pool.query('SELECT branding FROM payroll_configs WHERE admin_id = $1', [req.admin_id]);
-    const branding  = cfgResult.rows.length ? (cfgResult.rows[0].branding || {}) : {};
+    const branding  = cfgResult.rows.length ? { ...(cfgResult.rows[0].branding || {}) } : {};
+
+    // ── Location override: if employee's location has separate_payslip enabled,
+    //    use that location's address and template instead of the global settings ─
+    const locResult = await pool.query(
+      `SELECT l.address, l.payslip_template
+       FROM locations l
+       JOIN employees e ON e.location = l.name AND e.admin_id = l.admin_id
+       WHERE e.admin_id = $1 AND e.employee_id = $2 AND l.separate_payslip = TRUE
+       LIMIT 1`,
+      [req.admin_id, p.employee_id]
+    );
+    if (locResult.rows.length) {
+      const loc = locResult.rows[0];
+      if (loc.address) branding.company_address = loc.address;
+      if (loc.payslip_template && loc.payslip_template !== 'default')
+        branding.template = loc.payslip_template;
+    }
 
     const isPremium = (branding.template || 'modern') === 'premium';
     const doc = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });

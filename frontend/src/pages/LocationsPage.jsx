@@ -4,9 +4,11 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 const TEMPLATES = [
-  { value: 'default',   label: 'Default Template' },
-  { value: 'compact',   label: 'Compact Template' },
-  { value: 'detailed',  label: 'Detailed Template' },
+  { value: 'modern',    label: 'Modern (Default)' },
+  { value: 'classic',   label: 'Classic' },
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'minimal',   label: 'Minimal' },
+  { value: 'premium',   label: 'Premium' },
 ];
 
 // ── Small inline form for add / edit ─────────────────────────────────────────
@@ -16,7 +18,7 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
   const [state,            setState]            = useState(initial.state             || '');
   const [address,          setAddress]          = useState(initial.address           || '');
   const [separatePayslip,  setSeparatePayslip]  = useState(!!initial.separate_payslip);
-  const [payslipTemplate,  setPayslipTemplate]  = useState(initial.payslip_template || 'default');
+  const [payslipTemplate,  setPayslipTemplate]  = useState(initial.payslip_template || 'modern');
 
   const inputStyle = {
     width: '100%',
