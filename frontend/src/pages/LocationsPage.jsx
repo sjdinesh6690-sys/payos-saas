@@ -9,6 +9,8 @@ const TEMPLATES = [
   { value: 'corporate', label: 'Corporate' },
   { value: 'minimal',   label: 'Minimal' },
   { value: 'premium',   label: 'Premium' },
+  { value: 'executive', label: 'Executive (Diagonal Corners)' },
+  { value: 'formal',    label: 'Formal (Navy + Gold)' },
 ];
 
 // ── Small inline form for add / edit ─────────────────────────────────────────

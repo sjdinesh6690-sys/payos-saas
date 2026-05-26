@@ -125,6 +125,87 @@ const TEMPLATES = [
       </svg>
     ),
   },
+  {
+    id: 'executive',
+    name: 'Executive',
+    desc: 'Gray background, diagonal corner accents, stacked full-width tables. Formal document style.',
+    color: '#2B5FA8',
+    preview: (c) => (
+      <svg viewBox="0 0 160 110" className="w-full h-full">
+        {/* Page background */}
+        <rect width="160" height="110" fill="#EEF1F5"/>
+        {/* White card */}
+        <rect x="5" y="4" width="150" height="102" fill="white" stroke="#D0D8E6" strokeWidth="0.5"/>
+        {/* Top-right diagonal corner triangles */}
+        <polygon points="125,4 155,4 155,34" fill="#DDE7F2"/>
+        <polygon points="135,4 155,4 155,24" fill="#C8D8EA"/>
+        <polygon points="145,4 155,4 155,14" fill="#5B8DD9"/>
+        <polygon points="151,4 155,4 155,8"  fill={c}/>
+        {/* Bottom-left diagonal */}
+        <polygon points="5,76 5,106 35,106" fill="#DDE7F2"/>
+        <polygon points="5,86 5,106 25,106" fill="#C8D8EA"/>
+        <polygon points="5,96 5,106 15,106" fill="#5B8DD9"/>
+        {/* Header: company name + PAYROLL SLIP */}
+        <rect x="12" y="9" width="55" height="5" rx="1" fill="#111" opacity="0.85"/>
+        <rect x="12" y="17" width="35" height="3" rx="1" fill="#888"/>
+        <rect x="85" y="9" width="45" height="5" rx="1" fill={c}/>
+        {/* Blue separator line */}
+        <rect x="12" y="26" width="136" height="2" fill={c}/>
+        {/* Employee info rows */}
+        {[0,1,2,3,4,5].map(i=><g key={i}>
+          <rect x="12" y={31+i*6} width="28" height="3" rx="1" fill="#94A3B8"/>
+          <rect x="44" y={31+i*6} width="50" height="3" rx="1" fill="#374151"/>
+        </g>)}
+        {/* Earnings table */}
+        <rect x="12" y="70" width="136" height="6" fill={c}/>
+        {[0,1,2].map(i=><rect key={i} x="12" y={78+i*5} width="136" height="4" fill={i%2===0?'white':'#F7F9FC'}/>)}
+        <rect x="12" y="93" width="136" height="5" fill="#EBF2FF"/>
+        {/* Deductions heading */}
+        <rect x="12" y="100" width="30" height="3" rx="1" fill="#111"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'formal',
+    name: 'Formal',
+    desc: 'Navy header with gold accent, side-by-side salary table. Traditional office style.',
+    color: '#1F4E79',
+    preview: (c) => (
+      <svg viewBox="0 0 160 110" className="w-full h-full">
+        <rect width="160" height="110" fill="#f8fafc"/>
+        {/* Navy header */}
+        <rect width="160" height="26" fill={c}/>
+        {/* Gold accent stripe */}
+        <rect y="24" width="160" height="2.5" fill="#F4C430"/>
+        <rect x="8" y="5" width="50" height="5" rx="1" fill="white" opacity="0.9"/>
+        <rect x="8" y="13" width="32" height="3" rx="1" fill="white" opacity="0.45"/>
+        <rect x="110" y="5" width="42" height="5" rx="1" fill="white" opacity="0.7"/>
+        {/* Employee info strip */}
+        <rect x="8" y="32" width="144" height="20" fill="#F8FAFC" stroke="#E2E8F0" strokeWidth="0.5"/>
+        <rect x="8" y="32" width="2.5" height="20" fill={c}/>
+        {[0,1,2,3].map(i=><g key={i}>
+          <rect x="13" y={35+i*5} width="22" height="2.5" rx="0.5" fill="#94A3B8"/>
+          <rect x="37" y={35+i*5} width="28" height="2.5" rx="0.5" fill="#334155"/>
+          <rect x="84" y={35+i*5} width="22" height="2.5" rx="0.5" fill="#94A3B8"/>
+          <rect x="108" y={35+i*5} width="28" height="2.5" rx="0.5" fill="#334155"/>
+        </g>)}
+        {/* Side-by-side table headers */}
+        <rect x="8"  y="56" width="70" height="7" fill={c}/>
+        <rect x="82" y="56" width="70" height="7" fill="#0F3460"/>
+        {/* Table rows */}
+        {[0,1,2,3].map(i=><g key={i}>
+          <rect x="8"  y={63+i*6} width="70" height="5" fill={i%2?'#F1F5F9':'white'}/>
+          <rect x="82" y={63+i*6} width="70" height="5" fill={i%2?'#F1F5F9':'white'}/>
+        </g>)}
+        {/* Totals */}
+        <rect x="8"  y="87" width="70" height="6" fill="#DBEAFE"/>
+        <rect x="82" y="87" width="70" height="6" fill="#FEE2E2"/>
+        {/* Net pay block */}
+        <rect x="8" y="96" width="144" height="10" fill={c}/>
+        <rect x="8" y="96" width="3"   height="10" fill="#F4C430"/>
+      </svg>
+    ),
+  },
 ];
 
 // ── Type labels ───────────────────────────────────────────────────────────────
@@ -625,7 +706,7 @@ export default function PayrollConfigPage() {
                 <h2 className="text-base font-semibold text-slate-900">Choose Payslip Template</h2>
               </div>
               <p className="text-xs text-slate-500 mb-5">Select how your payslips will look when downloaded as PDF.</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 {TEMPLATES.map((tpl) => (
                   <button
                     key={tpl.id}
