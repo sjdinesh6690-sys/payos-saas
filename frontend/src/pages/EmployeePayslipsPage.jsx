@@ -177,6 +177,13 @@ export default function EmployeePayslipsPage() {
   const navigate = useNavigate();
   const name = localStorage.getItem('employee_name') || 'Employee';
 
+  // Block access if employee still has a temporary password
+  useEffect(() => {
+    if (localStorage.getItem('payslip_requires_pwd_change') === 'true') {
+      navigate('/employee/set-password', { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     fetch('/api/payslips/employee-payslips', {
       headers: { Authorization: `Bearer ${localStorage.getItem('payslip_token')}` },

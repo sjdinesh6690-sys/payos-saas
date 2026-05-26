@@ -94,6 +94,7 @@ export default function LoginPage() {
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employee');
         localStorage.setItem('employee_name', data.employee_name || '');
+        localStorage.setItem('payslip_requires_pwd_change', data.requires_password_change ? 'true' : 'false');
         if (data.requires_password_change) {
           navigate('/employee/set-password');
         } else {

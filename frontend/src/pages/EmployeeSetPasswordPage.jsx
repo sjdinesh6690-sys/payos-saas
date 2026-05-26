@@ -42,6 +42,8 @@ export default function EmployeeSetPasswordPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to set password.'); return; }
+      // Clear the "must change password" flag so the employee can access payslips
+      localStorage.setItem('payslip_requires_pwd_change', 'false');
       navigate('/employee/payslips');
     } catch { setError('Cannot connect to server.'); }
     finally { setLoading(false); }
