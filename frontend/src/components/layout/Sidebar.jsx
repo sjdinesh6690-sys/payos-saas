@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, Upload, Send, BarChart3,
+  LayoutDashboard, Users, Send, BarChart3,
   LogOut, Settings, ChevronDown, ChevronUp,
   FileText, TrendingUp, Settings2, CalendarCheck,
-  CreditCard, Umbrella, MapPin, UserCog, BookOpen,
+  CreditCard, Umbrella, MapPin, UserCog, BookOpen, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,23 +20,27 @@ const RupeeLeaf = ({ size = 20 }) => (
 
 // Core monthly workflow — always visible
 const CORE_NAV = [
-  { to: '/admin/dashboard',  label: 'Dashboard',         icon: LayoutDashboard, permKey: null },
+  { to: '/admin/dashboard',  label: 'Dashboard',          icon: LayoutDashboard, permKey: null },
   { to: '/admin/employees',  label: 'Employees & Import', icon: Users,           permKey: 'employees' },
   { to: '/admin/send',       label: 'Generate & Send',    icon: Send,            permKey: 'send' },
   { to: '/admin/reports',    label: 'Reports',            icon: BarChart3,       permKey: 'reports' },
 ];
 
-// Hidden behind "More" — advanced / infrequent pages
-const MORE_NAV = [
-  { to: '/admin/form16',         label: 'Form 16 Part B',  icon: BookOpen,     permKey: 'reports' },
-  { to: '/admin/payslips',       label: 'Payslip History', icon: FileText,     permKey: 'payslips' },
-  { to: '/admin/attendance',     label: 'Attendance',      icon: CalendarCheck, permKey: 'attendance' },
-  { to: '/admin/leave-policy',   label: 'Leave Policy',    icon: Umbrella,      permKey: 'leave_policy' },
-  { to: '/admin/analytics',      label: 'Analytics',       icon: TrendingUp,    permKey: 'analytics' },
-  { to: '/admin/locations',      label: 'Locations',       icon: MapPin,        permKey: 'locations' },
-  { to: '/admin/payroll-config', label: 'Payroll Config',  icon: Settings2,     permKey: 'payroll_config' },
-  { to: '/admin/billing',        label: 'Billing & Plan',  icon: CreditCard,    permKey: 'billing' },
-  { to: '/admin/settings',       label: 'Settings',        icon: Settings,      permKey: 'settings' },
+// Tools — operational but used less often
+const TOOLS_NAV = [
+  { to: '/admin/payslips',   label: 'Payslip History', icon: FileText,      permKey: 'payslips' },
+  { to: '/admin/attendance', label: 'Attendance',      icon: CalendarCheck, permKey: 'attendance' },
+  { to: '/admin/analytics',  label: 'Analytics',       icon: TrendingUp,    permKey: 'analytics' },
+  { to: '/admin/form16',     label: 'Form 16 Part B',  icon: BookOpen,      permKey: 'reports' },
+];
+
+// Configuration — setup & admin settings
+const CONFIG_NAV = [
+  { to: '/admin/payroll-config', label: 'Payroll Config', icon: Settings2, permKey: 'payroll_config' },
+  { to: '/admin/leave-policy',   label: 'Leave Policy',   icon: Umbrella,  permKey: 'leave_policy' },
+  { to: '/admin/locations',      label: 'Locations',      icon: MapPin,    permKey: 'locations' },
+  { to: '/admin/billing',        label: 'Billing & Plan', icon: CreditCard, permKey: 'billing' },
+  { to: '/admin/settings',       label: 'Settings',       icon: Settings,  permKey: 'settings' },
 ];
 
 function NavItem({ to, label, icon: Icon }) {
@@ -73,14 +77,61 @@ function NavItem({ to, label, icon: Icon }) {
   );
 }
 
-export default function Sidebar() {
-  const navigate    = useNavigate();
-  const [moreOpen, setMoreOpen] = useState(false);
+function SectionLabel({ label }) {
+  return (
+    <p style={{
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.09em',
+      textTransform: 'uppercase', color: 'var(--text-muted)',
+      padding: '10px 12px 4px',
+    }}>
+      {label}
+    </p>
+  );
+}
 
-  const isSubUser   = localStorage.getItem('payslip_is_sub_user') === 'true';
-  const subName     = localStorage.getItem('payslip_sub_user_name') || '';
-  const adminName   = isSubUser ? subName : (localStorage.getItem('employee_name') || 'Admin');
-  const initials    = adminName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+function CollapsibleSection({ label, icon: Icon, items, defaultOpen = false }) {
+  const location  = useLocation();
+  const isAnyActive = items.some(i => location.pathname === i.to);
+  const [open, setOpen] = useState(defaultOpen || isAnyActive);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[12.5px] font-semibold transition-all"
+        style={{
+          color: isAnyActive ? 'var(--brand)' : 'var(--text-muted)',
+          background: isAnyActive && !open ? 'var(--brand-light)' : '',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = isAnyActive && !open ? 'var(--brand-light)' : '';
+          e.currentTarget.style.color = isAnyActive ? 'var(--brand)' : 'var(--text-muted)';
+        }}
+      >
+        <Icon size={14} className="shrink-0" />
+        <span className="flex-1 text-left">{label}</span>
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+
+      {open && (
+        <div className="pl-3 pt-0.5 space-y-0.5">
+          {items.map(item => (
+            <NavItem key={item.to} {...item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Sidebar() {
+  const navigate = useNavigate();
+
+  const isSubUser = localStorage.getItem('payslip_is_sub_user') === 'true';
+  const subName   = localStorage.getItem('payslip_sub_user_name') || '';
+  const adminName = isSubUser ? subName : (localStorage.getItem('employee_name') || 'Admin');
+  const initials  = adminName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   // Parse permissions — only used for sub-users
   let permissions = {};
@@ -100,8 +151,14 @@ export default function Sidebar() {
     navigate('/login');
   };
 
-  const visibleCore = CORE_NAV.filter(n => allowed(n.permKey));
-  const visibleMore = MORE_NAV.filter(n => allowed(n.permKey));
+  const visibleCore   = CORE_NAV.filter(n => allowed(n.permKey));
+  const visibleTools  = TOOLS_NAV.filter(n => allowed(n.permKey));
+  const visibleConfig = CONFIG_NAV.filter(n => allowed(n.permKey));
+
+  // Add Team Access to config if main admin
+  const configWithTeam = isSubUser
+    ? visibleConfig
+    : [...visibleConfig, { to: '/admin/users', label: 'Team Access', icon: UserCog, permKey: null }];
 
   return (
     <aside
@@ -135,44 +192,25 @@ export default function Sidebar() {
       {/* ── Navigation ── */}
       <nav className="flex-1 py-3 px-2.5 overflow-y-auto space-y-0.5">
 
-        {/* Core nav */}
+        {/* Core nav — always visible */}
         {visibleCore.map(item => (
           <NavItem key={item.to} {...item} />
         ))}
 
-        {/* More toggle */}
-        {visibleMore.length > 0 && (
+        {/* Tools — collapsible */}
+        {visibleTools.length > 0 && (
           <>
-            <div className="pt-1" />
-            <button
-              onClick={() => setMoreOpen(v => !v)}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text-muted)'; }}
-            >
-              {moreOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              <span>{moreOpen ? 'Less' : 'More'}</span>
-            </button>
-
-            {moreOpen && (
-              <div className="space-y-0.5 pt-0.5">
-                {visibleMore.map(item => (
-                  <NavItem key={item.to} {...item} />
-                ))}
-
-                {/* Team Access — main admin only */}
-                {!isSubUser && (
-                  <NavItem to="/admin/users" label="Team Access" icon={UserCog} />
-                )}
-              </div>
-            )}
+            <div style={{ height: 4 }} />
+            <CollapsibleSection label="Tools" icon={Wrench} items={visibleTools} />
           </>
         )}
 
-        {/* Team Access when more is not shown (admin with no more items) */}
-        {visibleMore.length === 0 && !isSubUser && (
-          <NavItem to="/admin/users" label="Team Access" icon={UserCog} />
+        {/* Configuration — collapsible */}
+        {configWithTeam.length > 0 && (
+          <>
+            <div style={{ height: 4 }} />
+            <CollapsibleSection label="Configuration" icon={Settings2} items={configWithTeam} />
+          </>
         )}
 
       </nav>
