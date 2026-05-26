@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Send, BarChart3,
   LogOut, Settings, ChevronDown, ChevronUp,
   FileText, TrendingUp, Settings2, CalendarCheck,
-  CreditCard, Umbrella, MapPin, UserCog, BookOpen, History,
+  CreditCard, Umbrella, MapPin, UserCog, BookOpen, History, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ const HISTORY_NAV = [
   { to: '/admin/attendance', label: 'Attendance',       icon: CalendarCheck, permKey: 'attendance' },
   { to: '/admin/analytics',  label: 'Analytics',        icon: TrendingUp,    permKey: 'analytics' },
   { to: '/admin/form16',     label: 'Form 16 Part B',   icon: BookOpen,      permKey: 'reports' },
+  { to: '/admin/audit',      label: 'Audit Log',         icon: Shield,        permKey: null },
 ];
 
 // ── Setup — one-time config, billing, team ────────────────────────────────────

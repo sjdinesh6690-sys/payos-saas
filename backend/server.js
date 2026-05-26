@@ -104,8 +104,10 @@ initDB().then(async () => {
   app.use('/api/leave-policy',   require('./routes/leave-policy'));
   app.use('/api/locations',      require('./routes/locations'));
   app.use('/api/users',          require('./routes/users'));
-  app.use('/api/form16',         require('./routes/form16'));
-  app.use('/api/payment',        require('./routes/payment'));
+  app.use('/api/form16',           require('./routes/form16'));
+  app.use('/api/payment',          require('./routes/payment'));
+  app.use('/api/audit',            require('./routes/audit'));
+  app.use('/api/salary-revisions', require('./routes/salary-revisions'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));

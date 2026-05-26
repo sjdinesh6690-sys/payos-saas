@@ -4,7 +4,7 @@ import {
   Download, Trash2, Mail, MoreHorizontal,
   FileText, ChevronUp, ChevronDown,
   Sparkles, AlertTriangle, AlertCircle, Info, X, Loader2,
-  Pencil, Plus,
+  Pencil, Plus, Lock, Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -285,6 +285,9 @@ export default function PayslipsPage() {
   // Edit payslip
   const [editTarget, setEditTarget]     = useState(null);
 
+  // Payroll lock
+  const [lockLoading, setLockLoading]   = useState(false);
+
   // Anomaly detection
   const [scanLoading, setScanLoading]   = useState(false);
   const [scanResult, setScanResult]     = useState(null);
@@ -422,8 +425,7 @@ export default function PayslipsPage() {
     }
   };
 
-  // ── Anomaly Scan ────────────────────────────────────────────────────────────
-  // Unique months available in loaded payslips — derived directly, no separate query needed
+  // ── Unique months ────────────────────────────────────────────────────────────
   const availableMonths = useMemo(() => {
     const seen = new Map();
     payslips.forEach(p => {
@@ -432,6 +434,45 @@ export default function PayslipsPage() {
     });
     return [...seen.values()].sort((a, b) => b.year - a.year || b.month - a.month);
   }, [payslips]);
+
+  // ── Payroll Lock / Unlock ────────────────────────────────────────────────────
+  const selectedMonthObj = useMemo(() => {
+    if (filterMonth) {
+      const [y, m] = filterMonth.split('-');
+      return { month: parseInt(m), year: parseInt(y) };
+    }
+    if (availableMonths.length > 0) return availableMonths[0];
+    return null;
+  }, [filterMonth, availableMonths]);
+
+  const hasLockedInView   = filtered.some(p => p.is_locked);
+  const hasUnlockedInView = filtered.some(p => !p.is_locked);
+
+  const handleLockMonth = async () => {
+    if (!selectedMonthObj) return toast.error('No month selected');
+    setLockLoading(true);
+    try {
+      await api.post('/payslips/lock', { month: selectedMonthObj.month, year: selectedMonthObj.year });
+      toast.success(`${MONTH_FULL[selectedMonthObj.month]} ${selectedMonthObj.year} payroll locked`);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Lock failed');
+    } finally { setLockLoading(false); }
+  };
+
+  const handleUnlockMonth = async () => {
+    if (!selectedMonthObj) return toast.error('No month selected');
+    setLockLoading(true);
+    try {
+      await api.post('/payslips/unlock', { month: selectedMonthObj.month, year: selectedMonthObj.year });
+      toast.success(`${MONTH_FULL[selectedMonthObj.month]} ${selectedMonthObj.year} payroll unlocked`);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Unlock failed');
+    } finally { setLockLoading(false); }
+  };
+
+  // ── Anomaly Scan ────────────────────────────────────────────────────────────
 
   const handleAnomalyScan = async () => {
     let scanMonth, scanYear;
@@ -500,6 +541,31 @@ export default function PayslipsPage() {
                 <Trash2 size={14} className="mr-1.5" /> Delete ({selected.size})
               </Button>
             </>
+          )}
+
+          {/* Payroll Lock / Unlock */}
+          {hasLockedInView && hasUnlockedInView ? null : (
+            hasLockedInView ? (
+              <Button
+                variant="outline"
+                className="h-9 text-orange-700 border-orange-300 hover:bg-orange-50 font-medium"
+                onClick={handleUnlockMonth}
+                disabled={lockLoading || !selectedMonthObj}
+              >
+                {lockLoading ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Unlock size={14} className="mr-1.5" />}
+                Unlock Month
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="h-9 text-indigo-700 border-indigo-300 hover:bg-indigo-50 font-medium"
+                onClick={handleLockMonth}
+                disabled={lockLoading || !selectedMonthObj || filtered.length === 0}
+              >
+                {lockLoading ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Lock size={14} className="mr-1.5" />}
+                Lock Month
+              </Button>
+            )
           )}
 
           {/* AI Anomaly Scan — month picker + button */}
@@ -620,10 +686,17 @@ export default function PayslipsPage() {
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{fmt(p.net_salary || p.salary)}</td>
                   <td className="px-4 py-3">
-                    {p.emailed
-                      ? <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Sent</Badge>
-                      : <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-xs">Pending</Badge>
-                    }
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {p.emailed
+                        ? <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Sent</Badge>
+                        : <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-xs">Pending</Badge>
+                      }
+                      {p.is_locked && (
+                        <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-xs flex items-center gap-1">
+                          <Lock size={9} />Locked
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <SimpleDropdown

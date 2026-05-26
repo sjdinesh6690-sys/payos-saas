@@ -417,6 +417,31 @@ async function initDB() {
     // Subscriptions — track plan type (monthly / yearly)
     await client.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_type VARCHAR(20) DEFAULT 'base_plan'`);
 
+    // ── Payroll Lock — prevent edits after finalization ──────────────────────
+    await client.query(`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS is_locked   BOOLEAN     DEFAULT FALSE`);
+    await client.query(`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS locked_at   TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS locked_by   INTEGER`);
+
+    // ── Employee — tax regime + DOB (for PDF password) ───────────────────────
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_birth VARCHAR(20)`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS tax_regime    VARCHAR(10) DEFAULT 'new'`);
+    await client.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS state         VARCHAR(100)`);
+
+    // ── Salary Revisions — full audit history of salary changes ──────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS salary_revisions (
+        id           SERIAL PRIMARY KEY,
+        admin_id     INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        employee_id  VARCHAR(50) NOT NULL,
+        old_salary   NUMERIC(12,2),
+        new_salary   NUMERIC(12,2) NOT NULL,
+        effective_date VARCHAR(20),
+        reason       VARCHAR(255),
+        changed_by   VARCHAR(255),
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     console.log('✅ PostgreSQL schema ready');
   } catch (err) {
     console.error('❌ Database init error:', err.message);

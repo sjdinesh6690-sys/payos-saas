@@ -335,7 +335,7 @@ router.put('/:id', async (req, res) => {
       employee_name, email, salary, yearly_ctc, net_salary_monthly,
       department, designation, phone, date_of_joining, location,
       pan_number, uan_number, bank_name, bank_account_number, ifsc_code,
-      portal_access_enabled,
+      portal_access_enabled, date_of_birth, tax_regime, state,
     } = req.body;
 
     if (salary !== undefined && salary !== '' && (isNaN(parseFloat(salary)) || parseFloat(salary) < 0))
@@ -370,6 +370,9 @@ router.put('/:id', async (req, res) => {
     if (bank_account_number !== undefined) { fields.push(`bank_account_number = $${idx++}`); values.push(bank_account_number || null); }
     if (ifsc_code           !== undefined) { fields.push(`ifsc_code = $${idx++}`);           values.push(ifsc_code ? ifsc_code.trim().toUpperCase() : null); }
     if (portal_access_enabled !== undefined) { fields.push(`portal_access_enabled = $${idx++}`); values.push(portal_access_enabled === true || portal_access_enabled === 'true'); }
+    if (date_of_birth !== undefined) { fields.push(`date_of_birth = $${idx++}`); values.push(date_of_birth || null); }
+    if (tax_regime    !== undefined) { fields.push(`tax_regime = $${idx++}`);    values.push(tax_regime || 'new'); }
+    if (state         !== undefined) { fields.push(`state = $${idx++}`);         values.push(state || null); }
 
     // Sync CTC whenever gross changes, or save explicit CTC value
     if (yearly_ctc !== undefined) {
@@ -393,6 +396,23 @@ router.put('/:id', async (req, res) => {
     await pool.query(`UPDATE employees SET ${fields.join(', ')} WHERE id = $${idx}`, values);
 
     await auditLog(req.admin_id, 'employee_updated', 'employees', id, { fields: fields.map(f => f.split(' ')[0]) }, req.ip);
+
+    // ── Track salary revision if salary changed ──────────────────────────────
+    if (resolvedGross !== undefined && empData.salary !== undefined) {
+      const oldSalary = parseFloat(empData.salary) || 0;
+      if (Math.abs(oldSalary - resolvedGross) > 0.01) {
+        const { effective_date, revision_reason } = req.body;
+        await pool.query(
+          `INSERT INTO salary_revisions (admin_id, employee_id, old_salary, new_salary, effective_date, reason, changed_by)
+           VALUES ($1, $2, $3, $4, $5, $6, 'Admin')`,
+          [req.admin_id, empData.employee_id, oldSalary, resolvedGross,
+           effective_date || new Date().toISOString().split('T')[0],
+           revision_reason || 'Salary updated via Employee Master']
+        );
+        await auditLog(req.admin_id, 'salary_revised', 'employees', id,
+          { employee_id: empData.employee_id, old_salary: oldSalary, new_salary: resolvedGross }, req.ip);
+      }
+    }
 
     // Send account-change notification email asynchronously (don't block response)
     const adminRes = await pool.query('SELECT company_name FROM admins WHERE id = $1', [req.admin_id]);

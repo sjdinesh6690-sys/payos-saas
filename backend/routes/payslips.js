@@ -89,6 +89,10 @@ router.post('/preview', async (req, res) => {
     const cfgResult = await pool.query('SELECT config FROM payroll_configs WHERE admin_id = $1', [req.admin_id]);
     const config = cfgResult.rows.length ? cfgResult.rows[0].config : getDefaultConfig();
 
+    // Load admin state for state-wise PT fallback
+    const adminStatePreviewRes = await pool.query('SELECT state FROM admins WHERE id = $1', [req.admin_id]);
+    const adminStatePreview = adminStatePreviewRes.rows[0]?.state || '';
+
     // Auto-load saved attendance data for this month so LOP is applied automatically.
     // Manual adjustments from the frontend always take precedence over attendance data.
     const attResult = await pool.query(
@@ -110,14 +114,12 @@ router.post('/preview', async (req, res) => {
       const empData = overrideSalary ? { ...emp, salary: Number(overrideSalary) } : emp;
       const attData = attMap[emp.employee_id];
       const empAdj  = {
-        // Default working days from attendance record or global setting
         working_days: attData?.working_days || working_days || 26,
-        // Auto-apply attendance LOP: payable days = working_days - lop_days
-        // This ensures absent days that exceeded leave balance reduce salary correctly
         ...(attData && attData.lop_days > 0
           ? { present_days: attData.working_days - attData.lop_days }
           : {}),
-        // Manual adjustments from frontend override attendance data
+        state:      emp.state || adminStatePreview || '',
+        tax_regime: emp.tax_regime || 'new',
         ...(adjustments[emp.employee_id] || {}),
       };
       const calc    = calculatePayslip(empData, config, empAdj);
@@ -217,6 +219,10 @@ router.post('/generate', async (req, res) => {
 
     // Auto-load saved attendance data for this month so LOP is applied automatically.
     // Manual adjustments from the frontend always take precedence over attendance data.
+    // Load admin state (for state-wise PT fallback)
+    const adminStateRes = await pool.query('SELECT state FROM admins WHERE id = $1', [req.admin_id]);
+    const adminState = adminStateRes.rows[0]?.state || '';
+
     const attGenResult = await pool.query(
       `SELECT employee_id, working_days, present_days, lop_days
        FROM attendance
@@ -259,11 +265,14 @@ router.post('/generate', async (req, res) => {
           // Default working days from attendance record or global setting
           working_days: attData?.working_days || working_days || 26,
           // Auto-apply attendance LOP: payable days = working_days - lop_days
-          // This ensures absent days that exceeded leave balance reduce salary correctly
           ...(attData && attData.lop_days > 0
             ? { present_days: attData.working_days - attData.lop_days }
             : {}),
-          // Manual adjustments from frontend override attendance data
+          // Pass employee state for state-wise PT calculation
+          state:      emp.state || adminState || '',
+          // Pass employee tax regime for TDS calculation
+          tax_regime: emp.tax_regime || 'new',
+          // Manual adjustments from frontend override all of the above
           ...(adjustments[emp.employee_id] || {}),
         };
         const calc = calculatePayslip(empData, config, empAdj);
@@ -417,6 +426,10 @@ router.put('/:id', async (req, res) => {
     if (!earnings || typeof earnings !== 'object')
       return res.status(400).json({ error: 'earnings object required' });
 
+    // Block edit on locked payslips
+    const lockCheck = await pool.query('SELECT is_locked FROM payslips WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    if (lockCheck.rows[0]?.is_locked) return res.status(403).json({ error: 'Payslip is locked. Unlock the payroll first.' });
+
     const totalEarnings   = Object.values(earnings).reduce((s, v) => s + (Number(v) || 0), 0);
     const totalDeductions = deductions ? Object.values(deductions).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
     const netSalary       = totalEarnings - totalDeductions;
@@ -444,15 +457,53 @@ router.put('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── POST lock a month's payslips (finalize) ───────────────────────────────────
+router.post('/lock', async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+
+    const result = await pool.query(`
+      UPDATE payslips
+      SET is_locked = true, locked_at = NOW(), locked_by = $1
+      WHERE admin_id = $1 AND month = $2 AND year = $3
+      RETURNING id
+    `, [req.admin_id, parseInt(month), parseInt(year)]);
+
+    await auditLog(req.admin_id, 'payroll_locked', 'payslips', null,
+      { month, year, count: result.rows.length }, req.ip);
+    res.json({ message: `${result.rows.length} payslips locked for ${month}/${year}`, count: result.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST unlock a month's payslips ────────────────────────────────────────────
+router.post('/unlock', async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+
+    const result = await pool.query(`
+      UPDATE payslips SET is_locked = false, locked_at = NULL, locked_by = NULL
+      WHERE admin_id = $1 AND month = $2 AND year = $3
+      RETURNING id
+    `, [req.admin_id, parseInt(month), parseInt(year)]);
+
+    await auditLog(req.admin_id, 'payroll_unlocked', 'payslips', null,
+      { month, year, count: result.rows.length }, req.ip);
+    res.json({ message: `${result.rows.length} payslips unlocked`, count: result.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── DELETE single payslip ─────────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const result = await pool.query(
-      'DELETE FROM payslips WHERE id = $1 AND admin_id = $2 RETURNING id',
-      [id, req.admin_id]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Payslip not found' });
+    // Block deletion of locked payslips
+    const check = await pool.query('SELECT is_locked FROM payslips WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Payslip not found' });
+    if (check.rows[0].is_locked) return res.status(403).json({ error: 'Payslip is locked. Unlock the payroll first.' });
+
+    await pool.query('DELETE FROM payslips WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
     await auditLog(req.admin_id, 'payslip_deleted', 'payslips', id, null, req.ip);
     res.json({ message: 'Deleted!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
