@@ -92,22 +92,6 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
         </div>
       </div>
 
-      {/* Address */}
-      <div>
-        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
-          Address <span style={{ fontWeight: 400, color: '#94A3B8' }}>(printed on payslip)</span>
-        </label>
-        <textarea
-          rows={2}
-          placeholder="e.g. No.12, Industrial Estate, Guindy, Chennai – 600 032"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
-          onFocus={e => e.target.style.borderColor = '#1A7A4A'}
-          onBlur={e => e.target.style.borderColor = '#E2E8F0'}
-        />
-      </div>
-
       {/* Separate Payslip toggle */}
       <div
         onClick={() => setSeparatePayslip(v => !v)}
@@ -121,10 +105,10 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
       >
         <div>
           <p style={{ fontSize: 13, fontWeight: 700, color: separatePayslip ? '#15803D' : '#374151', marginBottom: 2 }}>
-            Separate Payslip Required
+            Separate Payslip for this Location?
           </p>
           <p style={{ fontSize: 12, color: '#64748B' }}>
-            Generate payslips with this location's own address &amp; header
+            Use a different address and template for employees in this location
           </p>
         </div>
         {separatePayslip
@@ -132,24 +116,41 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
           : <ToggleLeft  size={28} color="#94A3B8" />}
       </div>
 
-      {/* Payslip template — only relevant when separate_payslip is on */}
+      {/* Address + Template — only shown when separate payslip is ON */}
       {separatePayslip && (
-        <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
-            Payslip Template
-          </label>
-          <select
-            value={payslipTemplate}
-            onChange={e => setPayslipTemplate(e.target.value)}
-            style={{ ...inputStyle, cursor: 'pointer' }}
-            onFocus={e => e.target.style.borderColor = '#1A7A4A'}
-            onBlur={e => e.target.style.borderColor = '#E2E8F0'}
-          >
-            {TEMPLATES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-        </div>
+        <>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+              Location Address <span style={{ fontWeight: 400, color: '#94A3B8' }}>(shown on payslip header)</span>
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. No.12, Industrial Estate, Guindy, Chennai – 600 032"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+              onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+              Payslip Template
+            </label>
+            <select
+              value={payslipTemplate}
+              onChange={e => setPayslipTemplate(e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+              onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+            >
+              {TEMPLATES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+        </>
       )}
 
       {/* Buttons */}

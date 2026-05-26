@@ -368,22 +368,34 @@ router.get('/:id/download', async (req, res) => {
     const cfgResult = await pool.query('SELECT branding FROM payroll_configs WHERE admin_id = $1', [req.admin_id]);
     const branding  = cfgResult.rows.length ? { ...(cfgResult.rows[0].branding || {}) } : {};
 
-    // ── Location override: if employee's location has separate_payslip enabled,
-    //    use that location's address and template instead of the global settings ─
-    const locResult = await pool.query(
-      `SELECT l.address, l.payslip_template
-       FROM locations l
-       JOIN employees e ON e.location = l.name AND e.admin_id = l.admin_id
-       WHERE e.admin_id = $1 AND e.employee_id = $2 AND l.separate_payslip = TRUE
-       LIMIT 1`,
+    // ── Location override ─────────────────────────────────────────────────────
+    // Step 1: find which location this employee belongs to
+    const empLocRes = await pool.query(
+      `SELECT location FROM employees WHERE admin_id = $1 AND employee_id = $2`,
       [req.admin_id, p.employee_id]
     );
-    if (locResult.rows.length) {
-      const loc = locResult.rows[0];
-      if (loc.address) branding.company_address = loc.address;
-      if (loc.payslip_template && loc.payslip_template !== 'default')
-        branding.template = loc.payslip_template;
+    const empLocation = empLocRes.rows[0]?.location;
+
+    // Step 2: if the location has "Separate Payslip" ON, apply its address + template
+    if (empLocation) {
+      const locRes = await pool.query(
+        `SELECT address, payslip_template, separate_payslip
+         FROM locations WHERE admin_id = $1 AND name = $2`,
+        [req.admin_id, empLocation]
+      );
+      if (locRes.rows.length) {
+        const loc = locRes.rows[0];
+        if (loc.separate_payslip) {
+          // Override address if set
+          if (loc.address && loc.address.trim()) branding.company_address = loc.address.trim();
+          // Always apply the location's template (treat null/'default' as 'modern')
+          branding.template = (loc.payslip_template && loc.payslip_template !== 'default')
+            ? loc.payslip_template
+            : 'modern';
+        }
+      }
     }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const isPremium = (branding.template || 'modern') === 'premium';
     const doc = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });

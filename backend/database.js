@@ -410,7 +410,9 @@ async function initDB() {
     // Locations — separate payslip config per location
     await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS separate_payslip BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS address TEXT`);
-    await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS payslip_template VARCHAR(50) DEFAULT 'default'`);
+    await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS payslip_template VARCHAR(50) DEFAULT 'modern'`);
+    // Fix old rows that have 'default' stored — map to 'modern'
+    await client.query(`UPDATE locations SET payslip_template = 'modern' WHERE payslip_template = 'default' OR payslip_template IS NULL`);
 
     // Subscriptions — track plan type (monthly / yearly)
     await client.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_type VARCHAR(20) DEFAULT 'base_plan'`);
