@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle, Clock, AlertTriangle, RefreshCw,
-  Receipt, Users, Plus, Minus, CreditCard, Shield,
+  Receipt, Users, Plus, Minus, CreditCard, Shield, ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -29,6 +30,7 @@ function loadRazorpayScript() {
 }
 
 export default function BillingPage() {
+  const navigate = useNavigate();
   const [status,    setStatus]    = useState(null);
   const [history,   setHistory]   = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -309,31 +311,30 @@ export default function BillingPage() {
         {/* Pay button */}
         <div style={{ padding: '20px 24px' }}>
           <button
-            onClick={handlePay}
-            disabled={paying}
+            onClick={() => navigate('/admin/payment/checkout')}
             style={{
               width: '100%',
               padding: '14px 24px',
-              background: paying ? '#a7f3d0' : '#1A7A4A',
+              background: 'linear-gradient(135deg, #1A7A4A, #16a34a)',
               color: '#fff',
               border: 'none',
               borderRadius: 14,
               fontSize: 16,
               fontWeight: 700,
-              cursor: paying ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 10,
-              transition: 'background 0.2s',
+              boxShadow: '0 4px 14px rgba(26,122,74,0.30)',
+              transition: 'opacity 0.2s',
             }}
+            onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseOut={e => e.currentTarget.style.opacity = '1'}
           >
-            {paying
-              ? <><RefreshCw size={16} className="animate-spin" /> Processing payment…</>
-              : isActive
-              ? <><CreditCard size={16} /> Renew Plan — {INR(total)}/month</>
-              : <><CreditCard size={16} /> {isTrial ? 'Upgrade to Pro' : 'Activate Plan'} — {INR(total)}/month</>
-            }
+            <CreditCard size={18} />
+            {isActive ? 'Renew Plan' : isTrial ? 'Upgrade to Pro' : 'Activate Plan'} — {INR(total)}/month
+            <ArrowRight size={16} />
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 14 }}>
