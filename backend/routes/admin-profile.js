@@ -1,9 +1,51 @@
 const express    = require('express');
 const router     = express.Router();
+const { Resend } = require('resend');
 const { pool, auditLog } = require('../database');
 const authCheck  = require('../middleware/auth');
 
 router.use(authCheck);
+
+// ── Send profile-update confirmation to admin ─────────────────────────────────
+async function sendAdminProfileUpdateEmail({ toEmail, companyName, changedFields }) {
+  if (!process.env.RESEND_API_KEY || !toEmail) return;
+  const LABELS = {
+    company_name: 'Company Name', company_address: 'Address', company_phone: 'Phone',
+    company_email: 'Company Email', company_website: 'Website', company_gstin: 'GSTIN',
+    company_industry: 'Industry', company_size: 'Company Size',
+    pan_number: 'PAN Number', tan_number: 'TAN Number',
+    epfo_code: 'EPFO Code', esic_code: 'ESIC Code', pt_reg_number: 'PT Reg Number',
+    state: 'State',
+  };
+  const changeList = changedFields.map(f => LABELS[f] || f).join(', ');
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from:    `PayLeef <payroll@dinmind.com>`,
+      to:      [toEmail],
+      subject: `Company profile updated — ${companyName}`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+          <div style="background:#1A7A4A;padding:24px 28px;border-radius:10px 10px 0 0;">
+            <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+            <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${companyName}</div>
+          </div>
+          <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+            <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Company profile updated</p>
+            <p style="color:#334155;font-size:14px;margin:0 0 16px;">
+              Your PayLeef company profile was just updated. The following fields were changed:
+            </p>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+              <p style="font-size:13px;font-weight:700;color:#166534;margin:0;">Updated: ${changeList}</p>
+            </div>
+            <p style="color:#64748b;font-size:12px;margin:0;">
+              If you did not make this change, please secure your account immediately.
+            </p>
+          </div>
+        </div>`,
+    });
+  } catch (e) { console.warn('[admin-profile-email] Failed:', e.message); }
+}
 
 // ── GET /profile ──────────────────────────────────────────────────────────────
 router.get('/profile', async (req, res) => {
@@ -44,6 +86,16 @@ router.put('/profile', async (req, res) => {
       values
     );
     await auditLog(req.admin_id, 'profile_updated', 'admins', req.admin_id, null, req.ip);
+
+    // Send confirmation email to admin's login address (async — don't block response)
+    const adminRow = await pool.query('SELECT email, company_name FROM admins WHERE id = $1', [req.admin_id]);
+    const admin = adminRow.rows[0] || {};
+    sendAdminProfileUpdateEmail({
+      toEmail:      admin.email,
+      companyName:  req.body.company_name || admin.company_name || 'Your Company',
+      changedFields: allowed.filter(k => req.body[k] !== undefined),
+    }).catch(() => {});
+
     res.json({ message: 'Profile updated successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

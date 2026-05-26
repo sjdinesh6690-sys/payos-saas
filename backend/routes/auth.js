@@ -345,11 +345,60 @@ router.post('/employee-set-password', async (req, res) => {
     if (!new_password || new_password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
+    // Fetch employee + company name before updating (for notification email)
+    const empRes = await pool.query(
+      `SELECT e.*, a.company_name FROM employees e
+       JOIN admins a ON a.id = e.admin_id
+       WHERE e.id = $1 AND e.admin_id = $2`,
+      [payload.employee_id, payload.admin_id]
+    );
+    const emp = empRes.rows[0];
+
     const hash = await bcrypt.hash(new_password, 12);
     await pool.query(
       'UPDATE employees SET password = $1, is_temp_password = false WHERE id = $2 AND admin_id = $3',
       [hash, payload.employee_id, payload.admin_id]
     );
+
+    // Send password-changed security alert (only if employee has an email and it's NOT a first-time set)
+    if (emp && emp.email && !emp.is_temp_password) {
+      const appUrl  = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const resend  = getResend();
+      if (resend) {
+        resend.emails.send({
+          from:    `${emp.company_name} Payroll <payroll@dinmind.com>`,
+          to:      [emp.email],
+          subject: `Your payroll portal password was changed — ${emp.company_name}`,
+          html: `
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+              <div style="background:#1A7A4A;padding:24px 28px;border-radius:10px 10px 0 0;">
+                <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+                <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${emp.company_name}</div>
+              </div>
+              <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+                <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${emp.employee_name},</p>
+                <p style="color:#334155;font-size:14px;margin:0 0 16px;">
+                  Your payroll portal password was just changed successfully.
+                </p>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+                  <p style="font-size:13px;color:#166534;margin:0;">
+                    ✅ Password changed on ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                  </p>
+                </div>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+                  <p style="font-size:13px;font-weight:700;color:#dc2626;margin:0 0 4px;">⚠ Didn't do this yourself?</p>
+                  <p style="font-size:13px;color:#7f1d1d;margin:0;">
+                    Contact your HR admin immediately. Someone else may have access to your account.
+                  </p>
+                </div>
+                <p style="color:#64748b;font-size:12px;margin:0;">
+                  Log in at <a href="${appUrl}/login" style="color:#1A7A4A;">${appUrl}/login</a>
+                </p>
+              </div>
+            </div>`,
+        }).catch(() => {});
+      }
+    }
 
     res.json({ message: 'Password updated successfully.' });
   } catch (err) {

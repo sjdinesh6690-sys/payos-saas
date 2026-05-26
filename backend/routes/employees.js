@@ -481,13 +481,56 @@ router.put('/:id/deactivate', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { date_of_exit, exit_reason } = req.body;
-    const check = await pool.query('SELECT id, employee_id FROM employees WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    const check = await pool.query(
+      `SELECT e.*, a.company_name FROM employees e
+       JOIN admins a ON a.id = e.admin_id
+       WHERE e.id = $1 AND e.admin_id = $2`,
+      [id, req.admin_id]
+    );
     if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    const emp = check.rows[0];
+
+    const exitDate = date_of_exit || new Date().toISOString().slice(0, 10);
     await pool.query(
       `UPDATE employees SET status = 'inactive', date_of_exit = $1, exit_reason = $2 WHERE id = $3`,
-      [date_of_exit || new Date().toISOString().slice(0,10), exit_reason || '', id]
+      [exitDate, exit_reason || '', id]
     );
-    await auditLog(req.admin_id, 'employee_deactivated', 'employees', id, { employee_id: check.rows[0].employee_id, date_of_exit }, req.ip);
+    await auditLog(req.admin_id, 'employee_deactivated', 'employees', id, { employee_id: emp.employee_id, date_of_exit: exitDate }, req.ip);
+
+    // Send deactivation notification if employee has an email
+    if (emp.email) {
+      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const resend = new (require('resend').Resend)(process.env.RESEND_API_KEY);
+      if (process.env.RESEND_API_KEY) {
+        resend.emails.send({
+          from:    `${emp.company_name} HR <payroll@dinmind.com>`,
+          to:      [emp.email],
+          subject: `Your employment record has been updated — ${emp.company_name}`,
+          html: `
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+              <div style="background:#64748b;padding:24px 28px;border-radius:10px 10px 0 0;">
+                <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#cbd5e1;">Leef</span></div>
+                <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${emp.company_name}</div>
+              </div>
+              <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+                <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${emp.employee_name},</p>
+                <p style="color:#334155;font-size:14px;margin:0 0 16px;">
+                  Your employment record at <strong>${emp.company_name}</strong> has been marked as inactive
+                  with an exit date of <strong>${exitDate}</strong>.
+                </p>
+                ${exit_reason ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+                  <p style="font-size:12px;color:#64748b;margin:0 0 4px;">Exit Note</p>
+                  <p style="font-size:13px;color:#374151;margin:0;">${exit_reason}</p>
+                </div>` : ''}
+                <p style="color:#64748b;font-size:13px;margin:0 0 8px;">
+                  Your payslip history remains available. If you have questions, contact your HR team.
+                </p>
+              </div>
+            </div>`,
+        }).catch(() => {});
+      }
+    }
+
     res.json({ message: 'Employee marked as left. All their payslip history is preserved.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -496,10 +539,48 @@ router.put('/:id/deactivate', async (req, res) => {
 router.put('/:id/reactivate', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const check = await pool.query('SELECT id, employee_id FROM employees WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    const check = await pool.query(
+      `SELECT e.*, a.company_name FROM employees e
+       JOIN admins a ON a.id = e.admin_id
+       WHERE e.id = $1 AND e.admin_id = $2`,
+      [id, req.admin_id]
+    );
     if (!check.rows.length) return res.status(404).json({ error: 'Employee not found' });
+    const emp = check.rows[0];
+
     await pool.query(`UPDATE employees SET status = 'active', date_of_exit = NULL, exit_reason = NULL WHERE id = $1`, [id]);
-    await auditLog(req.admin_id, 'employee_reactivated', 'employees', id, { employee_id: check.rows[0].employee_id }, req.ip);
+    await auditLog(req.admin_id, 'employee_reactivated', 'employees', id, { employee_id: emp.employee_id }, req.ip);
+
+    // Send reactivation notification if employee has an email
+    if (emp.email && process.env.RESEND_API_KEY) {
+      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const resend = new (require('resend').Resend)(process.env.RESEND_API_KEY);
+      resend.emails.send({
+        from:    `${emp.company_name} HR <payroll@dinmind.com>`,
+        to:      [emp.email],
+        subject: `Your account has been reactivated — ${emp.company_name}`,
+        html: `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+            <div style="background:#1A7A4A;padding:24px 28px;border-radius:10px 10px 0 0;">
+              <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+              <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${emp.company_name}</div>
+            </div>
+            <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+              <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${emp.employee_name},</p>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+                <p style="font-size:14px;font-weight:700;color:#166534;margin:0;">✅ Your account has been reactivated at ${emp.company_name}.</p>
+              </div>
+              <p style="color:#334155;font-size:14px;margin:0 0 12px;">
+                You can now access the payroll portal and your payslips.
+              </p>
+              <p style="color:#64748b;font-size:12px;margin:0;">
+                Log in at <a href="${appUrl}/login" style="color:#1A7A4A;">${appUrl}/login</a>
+              </p>
+            </div>
+          </div>`,
+      }).catch(() => {});
+    }
+
     res.json({ message: 'Employee reactivated successfully.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

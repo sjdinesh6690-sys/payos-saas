@@ -24,6 +24,83 @@ function generateTempPassword() {
   return pwd;
 }
 
+// ── Email helpers ─────────────────────────────────────────────────────────────
+
+// Send account-change notification to sub-user
+async function sendSubUserChangeEmail({ toEmail, name, changedFields, companyName, newPassword }) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+  const LABELS = {
+    name: 'Name', email: 'Email Address', role: 'Role',
+    permissions: 'Module Permissions', status: 'Account Status', password: 'Password',
+  };
+  const changeList = changedFields.map(f => LABELS[f] || f).join(', ');
+  const appUrl = process.env.APP_URL || 'https://payos-saas.onrender.com';
+  try {
+    await resend.emails.send({
+      from:    `${companyName} Payroll <payroll@dinmind.com>`,
+      to:      [toEmail],
+      subject: `Your PayLeef account was updated — ${companyName}`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+          <div style="background:#1A7A4A;padding:24px 28px;border-radius:10px 10px 0 0;">
+            <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+            <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${companyName}</div>
+          </div>
+          <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+            <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${name},</p>
+            <p style="color:#334155;font-size:14px;margin:0 0 16px;">
+              Your administrator has updated your PayLeef team account. The following was changed:
+            </p>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+              <p style="font-size:13px;font-weight:700;color:#166534;margin:0;">Updated: ${changeList}</p>
+            </div>
+            ${newPassword ? `
+            <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+              <p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px;">New Temporary Password</p>
+              <p style="font-size:20px;font-weight:900;color:#1A7A4A;letter-spacing:.08em;margin:0;">${newPassword}</p>
+              <p style="font-size:11px;color:#92400e;margin:6px 0 0;">Please log in and change this immediately.</p>
+            </div>` : ''}
+            <p style="color:#64748b;font-size:12px;margin:0;">
+              If you did not expect this change, contact your HR admin.<br/>
+              Log in at <a href="${appUrl}/login" style="color:#1A7A4A;">${appUrl}/login</a>
+            </p>
+          </div>
+        </div>`,
+    });
+  } catch (e) { console.warn('[sub-user-change-email] Failed:', e.message); }
+}
+
+// Send removal notification to sub-user
+async function sendSubUserRemovedEmail({ toEmail, name, companyName }) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+  try {
+    await resend.emails.send({
+      from:    `${companyName} Payroll <payroll@dinmind.com>`,
+      to:      [toEmail],
+      subject: `Your PayLeef account has been removed — ${companyName}`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+          <div style="background:#dc2626;padding:24px 28px;border-radius:10px 10px 0 0;">
+            <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#fca5a5;">Leef</span></div>
+            <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${companyName}</div>
+          </div>
+          <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+            <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${name},</p>
+            <p style="color:#334155;font-size:14px;margin:0 0 16px;">
+              Your PayLeef team account at <strong>${companyName}</strong> has been removed by an administrator.
+              You will no longer be able to log in.
+            </p>
+            <p style="color:#64748b;font-size:12px;margin:0;">
+              If you believe this is an error, please contact your HR admin directly.
+            </p>
+          </div>
+        </div>`,
+    });
+  } catch (e) { console.warn('[sub-user-removed-email] Failed:', e.message); }
+}
+
 // Send welcome email to new team member
 async function sendTeamMemberWelcomeEmail({ toEmail, name, tempPassword, companyName, adminEmail }) {
   const resend = getResend();
@@ -178,29 +255,43 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, password, role, permissions, status } = req.body;
 
-    // Verify ownership
+    // Fetch before-state for email notification
     const check = await pool.query(
-      'SELECT id FROM admin_users WHERE id = $1 AND admin_id = $2',
+      'SELECT * FROM admin_users WHERE id = $1 AND admin_id = $2',
       [id, req.admin_id]
     );
     if (!check.rows.length) return res.status(404).json({ error: 'User not found' });
+    const userBefore = check.rows[0];
 
     const fields = [], values = [];
     let idx = 1;
+    const changedFields = [];
+    let plainNewPassword = null;
 
-    if (name        !== undefined) { fields.push(`name = $${idx++}`);        values.push(name.trim()); }
-    if (email       !== undefined) {
+    if (name !== undefined && name.trim() !== userBefore.name) {
+      fields.push(`name = $${idx++}`); values.push(name.trim()); changedFields.push('name');
+    }
+    if (email !== undefined) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
         return res.status(400).json({ error: 'Invalid email format' });
-      fields.push(`email = $${idx++}`); values.push(email.trim().toLowerCase());
+      if (email.trim().toLowerCase() !== userBefore.email) {
+        fields.push(`email = $${idx++}`); values.push(email.trim().toLowerCase()); changedFields.push('email');
+      }
     }
-    if (role        !== undefined) { fields.push(`role = $${idx++}`);        values.push(role); }
-    if (permissions !== undefined) { fields.push(`permissions = $${idx++}`); values.push(JSON.stringify(permissions)); }
-    if (status      !== undefined) { fields.push(`status = $${idx++}`);      values.push(status); }
-    if (password    !== undefined && password) {
+    if (role !== undefined && role !== userBefore.role) {
+      fields.push(`role = $${idx++}`); values.push(role); changedFields.push('role');
+    }
+    if (permissions !== undefined) {
+      fields.push(`permissions = $${idx++}`); values.push(JSON.stringify(permissions)); changedFields.push('permissions');
+    }
+    if (status !== undefined && status !== userBefore.status) {
+      fields.push(`status = $${idx++}`); values.push(status); changedFields.push('status');
+    }
+    if (password !== undefined && password) {
       if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
       const hashed = await bcrypt.hash(password, 10);
-      fields.push(`password = $${idx++}`); values.push(hashed);
+      fields.push(`password = $${idx++}`); values.push(hashed); changedFields.push('password');
+      plainNewPassword = password; // include in email
     }
 
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
@@ -214,6 +305,20 @@ router.put('/:id', async (req, res) => {
       'SELECT id, name, email, role, permissions, status, created_at FROM admin_users WHERE id = $1',
       [id]
     );
+
+    // Notify the sub-user by email (async — don't block response)
+    if (changedFields.length > 0) {
+      const adminRes = await pool.query('SELECT company_name FROM admins WHERE id = $1', [req.admin_id]);
+      const companyName = adminRes.rows[0]?.company_name || 'Your Company';
+      const notifyEmail = email ? email.trim().toLowerCase() : userBefore.email;
+      const notifyName  = name  ? name.trim()                : userBefore.name;
+      sendSubUserChangeEmail({
+        toEmail: notifyEmail, name: notifyName,
+        changedFields, companyName,
+        newPassword: plainNewPassword,
+      }).catch(() => {});
+    }
+
     res.json(updated.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -222,12 +327,26 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      'DELETE FROM admin_users WHERE id = $1 AND admin_id = $2 RETURNING id, name',
+    // Fetch before deleting so we can send the notification
+    const userRes = await pool.query(
+      'SELECT name, email FROM admin_users WHERE id = $1 AND admin_id = $2',
       [id, req.admin_id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json({ success: true, deleted: result.rows[0] });
+    if (!userRes.rows.length) return res.status(404).json({ error: 'User not found' });
+    const userToDelete = userRes.rows[0];
+
+    await pool.query('DELETE FROM admin_users WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+
+    // Send removal notification asynchronously
+    const adminRes = await pool.query('SELECT company_name FROM admins WHERE id = $1', [req.admin_id]);
+    const companyName = adminRes.rows[0]?.company_name || 'Your Company';
+    sendSubUserRemovedEmail({
+      toEmail: userToDelete.email,
+      name:    userToDelete.name,
+      companyName,
+    }).catch(() => {});
+
+    res.json({ success: true, deleted: { id, name: userToDelete.name } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
