@@ -13,10 +13,13 @@ const INR = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 
-const GST_RATE      = 0.18;
-const BASE_PRICE    = 999;
-const PRICE_PER_EMP = 75;
-const BASE_SLOTS    = 5;
+const GST_RATE          = 0.18;
+const BASE_PRICE        = 999;
+const PRICE_PER_EMP     = 75;
+const BASE_SLOTS        = 5;
+// Yearly: pay 10 months, get 12
+const BASE_PRICE_YEARLY = 9990;
+const PRICE_PER_EMP_YR  = 750;
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -34,8 +37,9 @@ export default function BillingPage() {
   const [status,    setStatus]    = useState(null);
   const [history,   setHistory]   = useState([]);
   const [loading,   setLoading]   = useState(true);
-  const [extraEmps, setExtraEmps] = useState(0);   // extra employees to add on top of 5
+  const [extraEmps, setExtraEmps] = useState(0);    // extra employees beyond base 5
   const [paying,    setPaying]    = useState(false);
+  const [billing,   setBilling]   = useState('monthly'); // 'monthly' | 'yearly'
 
   const loadData = useCallback(async () => {
     try {
@@ -55,23 +59,24 @@ export default function BillingPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   // ── Price calculation ──────────────────────────────────────────────────────
-  const baseAmt  = BASE_PRICE;
-  const extraAmt = extraEmps * PRICE_PER_EMP;
-  const subtotal = baseAmt + extraAmt;
-  const gstAmt   = Math.round(subtotal * GST_RATE);
-  const total    = subtotal + gstAmt;
+  const isYearly  = billing === 'yearly';
+  const baseAmt   = isYearly ? BASE_PRICE_YEARLY : BASE_PRICE;
+  const extraAmt  = extraEmps * (isYearly ? PRICE_PER_EMP_YR : PRICE_PER_EMP);
+  const subtotal  = baseAmt + extraAmt;
+  const gstAmt    = Math.round(subtotal * GST_RATE);
+  const total     = subtotal + gstAmt;
   const totalSlots = BASE_SLOTS + extraEmps;
+  const orderType  = isYearly ? 'yearly_plan' : 'base_plan';
+  // Yearly savings vs paying monthly for 12 months
+  const yearlySavings = Math.round(((BASE_PRICE + extraEmps * PRICE_PER_EMP) * 12 * (1 + GST_RATE)) - total);
 
   // ── Razorpay flow ──────────────────────────────────────────────────────────
   async function handlePay() {
     setPaying(true);
     try {
-      // If adding extra employees beyond base, do a combined order
-      // We always buy the base plan; if extraEmps > 0, also top up
       const { data: orderData } = await api.post('/billing/create-order', {
-        type:  'base_plan',
+        type:  orderType,
         slots: totalSlots,
-        extra_amount: extraAmt,   // backend uses this for combined pricing
       });
 
       if (orderData.mock) {
@@ -79,10 +84,11 @@ export default function BillingPage() {
         await api.post('/billing/verify-payment', {
           mock: true,
           razorpay_order_id: orderData.order_id,
-          type: 'base_plan',
+          type: orderType,
           slots: totalSlots,
         });
-        toast.success(`✅ Plan activated! ${totalSlots} employee slots unlocked.`);
+        const label = isYearly ? '12 months' : '1 month';
+        toast.success(`✅ Plan activated! ${totalSlots} employee slots unlocked for ${label}.`);
         await loadData();
         return;
       }
@@ -96,7 +102,7 @@ export default function BillingPage() {
           amount:      orderData.amount,
           currency:    'INR',
           name:        'PayLeef',
-          description: `PayLeef Pro — ${totalSlots} employees`,
+          description: orderData.description,
           order_id:    orderData.order_id,
           theme:       { color: '#1A7A4A' },
           handler: async (resp) => {
@@ -105,7 +111,7 @@ export default function BillingPage() {
                 razorpay_order_id:   resp.razorpay_order_id,
                 razorpay_payment_id: resp.razorpay_payment_id,
                 razorpay_signature:  resp.razorpay_signature,
-                type: 'base_plan',
+                type: orderType,
                 slots: totalSlots,
               });
               toast.success(`🎉 Payment successful! ${totalSlots} slots activated.`);
@@ -201,18 +207,61 @@ export default function BillingPage() {
       {/* ── Main pricing card ────────────────────────────────────────────────── */}
       <div style={{ background: '#fff', border: '2px solid #E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
 
+        {/* Billing toggle */}
+        <div style={{ padding: '16px 24px 0', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 12, padding: 4, gap: 2 }}>
+            {[
+              { key: 'monthly', label: 'Monthly', badge: '' },
+              { key: 'yearly',  label: 'Yearly',  badge: '2 months FREE' },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setBilling(opt.key)}
+                style={{
+                  padding: '7px 18px',
+                  borderRadius: 9,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  transition: 'all 0.15s',
+                  background: billing === opt.key ? '#fff' : 'transparent',
+                  color:      billing === opt.key ? '#0F172A' : '#64748B',
+                  boxShadow:  billing === opt.key ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {opt.label}
+                {opt.badge && (
+                  <span style={{ fontSize: 10, fontWeight: 800, background: '#16a34a', color: '#fff', padding: '1px 7px', borderRadius: 20 }}>
+                    {opt.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Card header */}
-        <div style={{ background: 'linear-gradient(135deg, #1A7A4A 0%, #16a34a 100%)', padding: '20px 24px', color: '#fff' }}>
+        <div style={{ background: 'linear-gradient(135deg, #1A7A4A 0%, #16a34a 100%)', padding: '20px 24px', margin: '12px 0 0', color: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <p style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>PayLeef Pro Plan</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 34, fontWeight: 900 }}>₹999</span>
-                <span style={{ fontSize: 13, opacity: 0.8 }}>/month</span>
-              </div>
-              <p style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
-                Includes 5 employees · Add more for ₹75 each
+              <p style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>
+                PayLeef Pro — {isYearly ? 'Annual Plan' : 'Monthly Plan'}
               </p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 34, fontWeight: 900 }}>{INR(isYearly ? 9990 : 999)}</span>
+                <span style={{ fontSize: 13, opacity: 0.8 }}>/{isYearly ? 'year' : 'month'}</span>
+              </div>
+              {isYearly ? (
+                <p style={{ fontSize: 12, opacity: 0.9, marginTop: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 8, padding: '4px 10px', display: 'inline-block' }}>
+                  🎉 Save {INR(yearlySavings)} vs monthly — 2 months free!
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
+                  Includes 5 employees · Add more for ₹75/emp · Switch to yearly to save 17%
+                </p>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {['Unlimited payslip generation', 'PDF & Excel reports', 'Email delivery', 'Attendance tracking'].map(f => (
@@ -285,13 +334,13 @@ export default function BillingPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#374151' }}>
-              <span>Base plan (5 employees)</span>
+              <span>Base plan (5 employees · {isYearly ? '12 months' : '1 month'})</span>
               <span style={{ fontWeight: 600 }}>{INR(baseAmt)}</span>
             </div>
 
             {extraEmps > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#374151' }}>
-                <span>Extra employees ({extraEmps} × ₹75)</span>
+                <span>Extra employees ({extraEmps} × ₹{isYearly ? PRICE_PER_EMP_YR : PRICE_PER_EMP})</span>
                 <span style={{ fontWeight: 600 }}>{INR(extraAmt)}</span>
               </div>
             )}
@@ -301,8 +350,15 @@ export default function BillingPage() {
               <span>{INR(gstAmt)}</span>
             </div>
 
+            {isYearly && yearlySavings > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a', background: '#F0FFF4', borderRadius: 8, padding: '6px 10px' }}>
+                <span>🎉 You save vs monthly</span>
+                <span style={{ fontWeight: 700 }}>{INR(yearlySavings)}</span>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 800, color: '#0F172A', borderTop: '2px solid #F1F5F9', paddingTop: 10, marginTop: 2 }}>
-              <span>Total per month</span>
+              <span>Total {isYearly ? 'per year' : 'per month'}</span>
               <span style={{ color: '#1A7A4A' }}>{INR(total)}</span>
             </div>
           </div>
@@ -333,7 +389,7 @@ export default function BillingPage() {
             onMouseOut={e => e.currentTarget.style.opacity = '1'}
           >
             <CreditCard size={18} />
-            {isActive ? 'Renew Plan' : isTrial ? 'Upgrade to Pro' : 'Activate Plan'} — {INR(total)}/month
+            {isActive ? 'Renew Plan' : isTrial ? 'Upgrade to Pro' : 'Activate Plan'} — {INR(total)}{isYearly ? '/year' : '/month'}
             <ArrowRight size={16} />
           </button>
 
@@ -372,7 +428,9 @@ export default function BillingPage() {
                 {history.map((p, i) => (
                   <tr key={p.id} style={{ borderBottom: i < history.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
                     <td style={{ padding: '12px 14px', color: '#64748B' }}>{fmtDate(p.created_at)}</td>
-                    <td style={{ padding: '12px 14px', color: '#0F172A', fontWeight: 600 }}>PayLeef Pro</td>
+                    <td style={{ padding: '12px 14px', color: '#0F172A', fontWeight: 600 }}>
+                      PayLeef Pro {p.payment_type === 'yearly_plan' ? '(Annual)' : '(Monthly)'}
+                    </td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                       <span style={{ background: '#F0FFF4', color: '#15803d', padding: '2px 10px', borderRadius: 20, fontWeight: 700, fontSize: 12 }}>
                         {p.employee_slots} emp

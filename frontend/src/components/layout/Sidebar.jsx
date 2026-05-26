@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Send, BarChart3,
   LogOut, Settings, ChevronDown, ChevronUp,
   FileText, TrendingUp, Settings2, CalendarCheck,
-  CreditCard, Umbrella, MapPin, UserCog, BookOpen, Wrench,
+  CreditCard, Umbrella, MapPin, UserCog, BookOpen, History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,23 +18,23 @@ const RupeeLeaf = ({ size = 20 }) => (
   </svg>
 );
 
-// Core monthly workflow — always visible
+// ── Core monthly workflow — always visible (3 items max, no overwhelm) ────────
 const CORE_NAV = [
-  { to: '/admin/dashboard',  label: 'Dashboard',          icon: LayoutDashboard, permKey: null },
-  { to: '/admin/employees',  label: 'Employees & Import', icon: Users,           permKey: 'employees' },
-  { to: '/admin/send',       label: 'Generate & Send',    icon: Send,            permKey: 'send' },
-  { to: '/admin/reports',    label: 'Reports',            icon: BarChart3,       permKey: 'reports' },
+  { to: '/admin/dashboard',  label: 'Dashboard',       icon: LayoutDashboard, permKey: null },
+  { to: '/admin/employees',  label: 'Employees',       icon: Users,           permKey: 'employees' },
+  { to: '/admin/send',       label: 'Generate & Send', icon: Send,            permKey: 'send' },
 ];
 
-// Tools — operational but used less often
-const TOOLS_NAV = [
-  { to: '/admin/payslips',   label: 'Payslip History', icon: FileText,      permKey: 'payslips' },
-  { to: '/admin/attendance', label: 'Attendance',      icon: CalendarCheck, permKey: 'attendance' },
-  { to: '/admin/analytics',  label: 'Analytics',       icon: TrendingUp,    permKey: 'analytics' },
-  { to: '/admin/form16',     label: 'Form 16 Part B',  icon: BookOpen,      permKey: 'reports' },
+// ── History & Reports — view past data, downloads, compliance ─────────────────
+const HISTORY_NAV = [
+  { to: '/admin/payslips',   label: 'Payslip History',  icon: FileText,      permKey: 'payslips' },
+  { to: '/admin/reports',    label: 'Reports',          icon: BarChart3,     permKey: 'reports' },
+  { to: '/admin/attendance', label: 'Attendance',       icon: CalendarCheck, permKey: 'attendance' },
+  { to: '/admin/analytics',  label: 'Analytics',        icon: TrendingUp,    permKey: 'analytics' },
+  { to: '/admin/form16',     label: 'Form 16 Part B',   icon: BookOpen,      permKey: 'reports' },
 ];
 
-// Configuration — setup & admin settings
+// ── Setup — one-time config, billing, team ────────────────────────────────────
 const CONFIG_NAV = [
   { to: '/admin/payroll-config', label: 'Payroll Config', icon: Settings2, permKey: 'payroll_config' },
   { to: '/admin/leave-policy',   label: 'Leave Policy',   icon: Umbrella,  permKey: 'leave_policy' },
@@ -151,9 +151,9 @@ export default function Sidebar() {
     navigate('/login');
   };
 
-  const visibleCore   = CORE_NAV.filter(n => allowed(n.permKey));
-  const visibleTools  = TOOLS_NAV.filter(n => allowed(n.permKey));
-  const visibleConfig = CONFIG_NAV.filter(n => allowed(n.permKey));
+  const visibleCore    = CORE_NAV.filter(n => allowed(n.permKey));
+  const visibleHistory = HISTORY_NAV.filter(n => allowed(n.permKey));
+  const visibleConfig  = CONFIG_NAV.filter(n => allowed(n.permKey));
 
   // Add Team Access to config if main admin
   const configWithTeam = isSubUser
@@ -197,19 +197,19 @@ export default function Sidebar() {
           <NavItem key={item.to} {...item} />
         ))}
 
-        {/* Tools — collapsible */}
-        {visibleTools.length > 0 && (
+        {/* History & Reports — collapsible */}
+        {visibleHistory.length > 0 && (
           <>
             <div style={{ height: 4 }} />
-            <CollapsibleSection label="Tools" icon={Wrench} items={visibleTools} />
+            <CollapsibleSection label="History & Reports" icon={History} items={visibleHistory} />
           </>
         )}
 
-        {/* Configuration — collapsible */}
+        {/* Setup — collapsible */}
         {configWithTeam.length > 0 && (
           <>
             <div style={{ height: 4 }} />
-            <CollapsibleSection label="Configuration" icon={Settings2} items={configWithTeam} />
+            <CollapsibleSection label="Setup" icon={Settings2} items={configWithTeam} />
           </>
         )}
 

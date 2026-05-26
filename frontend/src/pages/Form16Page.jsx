@@ -62,177 +62,307 @@ function DeclarationDialog({ employee, fy, onClose, onSaved }) {
     }
   };
 
+  const isOldRegime = form.tax_regime === 'old';
+
+  // Completion check for each section
+  const employerFilled = !!(form.tan && form.company_pan);
+  const tdsAuto = INR(employee.tds_from_slips || 0);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6"
+      style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(2px)' }}
+    >
       <div
-        className="relative rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
+        className="relative rounded-2xl shadow-2xl w-full max-w-2xl max-h-[94vh] flex flex-col"
         style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)' }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--border-light)' }}>
-          <div>
-            <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-              Tax Declarations — {employee.employee_name}
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              F.Y. {fy} · Employee ID: {employee.employee_id}
-              {employee.pan_number && ` · PAN: ${employee.pan_number}`}
-            </p>
+        {/* ── Gradient Header ── */}
+        <div
+          className="rounded-t-2xl px-6 pt-5 pb-4 shrink-0"
+          style={{ background: 'linear-gradient(135deg, #1B3F72 0%, #1e56a0 100%)' }}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+              >
+                <FileText size={18} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white leading-tight">
+                  Tax Declarations
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  {employee.employee_name} · {employee.employee_id}
+                  {employee.pan_number && <span className="ml-2 font-mono">{employee.pan_number}</span>}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' }}
+              >
+                F.Y. {fy}
+              </span>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.22)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+              >
+                <X size={15} />
+              </button>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={18} />
-          </button>
+
+          {/* PAN warning strip */}
+          {!employee.pan_number && (
+            <div
+              className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5' }}
+            >
+              <AlertCircle size={13} className="shrink-0" />
+              <span><strong>PAN missing</strong> — update in Employees → Edit before issuing Form 16</span>
+            </div>
+          )}
         </div>
 
-        <div className="p-5 space-y-5">
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
-          {/* Employer TAN / PAN */}
-          <div className="rounded-xl p-4 space-y-3" style={{ background: '#EFF4FB', border: '1px solid #BFDBFE' }}>
-            <p className="text-xs font-bold text-blue-900 flex items-center gap-1">
-              <Settings size={12} /> Employer Details (one-time setup)
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* 1. Employer Details */}
+          <section>
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center">1</span>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Employer Details</p>
+              </div>
+              {employerFilled && (
+                <span className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={11} /> Filled
+                </span>
+              )}
+            </div>
+            <div className="rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ background: '#F8FAFC', border: '1px solid var(--border-light)' }}>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">TAN Number</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">TAN Number</label>
                 <Input value={form.tan} onChange={e => upd('tan', e.target.value.toUpperCase())}
-                  placeholder="e.g. CHEN12345A" className="h-8 text-sm font-mono" maxLength={10} />
-                <p className="text-[10px] text-slate-400 mt-1">10-character Tax Deduction Account Number</p>
+                  placeholder="e.g. CHEN12345A" className="h-9 text-sm font-mono" maxLength={10} />
+                <p className="text-[10px] text-slate-400 mt-1">10-char Tax Deduction Account Number</p>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Company PAN</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Company PAN</label>
                 <Input value={form.company_pan} onChange={e => upd('company_pan', e.target.value.toUpperCase())}
-                  placeholder="e.g. ABCDE1234F" className="h-8 text-sm font-mono" maxLength={10} />
-                <p className="text-[10px] text-slate-400 mt-1">Permanent Account Number of the company</p>
+                  placeholder="e.g. ABCDE1234F" className="h-9 text-sm font-mono" maxLength={10} />
+                <p className="text-[10px] text-slate-400 mt-1">Permanent Account Number of company</p>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Tax Regime */}
-          <div>
-            <label className="block text-xs font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Tax Regime (F.Y. {fy})
-            </label>
+          {/* 2. Tax Regime */}
+          <section>
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center">2</span>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Tax Regime</p>
+              <span className="text-[10px] text-slate-400 ml-1">for F.Y. {fy}</span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { id: 'new',  label: 'New Regime', desc: 'Standard deduction ₹75,000. No 80C/80D. Default from FY 2024-25.', tag: 'Recommended' },
-                { id: 'old',  label: 'Old Regime', desc: 'Standard deduction ₹50,000. Allows 80C, 80D, HRA & other deductions.', tag: '' },
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => upd('tax_regime', opt.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${
-                    form.tax_regime === opt.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-slate-800">{opt.label}</p>
-                    {opt.tag && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">{opt.tag}</span>}
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{opt.desc}</p>
-                </button>
-              ))}
+                {
+                  id: 'new',
+                  label: 'New Regime',
+                  tag: 'Default',
+                  tagColor: '#166534',
+                  tagBg: '#DCFCE7',
+                  desc: 'Standard deduction ₹75,000. No 80C/80D deductions. Lower tax slabs.',
+                  accent: '#1B3F72',
+                  accentBg: '#EFF4FB',
+                  accentBorder: '#BFDBFE',
+                },
+                {
+                  id: 'old',
+                  label: 'Old Regime',
+                  tag: '',
+                  desc: 'Standard deduction ₹50,000. Claim 80C, 80D, HRA & other deductions.',
+                  accent: '#92400E',
+                  accentBg: '#FFFBEB',
+                  accentBorder: '#FDE68A',
+                },
+              ].map(opt => {
+                const isSelected = form.tax_regime === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => upd('tax_regime', opt.id)}
+                    className="text-left p-4 rounded-xl border-2 transition-all relative overflow-hidden"
+                    style={{
+                      borderColor: isSelected ? opt.accent : 'var(--border-light)',
+                      background: isSelected ? opt.accentBg : 'var(--bg-main)',
+                      boxShadow: isSelected ? `0 0 0 3px ${opt.accentBorder}` : 'none',
+                    }}
+                  >
+                    {/* Selected checkmark */}
+                    {isSelected && (
+                      <div
+                        className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: opt.accent }}
+                      >
+                        <CheckCircle2 size={12} className="text-white" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-bold" style={{ color: isSelected ? opt.accent : 'var(--text-primary)' }}>
+                        {opt.label}
+                      </p>
+                      {opt.tag && (
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                          style={{ background: opt.tagBg, color: opt.tagColor }}
+                        >
+                          {opt.tag}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      {opt.desc}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </section>
 
-          {/* Exemptions — always shown */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-              Section 10 Exemptions
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* 3. Section 10 Exemptions */}
+          <section>
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center">3</span>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Section 10 Exemptions</p>
+              <span className="text-[10px] text-slate-400 ml-1">HRA, LTA, etc.</span>
+            </div>
+            <div className="rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ background: '#F8FAFC', border: '1px solid var(--border-light)' }}>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   HRA Exemption u/s 10(13A) (₹)
                 </label>
                 <Input type="number" value={form.hra_exemption}
                   onChange={e => upd('hra_exemption', e.target.value)}
-                  placeholder="0" className="h-8 text-sm" />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Enter the HRA exempt amount based on rent paid by employee
-                </p>
+                  placeholder="0" className="h-9 text-sm" />
+                <p className="text-[10px] text-slate-400 mt-1">Exempt HRA based on rent paid by employee</p>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Other Sec 10 Exemptions — LTA etc. (₹)
                 </label>
                 <Input type="number" value={form.other_section10}
                   onChange={e => upd('other_section10', e.target.value)}
-                  placeholder="0" className="h-8 text-sm" />
+                  placeholder="0" className="h-9 text-sm" />
+                <p className="text-[10px] text-slate-400 mt-1">Leave Travel Allowance and other Sec 10 items</p>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Chapter VI-A — only for old regime */}
-          {form.tax_regime === 'old' && (
-            <div className="rounded-xl p-4 space-y-3" style={{ background: '#FFFBEB', border: '1px solid #FCD34D' }}>
-              <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
-                <Info size={12} /> Chapter VI-A Deductions (Old Regime Only)
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* 4. Chapter VI-A — only for old regime */}
+          {isOldRegime && (
+            <section>
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black flex items-center justify-center">4</span>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Chapter VI-A Deductions</p>
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                  style={{ background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A' }}
+                >
+                  Old Regime only
+                </span>
+              </div>
+              <div className="rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ background: '#FFFDF0', border: '1px solid #FDE68A' }}>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    80C Investments (₹) — Max ₹1,50,000
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    80C Investments (₹)
                   </label>
                   <Input type="number" value={form.investment_80c}
                     onChange={e => upd('investment_80c', e.target.value)}
-                    placeholder="0" className="h-8 text-sm" />
-                  <p className="text-[10px] text-slate-400 mt-1">LIC, PPF, ELSS, home loan principal, etc. PF auto-included.</p>
+                    placeholder="0" className="h-9 text-sm" />
+                  <p className="text-[10px] text-slate-400 mt-1">Max ₹1,50,000 — LIC, PPF, ELSS, home loan principal</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                     80D Medical Insurance (₹)
                   </label>
                   <Input type="number" value={form.mediclaim_80d}
                     onChange={e => upd('mediclaim_80d', e.target.value)}
-                    placeholder="0" className="h-8 text-sm" />
+                    placeholder="0" className="h-9 text-sm" />
+                  <p className="text-[10px] text-slate-400 mt-1">Premium for self, spouse, children & parents</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                     Other Deductions — 80G, 80E, 80TTA (₹)
                   </label>
                   <Input type="number" value={form.other_deductions}
                     onChange={e => upd('other_deductions', e.target.value)}
-                    placeholder="0" className="h-8 text-sm" />
+                    placeholder="0" className="h-9 text-sm" />
+                  <p className="text-[10px] text-slate-400 mt-1">Donations, education loan interest, etc.</p>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
-          {/* TDS Override */}
-          <div>
-            <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-              TDS Deducted (₹) — Override
-            </label>
-            <Input type="number" value={form.tds_override}
-              onChange={e => upd('tds_override', e.target.value)}
-              placeholder={`Leave blank to use TDS from payslips (${INR(employee.tds_from_slips || 0)})`}
-              className="h-9 text-sm" />
-            <p className="text-[10px] text-slate-400 mt-1">
-              Only fill if the TDS amount differs from what's in payslips.
-              Auto-value from payslips: <strong>{INR(employee.tds_from_slips || 0)}</strong>
-            </p>
-          </div>
-
-          {!employee.pan_number && (
-            <div className="flex items-start gap-2 rounded-xl p-3" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
-              <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">
-                <strong>PAN missing!</strong> The employee's PAN number is not in the system.
-                Please update it in <strong>Employees → Edit</strong> before issuing Form 16.
-              </p>
+          {/* 5. TDS Override */}
+          <section>
+            <div className="flex items-center gap-2 mb-2.5">
+              <span
+                className="w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center"
+                style={{ background: '#F1F5F9', color: '#64748B' }}
+              >
+                {isOldRegime ? '5' : '4'}
+              </span>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>TDS Deducted</p>
+              <span className="text-[10px] text-slate-400 ml-1">override if needed</span>
             </div>
-          )}
+            <div className="rounded-xl p-4" style={{ background: '#F8FAFC', border: '1px solid var(--border-light)' }}>
+              <div className="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg" style={{ background: '#EFF4FB' }}>
+                <Info size={13} className="text-blue-500 shrink-0" />
+                <p className="text-xs text-blue-700">
+                  TDS auto-computed from payslips: <strong>{tdsAuto}</strong>.
+                  Only fill below if TDS differs from payslip records.
+                </p>
+              </div>
+              <Input type="number" value={form.tds_override}
+                onChange={e => upd('tds_override', e.target.value)}
+                placeholder={`Leave blank to use ${tdsAuto} from payslips`}
+                className="h-9 text-sm" />
+            </div>
+          </section>
+
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 pb-5">
-          <Button variant="outline" onClick={onClose} className="h-9 text-sm">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="h-9 text-sm bg-blue-600 hover:bg-blue-700 text-white">
-            <Save size={14} className="mr-1.5" />
-            {saving ? 'Saving…' : 'Save Declarations'}
-          </Button>
+        {/* ── Sticky Footer ── */}
+        <div
+          className="flex items-center justify-between gap-3 px-5 py-4 rounded-b-2xl shrink-0"
+          style={{ borderTop: '1px solid var(--border-light)', background: 'var(--bg-warm)' }}
+        >
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {isOldRegime
+              ? 'Old regime: fill 80C/80D investments for accurate tax.'
+              : 'New regime: no investment proofs needed.'}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={onClose} className="h-9 text-sm px-4">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="h-9 text-sm px-5"
+              style={{ background: '#1B3F72', color: 'white' }}
+            >
+              <Save size={14} className="mr-1.5" />
+              {saving ? 'Saving…' : 'Save Declarations'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

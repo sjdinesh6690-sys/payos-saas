@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
     const adminId = req.admin_id;
     const result = await pool.query(
       `SELECT l.id, l.name, l.city, l.state, l.created_at,
+              l.separate_payslip, l.address, l.payslip_template,
               COUNT(e.id) FILTER (WHERE e.status = 'active' OR e.status IS NULL) AS employee_count
        FROM locations l
        LEFT JOIN employees e ON e.admin_id = l.admin_id AND e.location = l.name
@@ -29,21 +30,36 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST /api/locations ───────────────────────────────────────────────────────
-// Body: { name, city, state }
+// Body: { name, city, state, separate_payslip, address, payslip_template }
 router.post('/', async (req, res) => {
   try {
     const adminId = req.admin_id;
-    const { name, city, state } = req.body;
+    const {
+      name,
+      city,
+      state,
+      separate_payslip = false,
+      address = '',
+      payslip_template = 'default',
+    } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Location name is required' });
     }
 
     const result = await pool.query(
-      `INSERT INTO locations (admin_id, name, city, state)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, city, state, created_at`,
-      [adminId, name.trim(), (city || '').trim() || null, (state || '').trim() || null]
+      `INSERT INTO locations (admin_id, name, city, state, separate_payslip, address, payslip_template)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, city, state, separate_payslip, address, payslip_template, created_at`,
+      [
+        adminId,
+        name.trim(),
+        (city || '').trim() || null,
+        (state || '').trim() || null,
+        !!separate_payslip,
+        (address || '').trim() || null,
+        payslip_template || 'default',
+      ]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -56,13 +72,20 @@ router.post('/', async (req, res) => {
 });
 
 // ── PUT /api/locations/:id ────────────────────────────────────────────────────
-// Body: { name, city, state }
+// Body: { name, city, state, separate_payslip, address, payslip_template }
 // Also updates location field on all employees who had the old name
 router.put('/:id', async (req, res) => {
   try {
     const adminId = req.admin_id;
     const locId   = parseInt(req.params.id);
-    const { name, city, state } = req.body;
+    const {
+      name,
+      city,
+      state,
+      separate_payslip = false,
+      address = '',
+      payslip_template = 'default',
+    } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Location name is required' });
@@ -80,10 +103,21 @@ router.put('/:id', async (req, res) => {
 
     // Update location record
     const result = await pool.query(
-      `UPDATE locations SET name = $1, city = $2, state = $3
-       WHERE id = $4 AND admin_id = $5
-       RETURNING id, name, city, state`,
-      [name.trim(), (city || '').trim() || null, (state || '').trim() || null, locId, adminId]
+      `UPDATE locations
+       SET name = $1, city = $2, state = $3,
+           separate_payslip = $4, address = $5, payslip_template = $6
+       WHERE id = $7 AND admin_id = $8
+       RETURNING id, name, city, state, separate_payslip, address, payslip_template`,
+      [
+        name.trim(),
+        (city || '').trim() || null,
+        (state || '').trim() || null,
+        !!separate_payslip,
+        (address || '').trim() || null,
+        payslip_template || 'default',
+        locId,
+        adminId,
+      ]
     );
 
     // Cascade rename to employees

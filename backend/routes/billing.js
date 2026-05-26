@@ -12,11 +12,17 @@ const authCheck = require('../middleware/auth');
 router.use(authCheck);
 
 // ── Pricing constants ────────────────────────────────────────────────────────
-const GST_RATE           = 0.18;
-const BASE_PLAN_PRICE    = 999;   // ₹ before GST
-const BASE_PLAN_SLOTS    = 5;
-const TOPUP_PRICE_PER_SLOT = 75;  // ₹ per slot before GST
-const MIN_TOPUP_SLOTS    = 10;
+const GST_RATE             = 0.18;
+const BASE_PLAN_PRICE      = 999;    // ₹ before GST  — monthly
+const BASE_PLAN_SLOTS      = 5;
+const TOPUP_PRICE_PER_SLOT = 75;     // ₹ per slot before GST — monthly
+const MIN_TOPUP_SLOTS      = 10;
+
+// Yearly: charge for 10 months, grant 12 months access (2 months free)
+const YEARLY_BILLING_MONTHS = 10;
+const YEARLY_ACCESS_MONTHS  = 12;
+const BASE_PLAN_YEARLY      = BASE_PLAN_PRICE * YEARLY_BILLING_MONTHS;       // ₹9,990
+const TOPUP_YEARLY_PER_SLOT = TOPUP_PRICE_PER_SLOT * YEARLY_BILLING_MONTHS; // ₹750/slot
 
 function calcAmounts(base) {
   const gst   = Math.round(base * GST_RATE * 100) / 100;
@@ -105,10 +111,15 @@ router.get('/status', async (req, res) => {
       trial_started_on:     trialStart.toISOString(),
       trial_ends_on:        trialEnd.toISOString(),
       // Pricing info for UI
-      base_plan_price:      BASE_PLAN_PRICE,
-      base_plan_slots:      BASE_PLAN_SLOTS,
-      topup_price_per_slot: TOPUP_PRICE_PER_SLOT,
-      gst_rate:             GST_RATE,
+      base_plan_price:        BASE_PLAN_PRICE,
+      base_plan_yearly:       BASE_PLAN_YEARLY,
+      base_plan_slots:        BASE_PLAN_SLOTS,
+      topup_price_per_slot:   TOPUP_PRICE_PER_SLOT,
+      topup_yearly_per_slot:  TOPUP_YEARLY_PER_SLOT,
+      yearly_billing_months:  YEARLY_BILLING_MONTHS,
+      yearly_access_months:   YEARLY_ACCESS_MONTHS,
+      gst_rate:               GST_RATE,
+      plan_type:              sub?.plan_type || 'monthly',
     });
   } catch (err) {
     console.error('billing/status error:', err.message);
@@ -129,9 +140,18 @@ router.post('/create-order', async (req, res) => {
     let amounts, description, employeeSlots;
 
     if (type === 'base_plan') {
-      amounts       = calcAmounts(BASE_PLAN_PRICE);
-      description   = `PayLeef Pro — ${BASE_PLAN_SLOTS} Employee Slots (1 Month)`;
-      employeeSlots = BASE_PLAN_SLOTS;
+      const extraSlots = Math.max(0, (parseInt(slots) || BASE_PLAN_SLOTS) - BASE_PLAN_SLOTS);
+      const base       = BASE_PLAN_PRICE + extraSlots * TOPUP_PRICE_PER_SLOT;
+      amounts          = calcAmounts(base);
+      description      = `PayLeef Pro — ${BASE_PLAN_SLOTS + extraSlots} Employee Slots (1 Month)`;
+      employeeSlots    = BASE_PLAN_SLOTS + extraSlots;
+    } else if (type === 'yearly_plan') {
+      // Pay for 10 months, get 12 months access
+      const extraSlots = Math.max(0, (parseInt(slots) || BASE_PLAN_SLOTS) - BASE_PLAN_SLOTS);
+      const base       = BASE_PLAN_YEARLY + extraSlots * TOPUP_YEARLY_PER_SLOT;
+      amounts          = calcAmounts(base);
+      description      = `PayLeef Pro Yearly — ${BASE_PLAN_SLOTS + extraSlots} Employee Slots (12 Months)`;
+      employeeSlots    = BASE_PLAN_SLOTS + extraSlots;
     } else if (type === 'topup') {
       const n = parseInt(slots) || MIN_TOPUP_SLOTS;
       if (n < MIN_TOPUP_SLOTS)
@@ -140,7 +160,7 @@ router.post('/create-order', async (req, res) => {
       description   = `PayLeef — ${n} Additional Employee Slots`;
       employeeSlots = n;
     } else {
-      return res.status(400).json({ error: 'Invalid type. Use base_plan or topup' });
+      return res.status(400).json({ error: 'Invalid type. Use base_plan, yearly_plan or topup' });
     }
 
     // Check if Razorpay keys are configured
@@ -226,7 +246,8 @@ router.post('/verify-payment', async (req, res) => {
 
     // Mock payment (no real keys yet)
     if (mock === true) {
-      await activateSubscription(adminId, type, parseInt(slots) || BASE_PLAN_SLOTS, now,
+      const slotsNum = parseInt(slots) || BASE_PLAN_SLOTS;
+      await activateSubscription(adminId, type, slotsNum, now,
         razorpay_order_id, 'mock_payment_' + Date.now());
       const sub = await getSubscription(adminId);
       return res.json({ success: true, mock: true, subscription: sub });
@@ -284,34 +305,35 @@ async function activateSubscription(adminId, type, slots, now, orderId, paymentI
   );
   const existing = subRes.rows[0];
 
-  if (type === 'base_plan') {
+  const monthsToAdd = (type === 'yearly_plan') ? YEARLY_ACCESS_MONTHS : 1;
+
+  if (type === 'base_plan' || type === 'yearly_plan') {
     if (existing) {
       // If renewing an already-active plan, extend from paid_until; otherwise extend from now
       const baseDate = existing.status === 'active' && new Date(existing.paid_until) > now
         ? new Date(existing.paid_until)
         : new Date(now);
-      // Create a NEW date object to avoid mutation bugs
       const newPaidUntil = new Date(baseDate);
-      newPaidUntil.setMonth(newPaidUntil.getMonth() + 1);
+      newPaidUntil.setMonth(newPaidUntil.getMonth() + monthsToAdd);
 
       await pool.query(
         `UPDATE subscriptions
          SET employee_limit = GREATEST(employee_limit, $1),
              paid_until     = $2,
              status         = 'active',
+             plan_type      = $4,
              updated_at     = NOW()
          WHERE admin_id = $3`,
-        [BASE_PLAN_SLOTS, newPaidUntil, adminId]
+        [slots, newPaidUntil, adminId, type]
       );
     } else {
-      // New subscription — 1 month from now
       const newPaidUntil = new Date(now);
-      newPaidUntil.setMonth(newPaidUntil.getMonth() + 1);
+      newPaidUntil.setMonth(newPaidUntil.getMonth() + monthsToAdd);
       await pool.query(
         `INSERT INTO subscriptions
-           (admin_id, employee_limit, paid_until, status)
-         VALUES ($1, $2, $3, 'active')`,
-        [adminId, BASE_PLAN_SLOTS, newPaidUntil]
+           (admin_id, employee_limit, paid_until, status, plan_type)
+         VALUES ($1, $2, $3, 'active', $4)`,
+        [adminId, slots, newPaidUntil, type]
       );
     }
   } else if (type === 'topup') {

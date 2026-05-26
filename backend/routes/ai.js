@@ -14,16 +14,37 @@ const { pool } = require('../database');
 const authCheck = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-router.use(authCheck);
-
 const MONTHS = ['','January','February','March','April','May','June',
   'July','August','September','October','November','December'];
 
+// Use latest stable model — falls back gracefully if deprecated
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+
 function getGemini() {
   if (!process.env.GEMINI_API_KEY) return null;
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    return genAI.getGenerativeModel({ model: GEMINI_MODEL });
+  } catch (e) {
+    console.error('[AI] Failed to init Gemini:', e.message);
+    return null;
+  }
 }
+
+// GET /api/ai/status — health check (no auth required for dashboard check)
+router.get('/status', (req, res) => {
+  const hasKey = !!(process.env.GEMINI_API_KEY);
+  res.json({
+    available: hasKey,
+    provider:  hasKey ? 'Google Gemini' : null,
+    model:     hasKey ? GEMINI_MODEL : null,
+    message:   hasKey
+      ? 'AI service is ready'
+      : 'AI not configured. Add GEMINI_API_KEY in Render → Environment Variables → get free key at aistudio.google.com',
+  });
+});
+
+router.use(authCheck);
 
 // ── Employee Self-Service AI Chat ─────────────────────────────────────────────
 // POST /api/ai/employee-chat

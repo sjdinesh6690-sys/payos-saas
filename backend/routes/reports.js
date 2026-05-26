@@ -761,10 +761,6 @@ async function buildExcelSalaryRegister(res, slips, adminInfo, periodLabel, mont
   cols.forEach((c, i) => { hRow.getCell(i + 1).value = c.header; });
   styleHeader(ws, headerRow, null);
 
-  // Earnings / Deductions sub-header
-  ws.mergeCells(`E2:K2`);
-  ws.mergeCells(`L2:P2`); // this is actually row 2 but used for later section — skip, headers are clear
-
   let dataRow = headerRow + 1;
   const totals = new Array(cols.length).fill(0);
 

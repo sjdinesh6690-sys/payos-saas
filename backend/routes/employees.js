@@ -78,6 +78,54 @@ async function sendPortalWelcomeEmail(employee, tempPassword, companyName, req) 
   });
 }
 
+// ── Send account-change notification email ────────────────────────────────────
+async function sendAccountChangeEmail(employee, changedFields, companyName, req) {
+  if (!process.env.RESEND_API_KEY) return;
+  if (!employee.email) return; // no email — nothing to send
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const fieldLabels = {
+      employee_name: 'Name', email: 'Email Address', salary: 'Salary',
+      department: 'Department', designation: 'Designation', phone: 'Phone',
+      portal_access_enabled: 'Portal Access', location: 'Location',
+      bank_account_number: 'Bank Account', ifsc_code: 'IFSC Code',
+    };
+    const changeList = changedFields
+      .map(f => fieldLabels[f.split(' ')[0]] || f.split(' ')[0])
+      .filter(Boolean)
+      .join(', ');
+
+    await resend.emails.send({
+      from:    `${companyName} HR <payroll@dinmind.com>`,
+      to:      [employee.email],
+      subject: `Your account was updated — ${companyName}`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:0;">
+          <div style="background:#1A7A4A;padding:24px 28px;border-radius:10px 10px 0 0;">
+            <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+            <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">${companyName}</div>
+          </div>
+          <div style="background:#ffffff;padding:28px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none;">
+            <p style="font-size:15px;font-weight:700;color:#0f172a;margin:0 0 12px;">Hi ${employee.employee_name},</p>
+            <p style="color:#334155;margin:0 0 16px;font-size:14px;">
+              Your HR team has updated your account details. The following information was changed:
+            </p>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+              <p style="font-size:13px;font-weight:700;color:#166534;margin:0;">Updated: ${changeList}</p>
+            </div>
+            <p style="color:#64748b;font-size:12px;margin:0;">
+              If you did not expect this change, please contact your HR admin immediately.<br/>
+              Log in to your portal at <a href="${appUrl}/login" style="color:#1A7A4A;">${appUrl}/login</a>
+            </p>
+          </div>
+        </div>`,
+    });
+  } catch (e) {
+    console.warn('[account-change-email] Failed to send:', e.message);
+  }
+}
+
 // ── GET all employees (with last payslip info) ────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -337,10 +385,23 @@ router.put('/:id', async (req, res) => {
 
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 
+    // Fetch current employee data (for notification email)
+    const empBefore = await pool.query('SELECT * FROM employees WHERE id = $1', [id]);
+    const empData   = empBefore.rows[0] || {};
+
     values.push(id);
     await pool.query(`UPDATE employees SET ${fields.join(', ')} WHERE id = $${idx}`, values);
 
     await auditLog(req.admin_id, 'employee_updated', 'employees', id, { fields: fields.map(f => f.split(' ')[0]) }, req.ip);
+
+    // Send account-change notification email asynchronously (don't block response)
+    const adminRes = await pool.query('SELECT company_name FROM admins WHERE id = $1', [req.admin_id]);
+    const companyName = adminRes.rows[0]?.company_name || 'Your Company';
+    const notifyEmail = email ? email.trim().toLowerCase() : empData.email;
+    if (notifyEmail) {
+      sendAccountChangeEmail({ ...empData, email: notifyEmail }, fields, companyName, req).catch(() => {});
+    }
+
     res.json({ message: 'Employee updated!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

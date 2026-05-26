@@ -119,7 +119,30 @@ export default function PaymentCheckoutPage() {
   const [orderData, setOrderData] = useState(null);  // preview amounts
   const rzpRef = useRef(null);
 
-  // Load preview amounts on Step 3
+  // ── Prefill from admin profile on mount ──────────────────────────────────
+  useEffect(() => {
+    api.get('/admin-profile/profile').then(({ data }) => {
+      const a = data.admin || {};
+      setForm(prev => ({
+        ...prev,
+        full_name:      prev.full_name      || (a.company_name || ''),  // no separate name field
+        company_name:   prev.company_name   || (a.company_name || ''),
+        mobile:         prev.mobile         || (a.company_phone || ''),
+        email:          prev.email          || (a.email || ''),
+        accounts_email: prev.accounts_email || (a.company_email || ''),
+      }));
+      // Prefill GST info if GSTIN is set on the company profile
+      if (a.company_gstin) {
+        setHasGst(true);
+        setGstNumber(a.company_gstin);
+      }
+    }).catch(() => {
+      // Silently ignore — user can fill in manually
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Load preview amounts on Step 3 ────────────────────────────────────────
   useEffect(() => {
     if (step === 3) {
       const stateCode = gstInfo?.state_code || null;

@@ -217,6 +217,116 @@ router.post('/send', async (req, res) => {
   }
 });
 
+// POST /api/email/send-single — resend payslip to ONE employee (by payslip id or employee_id+month+year)
+router.post('/send-single', async (req, res) => {
+  try {
+    const { payslip_id, employee_id, month, year } = req.body;
+
+    let slipQuery, slipParams;
+    if (payslip_id) {
+      slipQuery  = `SELECT p.*, e.email AS employee_email, e.portal_access_enabled, e.is_temp_password
+                      FROM payslips p
+                      LEFT JOIN employees e ON e.employee_id = p.employee_id AND e.admin_id = p.admin_id
+                     WHERE p.id = $1 AND p.admin_id = $2`;
+      slipParams = [payslip_id, req.admin_id];
+    } else if (employee_id && month && year) {
+      slipQuery  = `SELECT p.*, e.email AS employee_email, e.portal_access_enabled, e.is_temp_password
+                      FROM payslips p
+                      LEFT JOIN employees e ON e.employee_id = p.employee_id AND e.admin_id = p.admin_id
+                     WHERE p.employee_id = $1 AND p.month = $2 AND p.year = $3 AND p.admin_id = $4`;
+      slipParams = [employee_id, parseInt(month), parseInt(year), req.admin_id];
+    } else {
+      return res.status(400).json({ error: 'Provide payslip_id or employee_id+month+year' });
+    }
+
+    const [adminResult, cfgResult, slipResult] = await Promise.all([
+      pool.query('SELECT * FROM admins WHERE id = $1', [req.admin_id]),
+      pool.query('SELECT branding FROM payroll_configs WHERE admin_id = $1', [req.admin_id]),
+      pool.query(slipQuery, slipParams),
+    ]);
+
+    if (!slipResult.rows.length) {
+      return res.status(404).json({ error: 'Payslip not found' });
+    }
+
+    const slip      = slipResult.rows[0];
+    const admin     = adminResult.rows[0] || {};
+    const branding  = cfgResult.rows[0]?.branding || {};
+    const toEmail   = slip.employee_email;
+
+    if (!toEmail) {
+      return res.status(400).json({ error: `No email address on file for ${slip.employee_name}. Add email in Employees first.` });
+    }
+
+    const resend = getResend();
+    if (!resend) {
+      return res.status(503).json({ error: 'Email service not configured. Please contact PayLeef support.' });
+    }
+
+    const companyName = admin.company_name || 'Your Company';
+    const brandColor  = admin.brand_color  || '#1A7A4A';
+    const monthLabel  = new Date(parseInt(slip.year), parseInt(slip.month) - 1)
+      .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const subjectTpl  = admin.email_subject || 'Your Salary Slip for {month} — {company}';
+    const subject     = subjectTpl
+      .replace(/{month}/g,    monthLabel)
+      .replace(/{company}/g,  companyName)
+      .replace(/{employee}/g, slip.employee_name);
+
+    const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin);
+
+    const htmlBody = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:${brandColor};padding:28px 32px;border-radius:12px 12px 0 0;">
+          <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-.04em;">
+            Pay<span style="color:#4ADE80;">Leef</span>
+          </div>
+          <div style="color:rgba(255,255,255,.6);font-size:13px;margin-top:4px;">${companyName}</div>
+        </div>
+        <div style="background:#ffffff;padding:28px 32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+          <p style="font-size:16px;font-weight:700;color:#0f172a;margin:0 0 16px;">Dear ${slip.employee_name},</p>
+          <p style="color:#334155;margin:0 0 12px;">Please find attached your salary slip for <strong>${monthLabel}</strong>.</p>
+          <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;font-size:13px;color:#64748b;">Employee ID</td>
+                  <td style="padding:6px 0;font-size:13px;font-weight:700;color:#0f172a;text-align:right;">${slip.employee_id}</td></tr>
+              <tr><td style="padding:6px 0;font-size:13px;color:#64748b;">Month</td>
+                  <td style="padding:6px 0;font-size:13px;font-weight:700;color:#0f172a;text-align:right;">${monthLabel}</td></tr>
+              <tr><td style="padding:6px 0;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">Net Pay</td>
+                  <td style="padding:6px 0;font-size:15px;font-weight:800;color:${brandColor};text-align:right;border-top:1px solid #e2e8f0;">
+                    ₹${(slip.net_salary || slip.salary || 0).toLocaleString('en-IN')}</td></tr>
+            </table>
+          </div>
+          <p style="color:#64748b;font-size:12px;margin:16px 0 0;">Your payslip is attached as a PDF. Contact HR for any queries.</p>
+        </div>
+      </div>`;
+
+    await resend.emails.send({
+      from:        `${companyName} Payroll <payroll@dinmind.com>`,
+      to:          [toEmail],
+      replyTo:     admin.company_email || undefined,
+      subject,
+      html:        htmlBody,
+      attachments: [{
+        content:  pdfBuffer.toString('base64'),
+        filename: `Payslip_${slip.employee_id}_${slip.year}-${String(slip.month).padStart(2,'0')}.pdf`,
+        encoding: 'base64',
+      }],
+    });
+
+    // Mark as emailed
+    await pool.query(
+      `UPDATE payslips SET emailed = true, emailed_at = NOW() WHERE id = $1`,
+      [slip.id]
+    );
+
+    res.json({ message: `Payslip sent to ${slip.employee_name} (${toEmail})` });
+  } catch (err) {
+    console.error('[email/send-single]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/email/test — send a test email via Resend (replaces broken SMTP test)
 router.post('/test', async (req, res) => {
   try {

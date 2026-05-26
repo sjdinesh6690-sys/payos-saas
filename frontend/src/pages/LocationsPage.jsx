@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Plus, Pencil, Trash2, X, Check, Building2, Users, RefreshCw } from 'lucide-react';
+import { MapPin, Plus, Pencil, Trash2, X, Check, Building2, Users, RefreshCw, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
+const TEMPLATES = [
+  { value: 'default',   label: 'Default Template' },
+  { value: 'compact',   label: 'Compact Template' },
+  { value: 'detailed',  label: 'Detailed Template' },
+];
+
 // ── Small inline form for add / edit ─────────────────────────────────────────
 function LocationForm({ initial = {}, onSave, onCancel, loading }) {
-  const [name,  setName]  = useState(initial.name  || '');
-  const [city,  setCity]  = useState(initial.city  || '');
-  const [state, setState] = useState(initial.state || '');
+  const [name,             setName]             = useState(initial.name              || '');
+  const [city,             setCity]             = useState(initial.city              || '');
+  const [state,            setState]            = useState(initial.state             || '');
+  const [address,          setAddress]          = useState(initial.address           || '');
+  const [separatePayslip,  setSeparatePayslip]  = useState(!!initial.separate_payslip);
+  const [payslipTemplate,  setPayslipTemplate]  = useState(initial.payslip_template || 'default');
 
   const inputStyle = {
     width: '100%',
@@ -18,10 +27,24 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
     color: '#0F172A',
     outline: 'none',
     background: '#fff',
+    boxSizing: 'border-box',
+  };
+
+  const handleSave = () => {
+    onSave({
+      name:              name.trim(),
+      city:              city.trim(),
+      state:             state.trim(),
+      address:           address.trim(),
+      separate_payslip:  separatePayslip,
+      payslip_template:  payslipTemplate,
+    });
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Location name */}
       <div>
         <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
           Location Name *
@@ -36,6 +59,8 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
           onBlur={e => e.target.style.borderColor = '#E2E8F0'}
         />
       </div>
+
+      {/* City + State */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div>
           <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
@@ -64,6 +89,68 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
           />
         </div>
       </div>
+
+      {/* Address */}
+      <div>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+          Address <span style={{ fontWeight: 400, color: '#94A3B8' }}>(printed on payslip)</span>
+        </label>
+        <textarea
+          rows={2}
+          placeholder="e.g. No.12, Industrial Estate, Guindy, Chennai – 600 032"
+          value={address}
+          onChange={e => setAddress(e.target.value)}
+          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+          onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+          onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+        />
+      </div>
+
+      {/* Separate Payslip toggle */}
+      <div
+        onClick={() => setSeparatePayslip(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '11px 14px', borderRadius: 10, cursor: 'pointer',
+          border: `1.5px solid ${separatePayslip ? '#86EFAC' : '#E2E8F0'}`,
+          background: separatePayslip ? '#F0FDF4' : '#F8FAFC',
+          transition: 'all 0.15s',
+        }}
+      >
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 700, color: separatePayslip ? '#15803D' : '#374151', marginBottom: 2 }}>
+            Separate Payslip Required
+          </p>
+          <p style={{ fontSize: 12, color: '#64748B' }}>
+            Generate payslips with this location's own address &amp; header
+          </p>
+        </div>
+        {separatePayslip
+          ? <ToggleRight size={28} color="#1A7A4A" />
+          : <ToggleLeft  size={28} color="#94A3B8" />}
+      </div>
+
+      {/* Payslip template — only relevant when separate_payslip is on */}
+      {separatePayslip && (
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+            Payslip Template
+          </label>
+          <select
+            value={payslipTemplate}
+            onChange={e => setPayslipTemplate(e.target.value)}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            onFocus={e => e.target.style.borderColor = '#1A7A4A'}
+            onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+          >
+            {TEMPLATES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Buttons */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button
           onClick={onCancel}
@@ -76,7 +163,7 @@ function LocationForm({ initial = {}, onSave, onCancel, loading }) {
           Cancel
         </button>
         <button
-          onClick={() => onSave({ name: name.trim(), city: city.trim(), state: state.trim() })}
+          onClick={handleSave}
           disabled={loading || !name.trim()}
           style={{
             padding: '8px 18px', borderRadius: 8, border: 'none',
@@ -130,13 +217,36 @@ function LocationCard({ loc, onEdit, onDelete }) {
         </div>
       </div>
 
-      {/* Employee count pill */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-        <Users size={14} color="#94A3B8" />
-        <span style={{ fontSize: 13, color: '#64748B' }}>
-          <strong style={{ color: '#0F172A' }}>{loc.employee_count || 0}</strong> employee{loc.employee_count !== 1 ? 's' : ''}
-        </span>
+      {/* Badges row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Users size={13} color="#94A3B8" />
+          <span style={{ fontSize: 13, color: '#64748B' }}>
+            <strong style={{ color: '#0F172A' }}>{loc.employee_count || 0}</strong> employee{loc.employee_count !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {loc.separate_payslip && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 9px', borderRadius: 20,
+            background: '#EFF6FF', border: '1px solid #BFDBFE',
+            fontSize: 11, fontWeight: 700, color: '#1D4ED8',
+          }}>
+            <FileText size={10} /> Separate Payslip
+          </span>
+        )}
       </div>
+
+      {/* Address (if set) */}
+      {loc.address && (
+        <p style={{
+          fontSize: 12, color: '#64748B', marginBottom: 14,
+          padding: '7px 10px', background: '#F8FAFC', borderRadius: 8,
+          borderLeft: '3px solid #E2E8F0', lineHeight: 1.5,
+        }}>
+          {loc.address}
+        </p>
+      )}
 
       {/* Actions */}
       {confirmDelete ? (

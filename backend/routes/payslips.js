@@ -47,6 +47,22 @@ router.get('/months', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── GET attendance LOP summary for a month (for SendPage notification) ─────────
+router.get('/attendance-lop', async (req, res) => {
+  try {
+    const { month, year } = req.query;
+    if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+    const result = await pool.query(
+      `SELECT a.employee_id, a.lop_days, a.working_days, e.employee_name
+       FROM attendance a
+       JOIN employees e ON e.employee_id = a.employee_id AND e.admin_id = a.admin_id
+       WHERE a.admin_id = $1 AND a.month = $2 AND a.year = $3 AND a.lop_days > 0`,
+      [req.admin_id, parseInt(month), parseInt(year)]
+    );
+    res.json({ lop_employees: result.rows, count: result.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── POST preview payslips (calculate but do NOT save) ────────────────────────
 router.post('/preview', async (req, res) => {
   try {
@@ -73,10 +89,37 @@ router.post('/preview', async (req, res) => {
     const cfgResult = await pool.query('SELECT config FROM payroll_configs WHERE admin_id = $1', [req.admin_id]);
     const config = cfgResult.rows.length ? cfgResult.rows[0].config : getDefaultConfig();
 
+    // Auto-load saved attendance data for this month so LOP is applied automatically.
+    // Manual adjustments from the frontend always take precedence over attendance data.
+    const attResult = await pool.query(
+      `SELECT employee_id, working_days, present_days, lop_days
+       FROM attendance
+       WHERE admin_id = $1 AND month = $2 AND year = $3`,
+      [req.admin_id, parseInt(month), parseInt(year)]
+    );
+    const attMap = {};
+    attResult.rows.forEach(r => {
+      attMap[r.employee_id] = {
+        working_days: parseInt(r.working_days) || 26,
+        lop_days:     parseInt(r.lop_days)     || 0,
+      };
+    });
+
     const previews = empResult.rows.map(emp => {
       const overrideSalary = salary_overrides[emp.employee_id];
       const empData = overrideSalary ? { ...emp, salary: Number(overrideSalary) } : emp;
-      const empAdj  = { working_days: working_days || 26, ...(adjustments[emp.employee_id] || {}) };
+      const attData = attMap[emp.employee_id];
+      const empAdj  = {
+        // Default working days from attendance record or global setting
+        working_days: attData?.working_days || working_days || 26,
+        // Auto-apply attendance LOP: payable days = working_days - lop_days
+        // This ensures absent days that exceeded leave balance reduce salary correctly
+        ...(attData && attData.lop_days > 0
+          ? { present_days: attData.working_days - attData.lop_days }
+          : {}),
+        // Manual adjustments from frontend override attendance data
+        ...(adjustments[emp.employee_id] || {}),
+      };
       const calc    = calculatePayslip(empData, config, empAdj);
       return {
         employee_id:   emp.employee_id,
@@ -172,6 +215,22 @@ router.post('/generate', async (req, res) => {
     );
     const config = cfgResult.rows.length ? cfgResult.rows[0].config : getDefaultConfig();
 
+    // Auto-load saved attendance data for this month so LOP is applied automatically.
+    // Manual adjustments from the frontend always take precedence over attendance data.
+    const attGenResult = await pool.query(
+      `SELECT employee_id, working_days, present_days, lop_days
+       FROM attendance
+       WHERE admin_id = $1 AND month = $2 AND year = $3`,
+      [req.admin_id, parseInt(month), parseInt(year)]
+    );
+    const attGenMap = {};
+    attGenResult.rows.forEach(r => {
+      attGenMap[r.employee_id] = {
+        working_days: parseInt(r.working_days) || 26,
+        lop_days:     parseInt(r.lop_days)     || 0,
+      };
+    });
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -195,8 +254,16 @@ router.post('/generate', async (req, res) => {
         const overrideSalary = salary_overrides[emp.employee_id];
         const empData = overrideSalary ? { ...emp, salary: Number(overrideSalary) } : emp;
 
+        const attData = attGenMap[emp.employee_id];
         const empAdj = {
-          working_days: working_days || 26,
+          // Default working days from attendance record or global setting
+          working_days: attData?.working_days || working_days || 26,
+          // Auto-apply attendance LOP: payable days = working_days - lop_days
+          // This ensures absent days that exceeded leave balance reduce salary correctly
+          ...(attData && attData.lop_days > 0
+            ? { present_days: attData.working_days - attData.lop_days }
+            : {}),
+          // Manual adjustments from frontend override attendance data
           ...(adjustments[emp.employee_id] || {}),
         };
         const calc = calculatePayslip(empData, config, empAdj);

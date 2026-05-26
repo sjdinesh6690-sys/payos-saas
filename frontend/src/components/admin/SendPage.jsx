@@ -443,9 +443,10 @@ export default function SendPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year,  setYear]  = useState(now.getFullYear());
 
-  const [workingDays, setWorkingDays] = useState(26);
-  const [genLoading,  setGenLoading]  = useState(false);
-  const [sendLoading, setSendLoading] = useState(false);
+  const [workingDays,    setWorkingDays]    = useState(26);
+  const [genLoading,     setGenLoading]     = useState(false);
+  const [sendLoading,    setSendLoading]    = useState(false);
+  const [singleSending,  setSingleSending]  = useState({});  // { [payslip_id]: true }
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -474,6 +475,13 @@ export default function SendPage() {
   const { data: configData } = useQuery({
     queryKey: ['payroll-config'],
     queryFn: () => api.get('/payroll-config').then(r => r.data),
+  });
+
+  // Fetch attendance LOP data for the selected month — shown as an info banner
+  const { data: attendanceLop } = useQuery({
+    queryKey: ['attendance-lop', month, year],
+    queryFn: () => api.get(`/payslips/attendance-lop?month=${month}&year=${year}`).then(r => r.data),
+    staleTime: 30_000,
   });
 
   const config = configData?.config;
@@ -679,6 +687,19 @@ export default function SendPage() {
     }
   };
 
+  const sendSingleEmail = async (payslip) => {
+    setSingleSending(s => ({ ...s, [payslip.id]: true }));
+    try {
+      const res = await api.post('/email/send-single', { payslip_id: payslip.id });
+      toast.success(res.data.message || `Email sent to ${payslip.employee_name}`);
+      qc.invalidateQueries({ queryKey: ['payslips'] });
+    } catch (err) {
+      toast.error(err.response?.data?.error || `Failed to send to ${payslip.employee_name}`);
+    } finally {
+      setSingleSending(s => ({ ...s, [payslip.id]: false }));
+    }
+  };
+
   // LOP helpers
   const addLop = (emp) => {
     if (lopIds.has(emp.employee_id)) return;
@@ -869,6 +890,19 @@ export default function SendPage() {
           {employees.length === 0 && (
             <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
               <AlertCircle size={15} /> No employees found for {MONTHS[month]} {year}. Add employees first.
+            </div>
+          )}
+
+          {/* Attendance LOP auto-apply notice */}
+          {attendanceLop?.count > 0 && (
+            <div className="flex items-start gap-2.5 text-sm text-teal-800 bg-teal-50 border border-teal-200 rounded-lg px-4 py-3">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-teal-600" />
+              <div>
+                <span className="font-semibold">Attendance LOP auto-applied:</span>{' '}
+                {attendanceLop.count} employee{attendanceLop.count > 1 ? 's have' : ' has'} saved attendance with LOP days for {MONTHS[month]} {year}.
+                {' '}LOP deductions will be calculated automatically from your saved attendance data.
+                {' '}<span className="text-teal-600 font-medium">No manual entry needed.</span>
+              </div>
             </div>
           )}
 
@@ -1247,20 +1281,39 @@ export default function SendPage() {
                 {MONTHS[month]} {year} — {thisMonthSlips.length} payslips generated
               </div>
               {thisMonthSlips.map(p => (
-                <div key={p.id} className="px-4 py-2 flex items-center justify-between text-sm border-b border-slate-50 last:border-0">
+                <div key={p.id} className="px-4 py-2.5 flex items-center justify-between text-sm border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                   <div>
                     <span className="font-medium text-slate-800">{p.employee_name}</span>
                     <span className="text-slate-400 ml-2 text-xs">{p.employee_id}</span>
+                    {p.lop_days > 0 && <span className="ml-2 text-xs text-red-500 font-medium">LOP: {p.lop_days}d</span>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right text-xs">
-                      <p className="font-semibold text-slate-700">{fmt(p.net_salary || p.salary)}</p>
-                      {p.lop_days > 0 && <p className="text-red-500">LOP: {p.lop_days}d</p>}
-                    </div>
-                    {p.emailed
-                      ? <Badge className="bg-green-100 text-green-700 border-green-200 text-xs"><CheckCircle2 size={10} className="mr-1" />Sent</Badge>
-                      : <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-xs">Pending</Badge>
-                    }
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-700">{fmt(p.net_salary || p.salary)}</span>
+                    {p.emailed ? (
+                      <>
+                        <Badge className="bg-green-100 text-green-700 border-green-200 text-xs"><CheckCircle2 size={10} className="mr-1" />Sent</Badge>
+                        <button
+                          onClick={() => sendSingleEmail(p)}
+                          disabled={singleSending[p.id]}
+                          className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                          title="Resend email"
+                        >
+                          {singleSending[p.id] ? '…' : '↩ Resend'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Badge className="bg-amber-50 text-amber-600 border-amber-200 text-xs">Pending</Badge>
+                        <button
+                          onClick={() => sendSingleEmail(p)}
+                          disabled={singleSending[p.id]}
+                          className="text-xs px-2.5 py-1 rounded-lg border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 transition-colors font-medium disabled:opacity-50"
+                          title="Send email to this employee"
+                        >
+                          {singleSending[p.id] ? '…' : <span className="flex items-center gap-1"><Mail size={11} />Send</span>}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

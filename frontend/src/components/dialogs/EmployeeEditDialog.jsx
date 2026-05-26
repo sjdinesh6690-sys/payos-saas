@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { MapPin, AlertCircle, ChevronDown, ChevronUp, TrendingDown, TrendingUp } from 'lucide-react';
+
+// ── INR formatter ─────────────────────────────────────────────────────────────
+const INR = (n) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
 const EMPTY = {
   employee_id: '', employee_name: '', email: '',
@@ -57,10 +61,13 @@ function validateForm(form, isNew) {
 
 export default function EmployeeEditDialog({ open, onOpenChange, employee, onSaved }) {
   const isNew = !employee;
-  const [form, setForm]       = useState(EMPTY);
-  const [errors, setErrors]   = useState({});
-  const [saving, setSaving]   = useState(false);
-  const [locations, setLocations] = useState([]);
+  const [form, setForm]             = useState(EMPTY);
+  const [errors, setErrors]         = useState({});
+  const [saving, setSaving]         = useState(false);
+  const [locations, setLocations]   = useState([]);
+  const [breakdown, setBreakdown]   = useState(null);   // payroll preview result
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const debounceRef = useRef(null);
 
   // Fetch locations whenever dialog opens
   useEffect(() => {
@@ -95,6 +102,31 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
     }
     setErrors({});
   }, [employee, open]);
+
+  // ── Live salary breakdown (debounced 600ms) ──────────────────────────────────
+  useEffect(() => {
+    const salary = parseFloat(form.salary);
+    if (!salary || salary <= 0) {
+      setBreakdown(null);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.post('/payroll-config/preview', { salary });
+        setBreakdown(data);
+        // Auto-fill net_salary_monthly if user hasn't manually entered it
+        setForm(f => {
+          if (f._net_manual) return f;   // user typed it manually — don't overwrite
+          return { ...f, net_salary_monthly: String(Math.round(data.net_salary || 0)) };
+        });
+      } catch {
+        setBreakdown(null);
+      }
+    }, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.salary]);
 
   const set = (k) => (e) => {
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -249,6 +281,8 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
             <div className="pt-3 border-t border-slate-100">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Salary Configuration</p>
               <div className="grid grid-cols-1 gap-3">
+
+                {/* Monthly Gross */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Monthly Gross Salary (₹) <span className="text-red-500">*</span>
@@ -264,8 +298,8 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                         setForm(f => ({
                           ...f,
                           salary: v,
-                          // Auto-fill yearly CTC if not manually set
                           yearly_ctc: f._ctc_manual ? f.yearly_ctc : (v ? String(Math.round(parseFloat(v) * 12)) : ''),
+                          _net_manual: false,   // reset manual flag when gross changes
                         }));
                       }}
                       placeholder="50000"
@@ -274,6 +308,8 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                   </div>
                   <p className="text-xs text-slate-400 mt-1">CTC gross per month — used to calculate PF, ESI, payslip</p>
                 </div>
+
+                {/* Yearly CTC + Take-Home row */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Yearly CTC (₹)</label>
@@ -291,21 +327,119 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
                     <p className="text-xs text-slate-400 mt-1">Auto-fills as monthly × 12</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Take-Home (₹)</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Monthly Take-Home (₹)
+                      {breakdown && !form._net_manual && (
+                        <span className="ml-1 text-green-600 font-normal">(auto)</span>
+                      )}
+                    </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
                       <Input
                         type="number"
                         min="0"
                         value={form.net_salary_monthly}
-                        onChange={e => setForm(f => ({ ...f, net_salary_monthly: e.target.value }))}
-                        placeholder="43500"
+                        onChange={e => setForm(f => ({ ...f, net_salary_monthly: e.target.value, _net_manual: true }))}
+                        placeholder={breakdown ? String(Math.round(breakdown.net_salary || 0)) : '43500'}
                         className="pl-7"
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Actual credited to bank</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {breakdown && !form._net_manual ? 'Auto-calculated from payroll config' : 'Actual credited to bank'}
+                    </p>
                   </div>
                 </div>
+
+                {/* Live Salary Breakdown Panel */}
+                {breakdown && parseFloat(form.salary) > 0 && (
+                  <div style={{
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    background: '#F8FAFC', overflow: 'hidden',
+                  }}>
+                    {/* Toggle header */}
+                    <button
+                      type="button"
+                      onClick={() => setShowBreakdown(v => !v)}
+                      style={{
+                        width: '100%', padding: '9px 14px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        borderBottom: showBreakdown ? '1px solid #E2E8F0' : 'none',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#1A7A4A' }}>
+                          📊 Salary Breakdown
+                        </span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: '2px 8px',
+                          background: '#DCFCE7', color: '#15803D', borderRadius: 20,
+                        }}>
+                          Take-home: {INR(breakdown.net_salary)}
+                        </span>
+                      </div>
+                      {showBreakdown ? <ChevronUp size={14} color="#64748B" /> : <ChevronDown size={14} color="#64748B" />}
+                    </button>
+
+                    {showBreakdown && (
+                      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {/* Earnings */}
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 4 }}>
+                          <TrendingUp size={10} style={{ display: 'inline', marginRight: 4, color: '#16a34a' }} />
+                          Earnings
+                        </p>
+                        {Object.entries(breakdown.earnings || {}).map(([key, val]) => {
+                          if (!val || val === 0) return null;
+                          const label = breakdown.earningLabels?.[key] || key;
+                          return (
+                            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                              <span style={{ color: '#374151' }}>{label}</span>
+                              <span style={{ fontWeight: 600, color: '#0F172A' }}>{INR(val)}</span>
+                            </div>
+                          );
+                        })}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, borderTop: '1px dashed #E2E8F0', paddingTop: 6, marginTop: 4 }}>
+                          <span style={{ color: '#15803D' }}>Gross Total</span>
+                          <span style={{ color: '#15803D' }}>{INR(breakdown.gross_earnings)}</span>
+                        </div>
+
+                        {/* Deductions */}
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginTop: 10, marginBottom: 4 }}>
+                          <TrendingDown size={10} style={{ display: 'inline', marginRight: 4, color: '#dc2626' }} />
+                          Deductions
+                        </p>
+                        {Object.entries(breakdown.deductions || {}).map(([key, val]) => {
+                          if (!val || val === 0) return null;
+                          const label = breakdown.deductionLabels?.[key] || key;
+                          return (
+                            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                              <span style={{ color: '#374151' }}>{label}</span>
+                              <span style={{ fontWeight: 600, color: '#DC2626' }}>− {INR(val)}</span>
+                            </div>
+                          );
+                        })}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, borderTop: '1px dashed #E2E8F0', paddingTop: 6, marginTop: 4 }}>
+                          <span style={{ color: '#DC2626' }}>Total Deductions</span>
+                          <span style={{ color: '#DC2626' }}>− {INR(breakdown.total_deductions)}</span>
+                        </div>
+
+                        {/* Net */}
+                        <div style={{
+                          display: 'flex', justifyContent: 'space-between',
+                          fontSize: 13, fontWeight: 800,
+                          borderTop: '2px solid #E2E8F0', paddingTop: 8, marginTop: 6,
+                        }}>
+                          <span style={{ color: '#0F172A' }}>Net Take-Home</span>
+                          <span style={{ color: '#1A7A4A' }}>{INR(breakdown.net_salary)}</span>
+                        </div>
+                        <p style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+                          * Estimated from your payroll config. Adjust in Payroll Settings.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </div>
             </div>
 

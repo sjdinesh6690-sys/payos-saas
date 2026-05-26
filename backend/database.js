@@ -407,6 +407,14 @@ async function initDB() {
       )
     `);
 
+    // Locations — separate payslip config per location
+    await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS separate_payslip BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS address TEXT`);
+    await client.query(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS payslip_template VARCHAR(50) DEFAULT 'default'`);
+
+    // Subscriptions — track plan type (monthly / yearly)
+    await client.query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_type VARCHAR(20) DEFAULT 'base_plan'`);
+
     console.log('✅ PostgreSQL schema ready');
   } catch (err) {
     console.error('❌ Database init error:', err.message);
