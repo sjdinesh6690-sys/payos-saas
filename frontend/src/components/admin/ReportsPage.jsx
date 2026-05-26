@@ -245,7 +245,7 @@ export default function ReportsPage() {
             STEP 4 OF 4
           </span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">④ Download Reports</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Download Reports</h1>
         <p className="text-sm text-slate-500 mt-0.5">Download payroll and statutory compliance reports for any month</p>
       </div>
 

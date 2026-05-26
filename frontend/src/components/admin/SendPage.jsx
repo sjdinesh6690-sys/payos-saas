@@ -724,7 +724,7 @@ export default function SendPage() {
             STEP 3 OF 4
           </span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">③ Generate &amp; Send Payslips</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Generate &amp; Send Payslips</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           Select month → Preview salaries → Generate payslips → Email to staff
         </p>
