@@ -31,6 +31,8 @@ import LeavePolicyPage        from '@/pages/LeavePolicyPage';
 import LocationsPage          from '@/pages/LocationsPage';
 import UsersPage              from '@/pages/UsersPage';
 import Form16Page             from '@/pages/Form16Page';
+import PaymentCheckoutPage   from '@/pages/PaymentCheckoutPage';
+import PaymentSuccessPage    from '@/pages/PaymentSuccessPage';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
@@ -86,7 +88,11 @@ export default function App() {
             <Route path="form16"         element={<Form16Page />} />
           </Route>
 
-          {/* ── Super Admin panel ─────────────────────────────────── */}
+          {/* ── Payment pages (standalone, no sidebar) ────────────── */}
+        <Route path="/admin/payment/checkout" element={<PaymentCheckoutPage />} />
+        <Route path="/admin/payment/success"  element={<PaymentSuccessPage />} />
+
+        {/* ── Super Admin panel ─────────────────────────────────── */}
           <Route path="/super-admin/login" element={<SuperAdminLoginPage />} />
           <Route path="/super-admin" element={<SuperAdminLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />

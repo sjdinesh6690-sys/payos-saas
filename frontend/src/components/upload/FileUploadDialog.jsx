@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2, X, FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import * as XLSX from 'xlsx';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -34,32 +34,58 @@ EMP002,5,2026,60000`;
 
   const template = isEmployees ? employeeCsvTemplate : payslipCsvTemplate;
 
-  const parseCsv = (text) => {
-    const lines = text.trim().split('\n').filter(Boolean);
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map(h => h.trim());
-    return lines.slice(1).map(line => {
-      const vals = line.split(',').map(v => v.trim());
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
-      return obj;
-    });
-  };
+  const isExcel = (f) => f?.name?.match(/\.(xlsx|xls)$/i);
 
-  const handleFile = (f) => {
+  const parseFile = (f) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    if (isExcel(f)) {
+      reader.onload = (e) => {
+        try {
+          const wb   = XLSX.read(e.target.result, { type: 'array' });
+          const ws   = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          // Normalise headers — lowercase + underscores
+          const normalised = rows.map(row => {
+            const out = {};
+            Object.keys(row).forEach(k => {
+              const key = k.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+              out[key] = String(row[k] ?? '').trim();
+            });
+            return out;
+          });
+          resolve(normalised);
+        } catch (e) { reject(e); }
+      };
+      reader.readAsArrayBuffer(f);
+    } else {
+      reader.onload = (e) => {
+        try {
+          const lines   = e.target.result.trim().split('\n').filter(Boolean);
+          if (lines.length < 2) return resolve([]);
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+          const rows    = lines.slice(1).map(line => {
+            const vals = line.split(',').map(v => v.trim());
+            const obj  = {};
+            headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+            return obj;
+          });
+          resolve(rows);
+        } catch (e) { reject(e); }
+      };
+      reader.readAsText(f);
+    }
+  });
+
+  const handleFile = async (f) => {
     setError('');
     setFile(f);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const rows = parseCsv(e.target.result);
-        setPreview(rows.slice(0, 5));
-        if (rows.length === 0) setError('No data rows found in file.');
-      } catch {
-        setError('Could not parse file. Make sure it is a valid CSV.');
-      }
-    };
-    reader.readAsText(f);
+    try {
+      const rows = await parseFile(f);
+      setPreview(rows.slice(0, 5));
+      if (rows.length === 0) setError('No data rows found in file. Check the file has a header row and data.');
+    } catch {
+      setError('Could not read file. Make sure it is a valid CSV or Excel (.xlsx) file.');
+    }
   };
 
   const handleDrop = (e) => {
@@ -72,17 +98,16 @@ EMP002,5,2026,60000`;
     if (!file) return;
     setLoading(true);
     try {
-      const text = await file.text();
-      const rows = parseCsv(text);
+      const rows     = await parseFile(file);
       const endpoint = isEmployees ? '/employees/upload' : '/payslips/upload';
-      const res = await api.post(endpoint, rows);
-      toast.success(res.data.message || 'Upload successful');
+      const res      = await api.post(endpoint, rows);
+      toast.success(res.data.message || `Upload successful — ${rows.length} records processed`);
       onUploaded?.();
       onOpenChange(false);
       setFile(null);
       setPreview([]);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Upload failed');
+      toast.error(err.response?.data?.error || 'Upload failed. Check file format and try again.');
     } finally {
       setLoading(false);
     }
@@ -109,7 +134,7 @@ EMP002,5,2026,60000`;
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Upload {isEmployees ? 'Employees' : 'Payslips'} — CSV File
+            Upload {isEmployees ? 'Employees' : 'Payslips'} — CSV or Excel
           </DialogTitle>
           <DialogClose onClose={() => { reset(); onOpenChange(false); }} />
         </DialogHeader>
@@ -136,7 +161,7 @@ EMP002,5,2026,60000`;
             <input
               ref={fileRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               className="hidden"
               onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); }}
             />
@@ -155,8 +180,8 @@ EMP002,5,2026,60000`;
               </div>
             ) : (
               <>
-                <p className="text-sm font-medium text-slate-600">Click or drag & drop a CSV file</p>
-                <p className="text-xs text-slate-400 mt-1">Only .csv files supported</p>
+                <p className="text-sm font-medium text-slate-600">Click or drag & drop a file here</p>
+                <p className="text-xs text-slate-400 mt-1">.csv and .xlsx (Excel) supported</p>
               </>
             )}
           </div>

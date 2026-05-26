@@ -291,6 +291,122 @@ async function initDB() {
       )
     `);
 
+    // ── Secure Payment Workflow Tables ───────────────────────────────────────
+
+    // Customer details captured before payment
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payment_customers (
+        id               SERIAL PRIMARY KEY,
+        admin_id         INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        full_name        VARCHAR(255) NOT NULL,
+        company_name     VARCHAR(255) NOT NULL,
+        mobile           VARCHAR(20)  NOT NULL,
+        email            VARCHAR(255) NOT NULL,
+        accounts_email   VARCHAR(255),
+        has_gst          BOOLEAN      DEFAULT FALSE,
+        gst_number       VARCHAR(20),
+        billing_name     VARCHAR(255),
+        billing_address  TEXT,
+        state            VARCHAR(100),
+        pincode          VARCHAR(10),
+        created_at       TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+
+    // One row per Razorpay order (tracks full payment lifecycle)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payment_orders (
+        id                   SERIAL PRIMARY KEY,
+        admin_id             INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        customer_id          INTEGER REFERENCES payment_customers(id),
+        razorpay_order_id    VARCHAR(100) UNIQUE NOT NULL,
+        razorpay_payment_id  VARCHAR(100),
+        razorpay_signature   VARCHAR(500),
+        plan_name            VARCHAR(100) NOT NULL,
+        plan_months          INTEGER      DEFAULT 1,
+        employee_slots       INTEGER      DEFAULT 5,
+        base_amount          NUMERIC(10,2) NOT NULL,
+        gst_amount           NUMERIC(10,2) NOT NULL,
+        total_amount         NUMERIC(10,2) NOT NULL,
+        status               VARCHAR(30)   DEFAULT 'pending',
+        verified_via         VARCHAR(20),
+        webhook_received     BOOLEAN       DEFAULT FALSE,
+        verified_at          TIMESTAMPTZ,
+        metadata             JSONB         DEFAULT '{}',
+        created_at           TIMESTAMPTZ   DEFAULT NOW(),
+        updated_at           TIMESTAMPTZ   DEFAULT NOW()
+      )
+    `);
+
+    // Invoice serial counter — one row per FY year, resets on April 1
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoice_serials (
+        fy_year      INTEGER PRIMARY KEY,
+        last_serial  INTEGER DEFAULT 0
+      )
+    `);
+
+    // Tax invoices — created only after successful payment verification
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id               SERIAL PRIMARY KEY,
+        admin_id         INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+        order_id         INTEGER REFERENCES payment_orders(id),
+        invoice_number   VARCHAR(20) UNIQUE NOT NULL,
+        fy_year          INTEGER NOT NULL,
+        serial_number    INTEGER NOT NULL,
+        plan_name        VARCHAR(100),
+        base_amount      NUMERIC(10,2) NOT NULL,
+        cgst_amount      NUMERIC(10,2) DEFAULT 0,
+        sgst_amount      NUMERIC(10,2) DEFAULT 0,
+        igst_amount      NUMERIC(10,2) DEFAULT 0,
+        total_amount     NUMERIC(10,2) NOT NULL,
+        customer_name    VARCHAR(255),
+        customer_email   VARCHAR(255),
+        customer_mobile  VARCHAR(20),
+        company_name     VARCHAR(255),
+        gst_number       VARCHAR(20),
+        billing_address  TEXT,
+        state            VARCHAR(100),
+        pdf_generated    BOOLEAN       DEFAULT FALSE,
+        email_sent       BOOLEAN       DEFAULT FALSE,
+        retry_count      INTEGER       DEFAULT 0,
+        created_at       TIMESTAMPTZ   DEFAULT NOW()
+      )
+    `);
+
+    // Payment event logs — full audit trail
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payment_logs (
+        id                   SERIAL PRIMARY KEY,
+        admin_id             INTEGER,
+        order_id             INTEGER,
+        event_type           VARCHAR(100),
+        razorpay_order_id    VARCHAR(100),
+        razorpay_payment_id  VARCHAR(100),
+        status               VARCHAR(50),
+        details              JSONB DEFAULT '{}',
+        created_at           TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Email retry queue — auto-retried if invoice/email fails
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS email_retry_queue (
+        id            SERIAL PRIMARY KEY,
+        invoice_id    INTEGER REFERENCES invoices(id),
+        email_type    VARCHAR(50),
+        to_email      VARCHAR(255),
+        subject       VARCHAR(500),
+        retry_count   INTEGER     DEFAULT 0,
+        max_retries   INTEGER     DEFAULT 3,
+        last_error    TEXT,
+        status        VARCHAR(30) DEFAULT 'pending',
+        next_retry_at TIMESTAMPTZ DEFAULT NOW(),
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     console.log('✅ PostgreSQL schema ready');
   } catch (err) {
     console.error('❌ Database init error:', err.message);

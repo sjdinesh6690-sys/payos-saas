@@ -39,7 +39,11 @@ app.use(cors({
 }));
 
 // ── Body parsing — 2MB limit (prevents DoS via huge payloads) ────────────────
-app.use(express.json({ limit: '2mb' }));
+// rawBody is captured so the Razorpay webhook can verify its HMAC signature
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // ── Global rate limiter — 200 requests / 15 min per IP ───────────────────────
@@ -101,6 +105,7 @@ initDB().then(async () => {
   app.use('/api/locations',      require('./routes/locations'));
   app.use('/api/users',          require('./routes/users'));
   app.use('/api/form16',         require('./routes/form16'));
+  app.use('/api/payment',        require('./routes/payment'));
 
   // Health check
   app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'postgresql' }));

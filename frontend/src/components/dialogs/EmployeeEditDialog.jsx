@@ -9,6 +9,7 @@ import { MapPin, AlertCircle } from 'lucide-react';
 const EMPTY = {
   employee_id: '', employee_name: '', email: '',
   department: '', designation: '', phone: '', date_of_joining: '', location: '',
+  salary: '', yearly_ctc: '', net_salary_monthly: '',
   pan_number: '', uan_number: '', bank_name: '', bank_account_number: '', ifsc_code: '',
   portal_access_enabled: false,
 };
@@ -79,6 +80,9 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
         phone:               employee.phone               || '',
         date_of_joining:     employee.date_of_joining     || '',
         location:            employee.location            || '',
+        salary:              employee.salary              ? String(employee.salary)              : '',
+        yearly_ctc:          employee.yearly_ctc          ? String(employee.yearly_ctc)          : '',
+        net_salary_monthly:  employee.net_salary_monthly  ? String(employee.net_salary_monthly)  : '',
         pan_number:           employee.pan_number           || '',
         uan_number:           employee.uan_number           || '',
         bank_name:            employee.bank_name            || '',
@@ -241,9 +245,68 @@ export default function EmployeeEditDialog({ open, onOpenChange, employee, onSav
               )}
             </div>
 
-            {/* Salary Info Banner */}
-            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-blue-800">
-              💡 <strong>Salary is managed via payslip upload.</strong> Once a payslip is generated, the last paid salary will appear automatically in the employee list.
+            {/* Salary Configuration */}
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Salary Configuration</p>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Monthly Gross Salary (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.salary}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setForm(f => ({
+                          ...f,
+                          salary: v,
+                          // Auto-fill yearly CTC if not manually set
+                          yearly_ctc: f._ctc_manual ? f.yearly_ctc : (v ? String(Math.round(parseFloat(v) * 12)) : ''),
+                        }));
+                      }}
+                      placeholder="50000"
+                      className="pl-7"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">CTC gross per month — used to calculate PF, ESI, payslip</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Yearly CTC (₹)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={form.yearly_ctc}
+                        onChange={e => setForm(f => ({ ...f, yearly_ctc: e.target.value, _ctc_manual: true }))}
+                        placeholder={form.salary ? String(Math.round(parseFloat(form.salary || 0) * 12)) : '600000'}
+                        className="pl-7"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Auto-fills as monthly × 12</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Take-Home (₹)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={form.net_salary_monthly}
+                        onChange={e => setForm(f => ({ ...f, net_salary_monthly: e.target.value }))}
+                        placeholder="43500"
+                        className="pl-7"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Actual credited to bank</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Statutory Details */}
