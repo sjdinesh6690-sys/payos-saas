@@ -219,6 +219,10 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT FALSE`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`);
 
+    // Complimentary / free access granted by super admin
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS free_access_until TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS free_access_note  VARCHAR(255)`);
+
     // payroll configs — one row per admin
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_configs (

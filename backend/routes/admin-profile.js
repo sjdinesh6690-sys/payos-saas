@@ -104,7 +104,9 @@ router.put('/profile', async (req, res) => {
 router.get('/trial', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT trial_end_date, trial_start_date, trial_days, plan, status FROM admins WHERE id = $1',
+      `SELECT trial_end_date, trial_start_date, trial_days, plan, status,
+              free_access_until, free_access_note
+       FROM admins WHERE id = $1`,
       [req.admin_id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Admin not found' });
@@ -112,21 +114,36 @@ router.get('/trial', async (req, res) => {
 
     const now         = new Date();
     const trialEnd    = new Date(admin.trial_end_date || now);
-    const daysLeft    = Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24)));
     const trialActive = now < trialEnd && (admin.status || 'active') === 'active';
+    const freeActive  = admin.free_access_until
+                        && now < new Date(admin.free_access_until)
+                        && (admin.status || 'active') === 'active';
     const isPaid      = admin.plan && admin.plan !== 'starter';
-    const isReadOnly  = !trialActive && !isPaid;
+
+    // days_remaining shows whichever active window is longest
+    let daysLeft = 0;
+    if (freeActive) {
+      daysLeft = Math.max(0, Math.ceil((new Date(admin.free_access_until) - now) / (1000*60*60*24)));
+    } else if (trialActive) {
+      daysLeft = Math.max(0, Math.ceil((trialEnd - now) / (1000*60*60*24)));
+    }
+
+    const isReadOnly = !trialActive && !isPaid && !freeActive;
 
     res.json({
-      trial_active:     trialActive,
-      days_remaining:   daysLeft,
-      trial_start_date: admin.trial_start_date || null,
-      trial_end_date:   admin.trial_end_date   || null,
-      trial_days:       admin.trial_days        || 30,
-      plan:             admin.plan              || 'starter',
-      status:           admin.status            || 'active',
-      is_paid:          isPaid,
-      is_read_only:     isReadOnly,
+      trial_active:      trialActive,
+      days_remaining:    daysLeft,
+      trial_start_date:  admin.trial_start_date || null,
+      trial_end_date:    admin.trial_end_date   || null,
+      trial_days:        admin.trial_days        || 30,
+      plan:              admin.plan              || 'starter',
+      status:            admin.status            || 'active',
+      is_paid:           isPaid,
+      is_read_only:      isReadOnly,
+      // Free / complimentary access (set by super admin)
+      is_free_access:    !!freeActive,
+      free_access_until: admin.free_access_until || null,
+      free_access_note:  admin.free_access_note  || null,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

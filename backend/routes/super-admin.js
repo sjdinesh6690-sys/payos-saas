@@ -124,7 +124,7 @@ router.get('/clients', superAuthCheck, async (req, res) => {
         a.id, a.company_name, a.email, a.plan, a.status,
         a.onboarding_completed, a.company_industry, a.company_size,
         a.last_active, a.created_at, a.trial_start_date, a.trial_end_date,
-        a.company_phone,
+        a.company_phone, a.free_access_until, a.free_access_note,
         COUNT(DISTINCT e.id)::int                                                              AS employee_count,
         COUNT(DISTINCT ps.id)::int                                                             AS payslip_count,
         MAX(ps.created_at)                                                                     AS last_payslip,
@@ -158,12 +158,17 @@ router.get('/clients', superAuthCheck, async (req, res) => {
 
     const now = new Date();
     const clients = result.rows.map(a => {
-      const subActive = a.sub_status === 'active' && a.sub_paid_until && new Date(a.sub_paid_until) > now;
-      const trialEnd  = a.trial_end_date || new Date(new Date(a.created_at).getTime() + 30*24*60*60*1000);
-      const trialActive = new Date(trialEnd) > now;
+      const subActive    = a.sub_status === 'active' && a.sub_paid_until && new Date(a.sub_paid_until) > now;
+      const trialEnd     = a.trial_end_date || new Date(new Date(a.created_at).getTime() + 30*24*60*60*1000);
+      const trialActive  = new Date(trialEnd) > now;
+      const freeActive   = a.free_access_until && new Date(a.free_access_until) > now;
+      const freeDaysLeft = freeActive
+        ? Math.max(0, Math.ceil((new Date(a.free_access_until) - now) / (1000*60*60*24)))
+        : 0;
 
       let accountType = 'expired';
-      if (subActive)        accountType = 'paid';
+      if (subActive)       accountType = 'paid';
+      else if (freeActive) accountType = 'free';
       else if (trialActive) accountType = 'trial';
 
       return {
@@ -185,6 +190,11 @@ router.get('/clients', superAuthCheck, async (req, res) => {
         trial_end_date:       trialEnd,
         trial_days_remaining: a.trial_days_remaining,
         trial_active:         trialActive,
+        // Free / complimentary access
+        free_access_until:    a.free_access_until || null,
+        free_access_note:     a.free_access_note  || null,
+        free_active:          !!freeActive,
+        free_days_left:       freeDaysLeft,
         // Subscription
         sub_status:           a.sub_status || 'inactive',
         sub_paid_until:       a.sub_paid_until,
@@ -195,7 +205,7 @@ router.get('/clients', superAuthCheck, async (req, res) => {
         payment_count:        a.payment_count || 0,
         last_payment_at:      a.last_payment_at,
         // Derived
-        account_type:         accountType,   // 'paid' | 'trial' | 'expired'
+        account_type:         accountType,   // 'paid' | 'free' | 'trial' | 'expired'
       };
     });
 
@@ -466,6 +476,47 @@ router.put('/clients/:id/subscription', superAuthCheck, async (req, res) => {
     }
 
     res.json({ success: true, message: `Subscription granted for ${months} month(s)` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PUT /clients/:id/free-access — grant complimentary access for a period ───
+router.put('/clients/:id/free-access', superAuthCheck, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { months = 1, note = '' } = req.body;   // months: 1 | 3 | 6 | 12 | 24
+
+    const check = await pool.query('SELECT id FROM admins WHERE id = $1', [id]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Client not found' });
+
+    const now    = new Date();
+    const newEnd = new Date(now);
+    newEnd.setMonth(newEnd.getMonth() + parseInt(months));
+
+    await pool.query(
+      `UPDATE admins
+       SET free_access_until = $1,
+           free_access_note  = $2
+       WHERE id = $3`,
+      [newEnd, note.trim() || null, id]
+    );
+
+    res.json({
+      success: true,
+      message: `Complimentary access granted until ${newEnd.toDateString()}`,
+      free_access_until: newEnd,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── DELETE /clients/:id/free-access — revoke complimentary access ─────────────
+router.delete('/clients/:id/free-access', superAuthCheck, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await pool.query(
+      `UPDATE admins SET free_access_until = NULL, free_access_note = NULL WHERE id = $1`,
+      [id]
+    );
+    res.json({ success: true, message: 'Complimentary access revoked' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

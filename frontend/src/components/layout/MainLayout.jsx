@@ -202,12 +202,14 @@ export default function MainLayout() {
   });
 
   const trialCtx = {
-    trialActive:   trialData?.trial_active   ?? true,
-    daysRemaining: trialData?.days_remaining ?? 30,
-    isReadOnly:    trialData?.is_read_only   ?? false,
-    isPaid:        trialData?.is_paid        ?? false,
-    trialEndDate:  trialData?.trial_end_date ?? null,
-    loading:       trialLoading,
+    trialActive:     trialData?.trial_active     ?? true,
+    daysRemaining:   trialData?.days_remaining   ?? 30,
+    isReadOnly:      trialData?.is_read_only     ?? false,
+    isPaid:          trialData?.is_paid          ?? false,
+    isFreeAccess:    trialData?.is_free_access   ?? false,
+    freeAccessUntil: trialData?.free_access_until ?? null,
+    trialEndDate:    trialData?.trial_end_date   ?? null,
+    loading:         trialLoading,
   };
 
   const pageMeta = PAGE_META[location.pathname] || { title: 'Dashboard', subtitle: '' };

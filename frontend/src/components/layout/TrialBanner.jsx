@@ -1,13 +1,29 @@
-import { Clock, AlertTriangle, CheckCircle, Lock } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Lock, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTrial } from '@/lib/TrialContext';
 
 export default function TrialBanner() {
-  const { trialActive, daysRemaining, isReadOnly, isPaid, loading } = useTrial();
+  const { trialActive, daysRemaining, isReadOnly, isPaid, isFreeAccess, freeAccessUntil, loading } = useTrial();
   const navigate = useNavigate();
 
   // Don't show if loading or if paid plan
   if (loading || isPaid) return null;
+
+  // ── Complimentary access granted by super admin ─────────────────────────
+  if (isFreeAccess) {
+    return (
+      <div
+        className="mx-4 mt-3 rounded-2xl px-5 py-2.5 flex items-center gap-3"
+        style={{ background: '#F5F3FF', border: '1px solid #DDD6FE' }}
+      >
+        <Gift size={15} style={{ color: '#7C3AED', flexShrink: 0 }} />
+        <p className="text-xs flex-1" style={{ color: '#4C1D95' }}>
+          🎁 <strong>Complimentary Access</strong> — {daysRemaining} days remaining
+          {freeAccessUntil ? ` · until ${new Date(freeAccessUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+        </p>
+      </div>
+    );
+  }
 
   // ── Trial EXPIRED (read-only mode) ──────────────────────────────────────
   if (isReadOnly) {

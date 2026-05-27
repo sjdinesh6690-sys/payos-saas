@@ -3,15 +3,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Search, CheckCircle2, XCircle, AlertCircle, Clock,
   ToggleLeft, ToggleRight, Plus, Zap, TimerOff, CreditCard,
-  IndianRupee, Users, FileText, Phone, Calendar, RefreshCw,
+  IndianRupee, Users, FileText, Phone, Calendar, RefreshCw, Gift, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 const superApi = {
-  get:  (path)       => api.get(path, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
-  put:  (path, body) => api.put(path, body,  { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
-  post: (path, body) => api.post(path, body, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  get:    (path)       => api.get(path,    { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  put:    (path, body) => api.put(path, body,  { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  post:   (path, body) => api.post(path, body, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
+  delete: (path)       => api.delete(path, { headers: { Authorization: `Bearer ${localStorage.getItem('payos_super_token')}` } }),
 };
 
 const INR  = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
@@ -20,6 +21,7 @@ const DATE = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric'
 function TypeBadge({ type }) {
   const map = {
     paid:    { bg: '#DCFCE7', color: '#15803D', label: '✅ Paid' },
+    free:    { bg: '#EDE9FE', color: '#6D28D9', label: '🎁 Free Access' },
     trial:   { bg: '#FFF7ED', color: '#C2410C', label: '🕐 Trial' },
     expired: { bg: '#FEE2E2', color: '#DC2626', label: '❌ Expired' },
   };
@@ -35,6 +37,8 @@ function TypeBadge({ type }) {
 function ClientDetail({ client, onClose, onRefresh }) {
   const [extendDays,   setExtendDays]   = useState('30');
   const [grantMonths,  setGrantMonths]  = useState('1');
+  const [freeMonths,   setFreeMonths]   = useState('6');
+  const [freeNote,     setFreeNote]     = useState('');
   const [loading,      setLoading]      = useState(false);
 
   const act = async (label, fn) => {
@@ -106,12 +110,18 @@ function ClientDetail({ client, onClose, onRefresh }) {
         </div>
 
         {/* Subscription status */}
-        <div style={{ background: client.sub_active ? '#F0FDF4' : client.trial_active ? '#FFFBEB' : '#FEF2F2', borderRadius: 14, padding: '14px 16px', border: `1.5px solid ${client.sub_active ? '#86EFAC' : client.trial_active ? '#FDE68A' : '#FECACA'}` }}>
+        <div style={{
+          background: client.sub_active ? '#F0FDF4' : client.free_active ? '#EDE9FE' : client.trial_active ? '#FFFBEB' : '#FEF2F2',
+          borderRadius: 14, padding: '14px 16px',
+          border: `1.5px solid ${client.sub_active ? '#86EFAC' : client.free_active ? '#C4B5FD' : client.trial_active ? '#FDE68A' : '#FECACA'}`,
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
             <div>
               <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A', marginBottom: 2 }}>
                 {client.sub_active
                   ? `Paid Plan — ${client.sub_employee_limit} slots`
+                  : client.free_active
+                  ? `🎁 Complimentary Access — ${client.free_days_left} days left`
                   : client.trial_active
                   ? `Free Trial — ${client.trial_days_remaining} days left`
                   : 'No Active Plan'}
@@ -119,8 +129,10 @@ function ClientDetail({ client, onClose, onRefresh }) {
               <p style={{ fontSize: 11, color: '#64748B' }}>
                 {client.sub_active
                   ? `Valid until ${DATE(client.sub_paid_until)} · ${daysLeft} days left`
+                  : client.free_active
+                  ? `Free access until ${DATE(client.free_access_until)}${client.free_access_note ? ` · ${client.free_access_note}` : ''}`
                   : client.trial_active
-                  ? `Expires ${DATE(client.trial_end_date)}`
+                  ? `Trial expires ${DATE(client.trial_end_date)}`
                   : 'Trial and subscription both expired'}
               </p>
             </div>
@@ -141,6 +153,112 @@ function ClientDetail({ client, onClose, onRefresh }) {
               }} />
             </div>
           )}
+        </div>
+
+        {/* ── Grant Complimentary / Free Access ── */}
+        <div style={{ border: '1.5px solid #C4B5FD', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', background: '#F5F3FF', borderBottom: '1px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Gift size={14} color="#6D28D9" />
+              <p style={{ fontSize: 13, fontWeight: 800, color: '#4C1D95' }}>Grant Complimentary Access</p>
+            </div>
+            {client.free_active && (
+              <span style={{ fontSize: 10, fontWeight: 700, background: '#EDE9FE', color: '#6D28D9', padding: '2px 8px', borderRadius: 20 }}>
+                ACTIVE
+              </span>
+            )}
+          </div>
+          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+            {/* Show current free access if active */}
+            {client.free_active && (
+              <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 10, padding: '10px 12px' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#6D28D9', marginBottom: 2 }}>
+                  🎁 Currently active — {client.free_days_left} days left
+                </p>
+                <p style={{ fontSize: 11, color: '#7C3AED' }}>
+                  Until {DATE(client.free_access_until)}
+                  {client.free_access_note ? ` · ${client.free_access_note}` : ''}
+                </p>
+              </div>
+            )}
+
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>
+              Grant free access for how long?
+            </label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { v: '1',  l: '1M' },
+                { v: '3',  l: '3M' },
+                { v: '6',  l: '6M' },
+                { v: '12', l: '1Y' },
+                { v: '24', l: '2Y' },
+              ].map(({ v, l }) => (
+                <button key={v} onClick={() => setFreeMonths(v)}
+                  style={{
+                    flex: 1, padding: '8px 0', borderRadius: 8, border: '1.5px solid',
+                    borderColor: freeMonths === v ? '#6D28D9' : '#E2E8F0',
+                    background: freeMonths === v ? '#EDE9FE' : '#fff',
+                    color: freeMonths === v ? '#6D28D9' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <input
+              value={freeNote}
+              onChange={e => setFreeNote(e.target.value)}
+              placeholder="Optional note — e.g. Pilot program, Partner deal"
+              style={{
+                padding: '8px 12px', borderRadius: 8, border: '1px solid #E2E8F0',
+                fontSize: 12, color: '#374151', outline: 'none', width: '100%',
+              }}
+            />
+
+            <button
+              disabled={loading}
+              onClick={() => act(
+                `Complimentary access granted for ${freeMonths} month(s)`,
+                () => superApi.put(`/super-admin/clients/${client.id}/free-access`, {
+                  months: parseInt(freeMonths),
+                  note: freeNote,
+                })
+              )}
+              style={{
+                padding: '10px 0', borderRadius: 10, border: 'none',
+                background: '#6D28D9', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              {loading
+                ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                : <Gift size={13} />}
+              Grant {freeMonths === '12' ? '1 Year' : freeMonths === '24' ? '2 Years' : `${freeMonths} Month${freeMonths !== '1' ? 's' : ''}`} Free
+            </button>
+
+            {/* Revoke button — only show if currently active */}
+            {client.free_active && (
+              <button
+                disabled={loading}
+                onClick={() => {
+                  if (!window.confirm('Revoke complimentary access immediately?')) return;
+                  act('Complimentary access revoked',
+                    () => superApi.delete(`/super-admin/clients/${client.id}/free-access`)
+                  );
+                }}
+                style={{
+                  padding: '8px 0', borderRadius: 10, border: '1.5px solid #FECACA',
+                  background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <Trash2 size={12} /> Revoke Free Access
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Grant Subscription ── */}
