@@ -62,6 +62,38 @@ async function sendVerificationEmail(email, companyName, verifyToken, req) {
   }
 }
 
+// ── Notify Dinesh of every new trial signup ───────────────────────────────────
+async function notifyNewTrialSignup({ email, company_name, admin_id, ip }) {
+  const resend = getResend();
+  if (!resend) return;
+  const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+  await resend.emails.send({
+    from:    'PayLeef Alerts <payroll@dinmind.com>',
+    to:      ['dinesh@dinmind.in'],
+    subject: `🎉 New Trial Signup — ${company_name}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;">
+        <div style="background:#1A7A4A;padding:20px 28px;border-radius:10px 10px 0 0;">
+          <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-.04em;">Pay<span style="color:#4ADE80;">Leef</span></div>
+          <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:2px;">New Trial Alert</div>
+        </div>
+        <div style="background:#fff;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;">
+          <p style="font-size:16px;font-weight:700;color:#0f172a;margin:0 0 20px;">🎉 Someone just started a free trial!</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:12px;font-weight:600;color:#64748b;width:40%">Company</td><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:14px;font-weight:700;color:#0f172a;">${company_name}</td></tr>
+            <tr><td style="padding:8px 12px;font-size:12px;font-weight:600;color:#64748b;">Email</td><td style="padding:8px 12px;font-size:14px;color:#0f172a;">${email}</td></tr>
+            <tr><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:12px;font-weight:600;color:#64748b;">Admin ID</td><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:13px;color:#64748b;">#${admin_id}</td></tr>
+            <tr><td style="padding:8px 12px;font-size:12px;font-weight:600;color:#64748b;">Signed up</td><td style="padding:8px 12px;font-size:13px;color:#64748b;">${now} IST</td></tr>
+            <tr><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:12px;font-weight:600;color:#64748b;">IP</td><td style="padding:8px 12px;background:#f8fafc;border-radius:6px;font-size:13px;color:#64748b;">${ip || 'unknown'}</td></tr>
+          </table>
+          <div style="margin-top:24px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+            <p style="font-size:12px;color:#166534;margin:0;">Trial expires in <strong>30 days</strong>. Consider reaching out to welcome them and offer a demo call.</p>
+          </div>
+        </div>
+      </div>`,
+  });
+}
+
 // ── ADMIN SIGNUP ──────────────────────────────────────────────────────────────
 router.post('/admin-signup', async (req, res) => {
   try {
@@ -101,6 +133,10 @@ router.post('/admin-signup', async (req, res) => {
     // Send verification email — non-blocking, don't fail signup if email fails
     sendVerificationEmail(email.toLowerCase(), company_name, verifyToken, req)
       .catch(err => console.error('[verify-email] Send failed:', err.message));
+
+    // Notify Dinesh of every new trial signup
+    notifyNewTrialSignup({ email: email.toLowerCase(), company_name, admin_id: admin.id, ip: req.ip })
+      .catch(err => console.error('[trial-notify] Failed:', err.message));
 
     await auditLog(admin.id, 'admin_signup', 'admins', admin.id, { company_name }, req.ip);
 
