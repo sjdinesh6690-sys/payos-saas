@@ -281,6 +281,7 @@ export default function PayslipsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [emailing, setEmailing]         = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(null); // payslip id being resent
 
   // Edit payslip
   const [editTarget, setEditTarget]     = useState(null);
@@ -384,6 +385,19 @@ export default function PayslipsPage() {
       toast.success(`Payslip downloaded for ${p.employee_name}`);
     } catch {
       toast.error('Error downloading payslip');
+    }
+  };
+
+  const handleResendEmail = async (p) => {
+    setSendingEmail(p.id);
+    try {
+      const res = await api.post(`/payslips/${p.id}/send-email`);
+      toast.success(res.data.message || `Payslip sent to ${p.employee_name}`);
+      qc.invalidateQueries({ queryKey: ['payslips'] });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send email');
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -712,6 +726,15 @@ export default function PayslipsPage() {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setEditTarget(p)}>
                         <Pencil size={14} /> Edit Payslip
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleResendEmail(p)}
+                        disabled={sendingEmail === p.id}
+                      >
+                        {sendingEmail === p.id
+                          ? <Loader2 size={14} className="animate-spin" />
+                          : <Mail size={14} />}
+                        {sendingEmail === p.id ? 'Sending…' : 'Send Email'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" onClick={() => promptDelete(p)}>

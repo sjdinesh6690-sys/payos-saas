@@ -17,8 +17,8 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const MONTHS = ['','January','February','March','April','May','June',
   'July','August','September','October','November','December'];
 
-// Use latest stable model — falls back gracefully if deprecated
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+// Use latest stable model — gemini-2.0-flash is the current recommended free-tier model
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 function getGemini() {
   if (!process.env.GEMINI_API_KEY) return null;
@@ -131,10 +131,16 @@ Employee question: ${question.trim()}`;
 
   } catch (err) {
     console.error('AI employee-chat error:', err.message);
-    if (err.message?.includes('API_KEY')) {
-      return res.status(503).json({ error: 'AI API key invalid. Contact your admin.' });
+    if (err.message?.includes('API_KEY') || err.message?.includes('API key')) {
+      return res.status(503).json({ error: 'AI API key is invalid. Please contact your admin.' });
     }
-    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
+    if (err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+      return res.status(429).json({ error: 'AI usage limit reached for today. Please try again tomorrow.' });
+    }
+    if (err.message?.includes('not found') || err.message?.includes('MODEL_NOT_FOUND')) {
+      return res.status(503).json({ error: 'AI model unavailable. Please contact support.' });
+    }
+    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again in a moment.' });
   }
 });
 
@@ -274,10 +280,16 @@ If no anomalies found, return empty array: []`;
 
   } catch (err) {
     console.error('AI anomaly-scan error:', err.message);
-    if (err.message?.includes('API_KEY')) {
-      return res.status(503).json({ error: 'AI API key invalid. Check GEMINI_API_KEY in Render settings.' });
+    if (err.message?.includes('API_KEY') || err.message?.includes('API key')) {
+      return res.status(503).json({ error: 'AI API key is invalid. Check GEMINI_API_KEY in Render settings.' });
     }
-    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
+    if (err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+      return res.status(429).json({ error: 'AI usage limit reached for today. Please try again tomorrow.' });
+    }
+    if (err.message?.includes('not found') || err.message?.includes('MODEL_NOT_FOUND')) {
+      return res.status(503).json({ error: 'AI model unavailable. Please contact support.' });
+    }
+    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again in a moment.' });
   }
 });
 

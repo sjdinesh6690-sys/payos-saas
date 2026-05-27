@@ -6,6 +6,7 @@ const PDFDocument = require('pdfkit');
 const { pool }   = require('../database');
 const authCheck  = require('../middleware/auth');
 const { renderPayslipPDF } = require('../lib/pdfTemplates');
+const { encryptPDF, formatDobAsPassword } = require('../lib/pdfEncrypt');
 
 router.use(authCheck);
 
@@ -16,13 +17,17 @@ function getResend() {
 }
 
 // Build PDF buffer in memory — never writes to disk
-function buildPayslipPDFBuffer(p, branding, admin) {
+function buildPayslipPDFBuffer(p, branding, admin, password = null) {
   return new Promise((resolve, reject) => {
     try {
-      const doc    = new PDFDocument({ size: 'A4', margin: 40 });
+      const isPremium = (branding?.template || 'modern') === 'premium';
+      const doc    = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });
       const chunks = [];
       doc.on('data',  c => chunks.push(c));
-      doc.on('end',   ()  => resolve(Buffer.concat(chunks)));
+      doc.on('end',   () => {
+        const rawBuf = Buffer.concat(chunks);
+        resolve(password ? encryptPDF(rawBuf, password) : rawBuf);
+      });
       doc.on('error', reject);
       renderPayslipPDF(doc, p, branding || {}, admin || {});
       doc.end();
@@ -86,7 +91,14 @@ router.post('/send', async (req, res) => {
       }
 
       try {
-        const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin);
+        // Fetch DOB for PDF password encryption
+        const dobRow = await pool.query(
+          'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+          [req.admin_id, slip.employee_id]
+        );
+        const dobPassword = formatDobAsPassword(dobRow.rows[0]?.date_of_birth);
+
+        const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin, dobPassword);
 
         const subject = subjectTpl
           .replace(/{month}/g,    monthLabel)
@@ -140,9 +152,16 @@ router.post('/send', async (req, res) => {
                 </table>
               </div>
 
-              <p style="color:#64748b;font-size:13px;margin:0;">
+              <p style="color:#64748b;font-size:13px;margin:0 0 16px;">
                 Your complete salary breakdown is in the attached PDF.
               </p>
+              ${dobPassword ? `
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:4px;">
+                <p style="font-size:12.5px;color:#166534;margin:0;">
+                  🔒 <strong>PDF Password:</strong> Your date of birth in <strong>DDMMYYYY</strong> format<br/>
+                  Example: if born on 15 March 1990, password is <strong>15031990</strong>
+                </p>
+              </div>` : ''}
               ${slip.portal_access_enabled ? `
               <div style="margin-top:16px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:16px;">
                 <p style="font-size:12px;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">

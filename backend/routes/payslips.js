@@ -5,6 +5,31 @@ const { pool, auditLog } = require('../database');
 const authCheck   = require('../middleware/auth');
 const { getDefaultConfig, calculatePayslip } = require('../lib/payrollEngine');
 const { renderPayslipPDF } = require('../lib/pdfTemplates');
+const { Resend }  = require('resend');
+const { encryptPDF, formatDobAsPassword } = require('../lib/pdfEncrypt');
+
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+function buildPayslipPDFBuffer(p, branding, admin, password = null) {
+  return new Promise((resolve, reject) => {
+    try {
+      const isPremium = (branding.template || 'modern') === 'premium';
+      const doc    = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });
+      const chunks = [];
+      doc.on('data',  c => chunks.push(c));
+      doc.on('end',   () => {
+        const rawBuf = Buffer.concat(chunks);
+        resolve(password ? encryptPDF(rawBuf, password) : rawBuf);
+      });
+      doc.on('error', reject);
+      renderPayslipPDF(doc, p, branding || {}, admin || {});
+      doc.end();
+    } catch (err) { reject(err); }
+  });
+}
 
 router.use(authCheck);
 
@@ -406,12 +431,26 @@ router.get('/:id/download', async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── DOB password encryption ────────────────────────────────────────────────
+    const empDobRes = await pool.query(
+      'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+      [req.admin_id, p.employee_id]
+    );
+    const dobPassword = formatDobAsPassword(empDobRes.rows[0]?.date_of_birth);
+
     const isPremium = (branding.template || 'modern') === 'premium';
     const doc = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition',
-      `attachment; filename="Payslip_${p.employee_id}_${p.year}-${String(p.month).padStart(2, '0')}.pdf"`);
-    doc.pipe(res);
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => {
+      const rawBuf = Buffer.concat(chunks);
+      const finalBuf = dobPassword ? encryptPDF(rawBuf, dobPassword) : rawBuf;
+      const filename = `Payslip_${p.employee_id}_${p.year}-${String(p.month).padStart(2, '0')}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', finalBuf.length);
+      res.end(finalBuf);
+    });
     renderPayslipPDF(doc, p, branding, admin);
     doc.end();
   } catch (err) { if (!res.headersSent) res.status(500).json({ error: err.message }); }
@@ -492,6 +531,133 @@ router.post('/unlock', async (req, res) => {
       { month, year, count: result.rows.length }, req.ip);
     res.json({ message: `${result.rows.length} payslips unlocked`, count: result.rows.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST resend a single payslip by email ─────────────────────────────────────
+router.post('/:id/send-email', async (req, res) => {
+  try {
+    if (req.employee_db_id) return res.status(403).json({ error: 'Admin access only' });
+    const id = parseInt(req.params.id);
+
+    // Fetch payslip + employee email
+    const slipRes = await pool.query(
+      `SELECT p.*, e.email AS employee_email
+       FROM payslips p
+       LEFT JOIN employees e ON e.employee_id = p.employee_id AND e.admin_id = p.admin_id
+       WHERE p.id = $1 AND p.admin_id = $2`,
+      [id, req.admin_id]
+    );
+    if (!slipRes.rows.length) return res.status(404).json({ error: 'Payslip not found' });
+    const slip = slipRes.rows[0];
+
+    if (!slip.employee_email) {
+      return res.status(400).json({ error: `No email address on file for ${slip.employee_name}` });
+    }
+
+    const resend = getResend();
+    if (!resend) {
+      return res.status(503).json({ error: 'Email service not configured. Please contact PayLeef support.' });
+    }
+
+    // Fetch admin + branding
+    const [adminRes, cfgRes] = await Promise.all([
+      pool.query('SELECT * FROM admins WHERE id = $1', [req.admin_id]),
+      pool.query('SELECT branding FROM payroll_configs WHERE admin_id = $1', [req.admin_id]),
+    ]);
+    const admin    = adminRes.rows[0] || {};
+    const branding = cfgRes.rows[0]?.branding || {};
+
+    // Apply location override (same logic as download)
+    const empLocRes = await pool.query(
+      `SELECT location FROM employees WHERE admin_id = $1 AND employee_id = $2`,
+      [req.admin_id, slip.employee_id]
+    );
+    const empLocation = empLocRes.rows[0]?.location;
+    if (empLocation) {
+      const locRes = await pool.query(
+        `SELECT address, payslip_template, separate_payslip FROM locations WHERE admin_id = $1 AND name = $2`,
+        [req.admin_id, empLocation]
+      );
+      if (locRes.rows.length && locRes.rows[0].separate_payslip) {
+        const loc = locRes.rows[0];
+        if (loc.address?.trim()) branding.company_address = loc.address.trim();
+        branding.template = (loc.payslip_template && loc.payslip_template !== 'default')
+          ? loc.payslip_template : 'modern';
+      }
+    }
+
+    // Fetch employee DOB for PDF password
+    const dobResend = await pool.query(
+      'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+      [req.admin_id, slip.employee_id]
+    );
+    const dobPassword = formatDobAsPassword(dobResend.rows[0]?.date_of_birth);
+    const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin, dobPassword);
+
+    const companyName = admin.company_name || 'Your Company';
+    const brandColor  = admin.brand_color  || '#1A7A4A';
+    const monthLabel  = new Date(parseInt(slip.year), parseInt(slip.month) - 1)
+      .toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+    const subjectTpl = admin.email_subject || 'Your Salary Slip for {month} — {company}';
+    const subject    = subjectTpl
+      .replace(/{month}/g,    monthLabel)
+      .replace(/{company}/g,  companyName)
+      .replace(/{employee}/g, slip.employee_name);
+
+    const pwdHint = dobPassword
+      ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+           <p style="font-size:13px;color:#166534;margin:0;">
+             🔒 <strong>PDF Password:</strong> Your date of birth in <strong>DDMMYYYY</strong> format (e.g., 15031990).
+             This protects your salary information.
+           </p>
+         </div>`
+      : '';
+
+    const htmlBody = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:${brandColor};padding:28px 32px;border-radius:12px 12px 0 0;">
+          <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-.04em;">
+            Pay<span style="color:#4ADE80;">Leef</span>
+          </div>
+          <div style="color:rgba(255,255,255,.6);font-size:13px;margin-top:4px;">${companyName}</div>
+        </div>
+        <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;">
+          <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">
+            Your Salary Slip — ${monthLabel}
+          </h2>
+          <p style="color:#64748b;font-size:15px;margin:0 0 20px;">
+            Dear <strong style="color:#0f172a;">${slip.employee_name}</strong>,
+            please find your salary slip for <strong>${monthLabel}</strong> attached to this email.
+          </p>
+          ${pwdHint}
+          <p style="color:#94a3b8;font-size:13px;margin:0;">
+            This is an automated email from ${companyName} via PayLeef.
+          </p>
+        </div>
+      </div>`;
+
+    const filename = `Payslip_${slip.employee_id}_${slip.year}-${String(slip.month).padStart(2, '0')}.pdf`;
+
+    await resend.emails.send({
+      from:    'PayLeef <noreply@mail.payleef.com>',
+      to:      [slip.employee_email],
+      replyTo: admin.company_email || undefined,
+      subject,
+      html:    htmlBody,
+      attachments: [{ filename, content: pdfBuffer.toString('base64') }],
+    });
+
+    // Mark as emailed
+    await pool.query('UPDATE payslips SET emailed = true WHERE id = $1 AND admin_id = $2', [id, req.admin_id]);
+    await auditLog(req.admin_id, 'email_sent', 'payslips', id,
+      { employee_id: slip.employee_id, email: slip.employee_email, month: slip.month, year: slip.year }, req.ip);
+
+    res.json({ message: `Payslip sent to ${slip.employee_email}` });
+  } catch (err) {
+    console.error('Resend single payslip error:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to send email' });
+  }
 });
 
 // ── DELETE single payslip ─────────────────────────────────────────────────────
