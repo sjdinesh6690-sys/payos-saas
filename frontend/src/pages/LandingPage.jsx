@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DemoVideo from '@/components/DemoVideo';
 import { useNavigate } from 'react-router-dom';
 
 /* ─── Scroll reveal ───────────────────────────────────────────────────────── */
@@ -444,6 +445,25 @@ export default function LandingPage() {
               <ScreenDashboard />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── DEMO VIDEO ───────────────────────────────────────────────────── */}
+      <section id="demo-video" style={{ padding: '80px 24px 72px', background: '#0F172A' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 44 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 20, padding: '6px 16px', marginBottom: 16 }}>
+              <svg viewBox="0 0 12 14" fill="none" style={{ width: 10, height: 10 }}><path d="M1 1L11 7L1 13V1Z" fill="#4ADE80" /></svg>
+              <span style={{ fontSize: 12, color: '#4ADE80', fontWeight: 600 }}>Watch the full product demo</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, color: 'white', margin: '0 0 12px', letterSpacing: '-0.03em' }}>
+              See PayLeef in action — 3 min demo
+            </h2>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+              Dashboard → Employees → AI detection → Payslip PDF → Bulk send → Employee portal → Compliance reports
+            </p>
+          </div>
+          <DemoVideo />
         </div>
       </section>
 
