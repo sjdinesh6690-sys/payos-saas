@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users, FileText, Send, Upload, BarChart3,
-  CheckCircle2, Clock, ArrowRight, Zap, TrendingUp, X,
-  UserPlus, Settings2, CalendarCheck, Sparkles,
+  CheckCircle2, Clock, ArrowRight, Zap, TrendingUp,
+  ChevronDown, ChevronUp, Settings2, CalendarCheck,
+  UserPlus, Sparkles, Lock,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -21,83 +22,178 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-// ── Getting Started Banner ───────────────────────────────────────────────────
-const SETUP_STEPS = [
-  { icon: UserPlus,     label: 'Add Employees',      path: '/admin/employees', desc: 'Add at least one employee' },
-  { icon: Settings2,    label: 'Configure Payroll',  path: '/admin/payroll-config', desc: 'Set up earnings & deductions' },
-  { icon: CalendarCheck,label: 'Enter Attendance',   path: '/admin/attendance', desc: 'Mark present/absent for this month' },
-  { icon: Send,         label: 'Generate & Send',    path: '/admin/send', desc: 'Create payslips and email them' },
+const G = '#1A7A4A';
+
+// ── Step data ────────────────────────────────────────────────────────────────
+const WORKFLOW_STEPS = [
+  {
+    num: 1,
+    icon: UserPlus,
+    title: 'Add Your Employees',
+    desc: 'Enter employee names, emails, and salary details. Takes 2 minutes.',
+    tip: 'You can also import a CSV or Excel file to add multiple employees at once.',
+    path: '/admin/employees',
+    color: '#1A7A4A',
+    bg: '#F0FDF4',
+    border: '#BBF7D0',
+  },
+  {
+    num: 2,
+    icon: Settings2,
+    title: 'Configure Payroll Rules',
+    desc: 'Set up earnings (HRA, allowances) and deductions (PF, ESI, TDS). Only needed once.',
+    tip: 'Default India statutory values are pre-filled. You just review and save.',
+    path: '/admin/payroll-config',
+    color: '#0891B2',
+    bg: '#ECFEFF',
+    border: '#A5F3FC',
+  },
+  {
+    num: 3,
+    icon: CalendarCheck,
+    title: 'Enter Attendance',
+    desc: 'Mark present, absent, or half-day for each employee this month.',
+    tip: 'LOP (Loss of Pay) is auto-calculated based on attendance you enter.',
+    path: '/admin/attendance',
+    color: '#7C3AED',
+    bg: '#F5F3FF',
+    border: '#C4B5FD',
+  },
+  {
+    num: 4,
+    icon: Send,
+    title: 'Generate & Send Payslips',
+    desc: 'One click generates PDF payslips and emails them to all employees.',
+    tip: 'Employees receive a professional payslip with all earning/deduction details.',
+    path: '/admin/send',
+    color: '#D97706',
+    bg: '#FFFBEB',
+    border: '#FCD34D',
+  },
+  {
+    num: 5,
+    icon: BarChart3,
+    title: 'Download Reports',
+    desc: 'Get PF, ESI, Bank advice, and Form 16 reports ready for compliance.',
+    tip: 'All reports are government-format ready — no manual reformatting needed.',
+    path: '/admin/reports',
+    color: '#DC2626',
+    bg: '#FEF2F2',
+    border: '#FECACA',
+  },
 ];
 
-function GettingStartedBanner({ employees = [], payslips = [], onDismiss }) {
-  const navigate = useNavigate();
-  const hasEmployees = employees.length > 0;
-  const hasPayslips  = payslips.length  > 0;
+// ── Single step card ─────────────────────────────────────────────────────────
+function StepCard({ step, status, onAction }) {
+  const { num, icon: Icon, title, desc, tip, color, bg, border } = step;
+  const [showTip, setShowTip] = useState(false);
 
-  // Auto-dismiss if they have employees AND payslips already
-  if (hasEmployees && hasPayslips) return null;
-
-  const doneCount = [hasEmployees, hasEmployees, false, hasPayslips].filter(Boolean).length;
+  const isDone    = status === 'done';
+  const isCurrent = status === 'current';
+  const isLocked  = status === 'locked';
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{
-      background: 'linear-gradient(135deg, #0F4C2A 0%, #1A7A4A 100%)',
-      boxShadow: '0 4px 24px rgba(26,122,74,0.25)',
-    }}>
-      {/* Header */}
-      <div className="flex items-start justify-between px-5 pt-5 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-            <Sparkles size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-sm">Welcome to PayLeef! 🎉</p>
-            <p className="text-white/70 text-xs mt-0.5">Follow these 4 steps to process your first payroll</p>
-          </div>
+    <div
+      className="rounded-2xl p-4 transition-all relative"
+      style={{
+        background: isDone ? '#F8FAFC' : isCurrent ? '#fff' : '#FAFAFA',
+        border: `2px solid ${isCurrent ? color : isDone ? '#E2E8F0' : '#F1F5F9'}`,
+        boxShadow: isCurrent ? `0 4px 20px ${color}22` : '0 1px 4px rgba(0,0,0,0.04)',
+        opacity: isLocked ? 0.55 : 1,
+      }}
+    >
+      {/* Step number badge */}
+      <div className="flex items-start gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+          style={{
+            background: isDone ? '#DCFCE7' : isCurrent ? bg : '#F1F5F9',
+          }}
+        >
+          {isDone
+            ? <CheckCircle2 size={18} style={{ color: '#16A34A' }} />
+            : isLocked
+            ? <Lock size={16} style={{ color: '#94A3B8' }} />
+            : <Icon size={17} style={{ color: isCurrent ? color : '#94A3B8' }} />
+          }
         </div>
-        <button onClick={onDismiss} className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
-          <X size={16} />
-        </button>
-      </div>
 
-      {/* Progress bar */}
-      <div className="px-5 pb-3">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-white/70 text-xs">Setup progress</span>
-          <span className="text-white text-xs font-bold">{doneCount}/4 done</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/20">
-          <div className="h-1.5 rounded-full bg-white transition-all" style={{ width: `${(doneCount / 4) * 100}%` }} />
-        </div>
-      </div>
-
-      {/* Steps */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 pb-5">
-        {SETUP_STEPS.map(({ icon: Icon, label, path, desc }, i) => {
-          const done = i === 0 ? hasEmployees : i === 1 ? hasEmployees : i === 3 ? hasPayslips : false;
-          return (
-            <button
-              key={i}
-              onClick={() => navigate(path)}
-              className="flex flex-col gap-2 p-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: done ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)' }}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span
+              className="text-[10px] font-black uppercase tracking-widest"
+              style={{ color: isCurrent ? color : isDone ? '#16A34A' : '#94A3B8' }}
             >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
-                  {done
-                    ? <CheckCircle2 size={14} className="text-white" />
-                    : <Icon size={14} className="text-white/80" />
-                  }
-                </div>
-                <span className="text-white/60 text-[10px] font-bold">Step {i + 1}</span>
-              </div>
-              <div>
-                <p className={`text-xs font-semibold ${done ? 'text-white line-through opacity-70' : 'text-white'}`}>{label}</p>
-                <p className="text-white/60 text-[10px] mt-0.5 leading-tight">{desc}</p>
-              </div>
+              Step {num}
+            </span>
+            {isDone && (
+              <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                ✓ Done
+              </span>
+            )}
+            {isCurrent && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                style={{ background: color }}
+              >
+                Do this now
+              </span>
+            )}
+          </div>
+
+          <p
+            className="text-[14px] font-bold leading-snug"
+            style={{ color: isDone ? '#64748B' : isCurrent ? 'var(--text-primary)' : '#94A3B8' }}
+          >
+            {title}
+          </p>
+          <p
+            className="text-[12px] mt-1 leading-relaxed"
+            style={{ color: isDone ? '#94A3B8' : isCurrent ? 'var(--text-muted)' : '#CBD5E1' }}
+          >
+            {desc}
+          </p>
+
+          {/* Tip section */}
+          {(isCurrent || isDone) && (
+            <button
+              onClick={() => setShowTip(!showTip)}
+              className="flex items-center gap-1 mt-2 text-[11px] font-medium transition-colors"
+              style={{ color: isCurrent ? color : '#94A3B8' }}
+            >
+              💡 Helpful tip
+              {showTip ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
-          );
-        })}
+          )}
+          {showTip && (
+            <p
+              className="text-[11px] mt-1.5 leading-relaxed px-2 py-1.5 rounded-lg"
+              style={{ color: '#64748B', background: bg, border: `1px solid ${border}` }}
+            >
+              {tip}
+            </p>
+          )}
+        </div>
+
+        {/* CTA button */}
+        {isCurrent && (
+          <button
+            onClick={onAction}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold text-white shrink-0 transition-all hover:opacity-90 active:scale-95 self-start"
+            style={{ background: color }}
+          >
+            Go <ArrowRight size={13} />
+          </button>
+        )}
+        {isDone && (
+          <button
+            onClick={onAction}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 self-start transition-all hover:bg-slate-100"
+            style={{ color: '#64748B', border: '1px solid #E2E8F0' }}
+          >
+            Edit
+          </button>
+        )}
       </div>
     </div>
   );
@@ -112,14 +208,7 @@ export default function DashboardPage() {
   const adminName = localStorage.getItem('employee_name') || 'there';
   const firstName = adminName.split(' ')[0];
 
-  // Getting started banner — dismiss persists in localStorage
-  const [bannerDismissed, setBannerDismissed] = useState(() =>
-    localStorage.getItem('pl_gs_dismissed') === '1'
-  );
-  const dismissBanner = () => {
-    localStorage.setItem('pl_gs_dismissed', '1');
-    setBannerDismissed(true);
-  };
+  const [stepsCollapsed, setStepsCollapsed] = useState(false);
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
@@ -135,37 +224,61 @@ export default function DashboardPage() {
   const thisMonthSlips = payslips.filter(p => p.month === thisMonth && p.year === thisYear);
   const emailedCount   = thisMonthSlips.filter(p => p.emailed).length;
   const pendingEmail   = thisMonthSlips.length - emailedCount;
-  const notGenerated   = employees.length - thisMonthSlips.length;
 
-  // ── What's the current status & next action? ─────────────────────────────────
+  // ── Determine which step is "current" ────────────────────────────────────────
+  const currentStep = useMemo(() => {
+    if (employees.length === 0) return 1;
+    if (thisMonthSlips.length === 0) return 4; // skip to generate (steps 2,3 assumed done or optional)
+    if (pendingEmail > 0) return 4;
+    return 5; // all payslips sent, next is reports
+  }, [employees, thisMonthSlips, pendingEmail]);
+
+  const getStepStatus = (stepNum) => {
+    if (stepNum === 1) return employees.length > 0 ? 'done' : 'current';
+    if (stepNum === 2) return employees.length > 0 ? 'done' : stepNum <= currentStep ? 'current' : 'locked';
+    if (stepNum === 3) return employees.length > 0 ? 'done' : 'locked';
+    if (stepNum === 4) {
+      if (thisMonthSlips.length > 0 && emailedCount === thisMonthSlips.length) return 'done';
+      if (employees.length > 0) return 'current';
+      return 'locked';
+    }
+    if (stepNum === 5) {
+      if (thisMonthSlips.length > 0 && emailedCount === thisMonthSlips.length) return 'current';
+      if (thisMonthSlips.length > 0) return 'done'; // can still use reports
+      return 'locked';
+    }
+    return 'locked';
+  };
+
+  // ── Smart "what to do now" status ────────────────────────────────────────────
   const status = useMemo(() => {
     if (employees.length === 0) return {
-      emoji: '👋', label: 'Getting Started',
-      message: 'Add your first employees to begin payroll',
-      action: 'Add Employees', path: '/admin/employees',
-      color: '#1A7A4A', bg: '#F0FDF4', border: '#BBF7D0',
+      emoji: '👋', label: 'Start Here — Add Your First Employee',
+      message: 'PayLeef is ready! Just add your team and you\'re 3 clicks away from your first payslip.',
+      action: 'Add Employees Now', path: '/admin/employees',
+      color: G, bg: '#F0FDF4', border: '#BBF7D0',
     };
     if (thisMonthSlips.length === 0) return {
-      emoji: '📋', label: `${MONTH_SHORT[thisMonth - 1]} ${thisYear} Payroll Pending`,
-      message: `Ready to generate payslips for ${employees.length} employees`,
+      emoji: '🚀', label: `Ready to Run ${MONTH_SHORT[thisMonth - 1]} ${thisYear} Payroll`,
+      message: `${employees.length} employees are set up. Generate payslips in one click.`,
       action: 'Generate Payslips', path: '/admin/send',
       color: '#D97706', bg: '#FFFBEB', border: '#FCD34D',
     };
     if (pendingEmail > 0) return {
-      emoji: '📧', label: `${MONTH_SHORT[thisMonth - 1]} ${thisYear} — Send Emails`,
-      message: `${thisMonthSlips.length} payslips generated · ${pendingEmail} not yet emailed`,
+      emoji: '📧', label: `${pendingEmail} Payslips Ready to Send`,
+      message: `${thisMonthSlips.length} payslips generated · Send emails to employees now.`,
       action: 'Send Emails Now', path: '/admin/send',
       color: '#7C3AED', bg: '#F5F3FF', border: '#C4B5FD',
     };
     return {
-      emoji: '✅', label: `${MONTH_SHORT[thisMonth - 1]} ${thisYear} — All Done!`,
-      message: `Payslips sent to all ${thisMonthSlips.length} employees`,
-      action: 'View Reports', path: '/admin/reports',
+      emoji: '✅', label: `${MONTH_SHORT[thisMonth - 1]} Payroll Complete!`,
+      message: `All ${thisMonthSlips.length} payslips sent. Download compliance reports next.`,
+      action: 'Download Reports', path: '/admin/reports',
       color: '#16A34A', bg: '#F0FDF4', border: '#86EFAC',
     };
   }, [employees, thisMonthSlips, pendingEmail, thisMonth, thisYear]);
 
-  // ── Last 3 months trend (simple) ────────────────────────────────────────────
+  // ── Last 3 months bar data ───────────────────────────────────────────────────
   const recentMonths = useMemo(() => {
     const result = [];
     for (let i = 2; i >= 0; i--) {
@@ -177,59 +290,60 @@ export default function DashboardPage() {
     }
     return result;
   }, [payslips, thisMonth, thisYear]);
-
   const maxCount = Math.max(...recentMonths.map(m => m.count), 1);
+
+  const doneSteps = [1,2,3,4,5].filter(n => getStepStatus(n) === 'done').length;
+  const isNewUser = employees.length === 0;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
 
       {/* ── Greeting ── */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-          Good {now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening'}, {firstName} 👋
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          {dayName}, {now.getDate()} {MONTH_NAMES[now.getMonth()]} {thisYear}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {isNewUser ? `Welcome to PayLeef, ${firstName}! 🎉` : `Good ${now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening'}, ${firstName} 👋`}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            {dayName}, {now.getDate()} {MONTH_NAMES[now.getMonth()]} {thisYear}
+          </p>
+        </div>
+        {!isNewUser && (
+          <div className="text-right hidden sm:block">
+            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Setup Progress
+            </p>
+            <p className="text-2xl font-black" style={{ color: G }}>{doneSteps}/5</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>steps complete</p>
+          </div>
+        )}
       </div>
 
-      {/* ── Getting Started Banner (new users only) ── */}
-      {!bannerDismissed && (
-        <GettingStartedBanner
-          employees={employees}
-          payslips={payslips}
-          onDismiss={dismissBanner}
-        />
-      )}
-
-      {/* ── This month's payroll status — the MAIN card ── */}
+      {/* ── Primary CTA — "What to do now" ── */}
       <div
         className="rounded-2xl p-5 flex items-center justify-between gap-4"
         style={{
           background: status.bg,
-          border: `1.5px solid ${status.border}`,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          border: `2px solid ${status.border}`,
+          boxShadow: `0 4px 20px ${status.color}18`,
         }}
       >
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-            style={{ background: 'rgba(255,255,255,0.7)' }}
-          >
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+            style={{ background: 'rgba(255,255,255,0.8)' }}>
             {status.emoji}
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-bold uppercase tracking-wide" style={{ color: status.color }}>
-              {status.label}
+            <p className="text-[12px] font-black uppercase tracking-widest mb-1" style={{ color: status.color }}>
+              Your Next Step
             </p>
-            <p className="text-[15px] font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>
-              {status.message}
-            </p>
+            <p className="text-[15px] font-bold" style={{ color: 'var(--text-primary)' }}>{status.label}</p>
+            <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{status.message}</p>
           </div>
         </div>
         <button
           onClick={() => navigate(status.path)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white shrink-0 transition-all hover:opacity-90 active:scale-95"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-bold text-white shrink-0 transition-all hover:opacity-90 active:scale-95"
           style={{ background: status.color }}
         >
           {status.action}
@@ -237,22 +351,90 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── 3 key numbers ── */}
+      {/* ── How PayLeef Works — Step Guide ── */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ border: '1.5px solid var(--border-light)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+      >
+        {/* Section header */}
+        <button
+          onClick={() => setStepsCollapsed(!stepsCollapsed)}
+          className="w-full flex items-center justify-between px-5 py-4 transition-colors hover:bg-slate-50"
+          style={{ background: '#fff' }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#F0FDF4' }}>
+              <Sparkles size={15} style={{ color: G }} />
+            </div>
+            <div className="text-left">
+              <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                How to Use PayLeef — 5 Simple Steps
+              </p>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {doneSteps === 0
+                  ? 'Follow these steps in order to process payroll'
+                  : `${doneSteps} of 5 steps complete · ${doneSteps === 5 ? 'All done! 🎉' : 'Keep going!'}`
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Progress pills */}
+            <div className="hidden sm:flex gap-1">
+              {[1,2,3,4,5].map(n => (
+                <div
+                  key={n}
+                  className="w-5 h-1.5 rounded-full transition-colors"
+                  style={{
+                    background: getStepStatus(n) === 'done'
+                      ? '#16A34A'
+                      : getStepStatus(n) === 'current'
+                      ? G
+                      : '#E2E8F0',
+                  }}
+                />
+              ))}
+            </div>
+            {stepsCollapsed ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />}
+          </div>
+        </button>
+
+        {/* Steps grid */}
+        {!stepsCollapsed && (
+          <div className="px-4 pb-4 pt-1 space-y-2.5" style={{ background: '#FAFBFC' }}>
+            {WORKFLOW_STEPS.map((step) => (
+              <StepCard
+                key={step.num}
+                step={step}
+                status={getStepStatus(step.num)}
+                onAction={() => navigate(step.path)}
+              />
+            ))}
+
+            {/* Bottom helper text */}
+            <p className="text-center text-[11px] pt-1 pb-1" style={{ color: 'var(--text-muted)' }}>
+              💡 Steps 1–3 are one-time setup. Steps 4–5 repeat every month.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── 3 key stats ── */}
       <div className="grid grid-cols-3 gap-4">
         {[
           {
             label: 'Total Employees',
-            value: employees.length,
-            sub: employees.length === 0 ? 'Add your team' : `in ${[...new Set(employees.map(e => e.department).filter(Boolean))].length || 0} departments`,
+            value: employees.length || '—',
+            sub: employees.length === 0 ? 'None added yet' : `across ${[...new Set(employees.map(e => e.department).filter(Boolean))].length || 0} departments`,
             icon: Users,
             path: '/admin/employees',
-            color: '#1A7A4A',
+            color: G,
             bg: '#F0FDF4',
           },
           {
             label: 'Monthly Payroll',
-            value: fmtShort(totalPayroll),
-            sub: employees.length > 0 ? `avg ${fmtShort(totalPayroll / employees.length)} per person` : 'No data yet',
+            value: employees.length > 0 ? fmtShort(totalPayroll) : '—',
+            sub: employees.length > 0 ? `avg ${fmtShort(totalPayroll / employees.length)}/person` : 'Add employees first',
             icon: TrendingUp,
             path: '/admin/analytics',
             color: '#7C3AED',
@@ -260,7 +442,7 @@ export default function DashboardPage() {
           },
           {
             label: `${MONTH_SHORT[thisMonth - 1]} Payslips`,
-            value: `${thisMonthSlips.length} / ${employees.length}`,
+            value: employees.length > 0 ? `${thisMonthSlips.length}/${employees.length}` : '—',
             sub: thisMonthSlips.length === 0 ? 'Not generated yet' : `${emailedCount} emailed`,
             icon: FileText,
             path: '/admin/send',
@@ -278,15 +460,10 @@ export default function DashboardPage() {
               boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
             }}
           >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
-              style={{ background: bg }}
-            >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: bg }}>
               <Icon size={17} style={{ color }} />
             </div>
-            <p className="text-[26px] font-black leading-none" style={{ color: 'var(--text-primary)' }}>
-              {value}
-            </p>
+            <p className="text-[26px] font-black leading-none" style={{ color: 'var(--text-primary)' }}>{value}</p>
             <p className="text-[12px] font-semibold mt-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>
           </button>
@@ -295,15 +472,15 @@ export default function DashboardPage() {
 
       {/* ── Quick actions ── */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[11px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
           Quick Actions
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Add / Edit Employees', icon: Users,    path: '/admin/employees', desc: 'Manage your team',     color: '#1A7A4A', bg: '#F0FDF4' },
-            { label: 'Import Salaries',       icon: Upload,   path: '/admin/upload',    desc: 'Upload CSV or Excel', color: '#0891B2', bg: '#ECFEFF' },
-            { label: 'Generate & Send',        icon: Send,     path: '/admin/send',      desc: 'Create payslips',     color: '#D97706', bg: '#FFFBEB' },
-            { label: 'Download Reports',       icon: BarChart3,path: '/admin/reports',   desc: 'PF, ESI, Bank advice', color: '#7C3AED', bg: '#F5F3FF' },
+            { label: 'Add / Edit Employees', icon: Users,     path: '/admin/employees', desc: 'Manage your team',        color: G,        bg: '#F0FDF4' },
+            { label: 'Import Salaries',       icon: Upload,    path: '/admin/upload',    desc: 'Upload CSV or Excel',     color: '#0891B2', bg: '#ECFEFF' },
+            { label: 'Generate & Send',        icon: Send,      path: '/admin/send',      desc: 'Create & email payslips', color: '#D97706', bg: '#FFFBEB' },
+            { label: 'Download Reports',       icon: BarChart3, path: '/admin/reports',   desc: 'PF, ESI, Bank advice',    color: '#7C3AED', bg: '#F5F3FF' },
           ].map(({ label, icon: Icon, path, desc, color, bg }) => (
             <button
               key={label}
@@ -327,86 +504,61 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Simple 3-month snapshot ── */}
-      <div
-        className="rounded-2xl p-5"
-        style={{
-          background: '#fff',
-          border: '1.5px solid var(--border-light)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Payslip Activity</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Last 3 months</p>
-          </div>
-          <button
-            onClick={() => navigate('/admin/analytics')}
-            className="flex items-center gap-1 text-[12px] font-medium transition-all hover:opacity-70"
-            style={{ color: 'var(--brand)' }}
-          >
-            Full analytics <ArrowRight size={12} />
-          </button>
-        </div>
-
-        <div className="flex items-end gap-4 h-20">
-          {recentMonths.map(({ label, count, isCurrent }) => (
-            <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
-              <p className="text-[12px] font-bold" style={{ color: 'var(--text-secondary)' }}>{count}</p>
-              <div className="w-full rounded-t-lg transition-all" style={{
-                height: `${Math.max((count / maxCount) * 56, count > 0 ? 8 : 3)}px`,
-                background: isCurrent ? 'var(--brand)' : 'var(--border-light)',
-                minHeight: 3,
-              }} />
-              <p className="text-[11px]" style={{ color: isCurrent ? 'var(--brand)' : 'var(--text-muted)', fontWeight: isCurrent ? 700 : 400 }}>
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {recentMonths.every(m => m.count === 0) && (
-          <div className="flex items-center gap-2 mt-3">
-            <Zap size={14} style={{ color: 'var(--text-muted)' }} />
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-              No payslips generated yet — go to <button onClick={() => navigate('/admin/send')} className="underline font-medium" style={{ color: 'var(--brand)' }}>Generate & Send</button> to start
-            </p>
-          </div>
-        )}
-      </div>
-
       {/* ── This month checklist ── */}
       <div
         className="rounded-2xl p-5"
-        style={{
-          background: '#fff',
-          border: '1.5px solid var(--border-light)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        }}
+        style={{ background: '#fff', border: '1.5px solid var(--border-light)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
       >
-        <p className="text-[13px] font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          {MONTH_NAMES[thisMonth - 1]} {thisYear} — Payroll Checklist
-        </p>
-        <div className="space-y-3">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
+              {MONTH_NAMES[thisMonth - 1]} {thisYear} — Payroll Checklist
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Track this month's payroll tasks</p>
+          </div>
+          {/* Mini bar chart — last 3 months */}
+          <div className="hidden sm:flex items-end gap-2 h-10">
+            {recentMonths.map(({ label, count, isCurrent }) => (
+              <div key={label} className="flex flex-col items-center gap-0.5">
+                <div className="w-6 rounded-t-md transition-all" style={{
+                  height: `${Math.max((count / maxCount) * 28, count > 0 ? 4 : 2)}px`,
+                  background: isCurrent ? G : '#E2E8F0',
+                  minHeight: 2,
+                }} />
+                <p className="text-[9px]" style={{ color: isCurrent ? G : 'var(--text-muted)', fontWeight: isCurrent ? 700 : 400 }}>
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
           {[
             {
               label: 'Employees added to the system',
               done: employees.length > 0,
-              detail: employees.length > 0 ? `${employees.length} employees` : 'None yet',
+              detail: employees.length > 0 ? `${employees.length} employees` : 'None yet — add employees first',
               path: '/admin/employees',
+              critical: true,
             },
             {
-              label: 'Payslips generated for this month',
-              done: thisMonthSlips.length > 0,
-              detail: thisMonthSlips.length > 0 ? `${thisMonthSlips.length} of ${employees.length} done` : 'Not generated yet',
+              label: `Payslips generated for ${MONTH_SHORT[thisMonth - 1]}`,
+              done: thisMonthSlips.length > 0 && thisMonthSlips.length === employees.length,
+              partial: thisMonthSlips.length > 0 && thisMonthSlips.length < employees.length,
+              detail: thisMonthSlips.length > 0
+                ? `${thisMonthSlips.length} of ${employees.length} generated`
+                : 'Not generated yet',
               path: '/admin/send',
+              critical: true,
             },
             {
-              label: 'Payslips emailed to employees',
+              label: `Payslips emailed to all employees`,
               done: emailedCount > 0 && emailedCount === thisMonthSlips.length,
-              detail: emailedCount > 0 ? `${emailedCount} sent` : 'Not sent yet',
+              partial: emailedCount > 0 && emailedCount < thisMonthSlips.length,
+              detail: emailedCount > 0 ? `${emailedCount} of ${thisMonthSlips.length} sent` : 'Not sent yet',
               path: '/admin/send',
+              critical: true,
             },
             {
               label: 'Reports downloaded (PF, ESI, Bank)',
@@ -415,27 +567,43 @@ export default function DashboardPage() {
               path: '/admin/reports',
               optional: true,
             },
-          ].map(({ label, done, detail, path, optional }) => (
+          ].map(({ label, done, detail, path, optional, partial, critical }) => (
             <button
               key={label}
               onClick={() => navigate(path)}
-              className="flex items-center gap-3 w-full text-left p-3 rounded-xl transition-all hover:bg-slate-50"
+              className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition-all hover:bg-slate-50"
             >
-              {done
-                ? <CheckCircle2 size={18} className="shrink-0" style={{ color: '#16A34A' }} />
-                : <Clock size={18} className="shrink-0" style={{ color: optional ? '#CBD5E1' : '#F59E0B' }} />
-              }
+              <div className="shrink-0">
+                {done
+                  ? <CheckCircle2 size={18} style={{ color: '#16A34A' }} />
+                  : partial
+                  ? <Clock size={18} style={{ color: '#F59E0B' }} />
+                  : <Clock size={18} style={{ color: optional ? '#CBD5E1' : '#F59E0B' }} />
+                }
+              </div>
               <div className="flex-1">
-                <p className="text-[13px] font-medium" style={{ color: done ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                  {label}
+                <p className="text-[13px] font-medium" style={{ color: done ? '#94A3B8' : 'var(--text-primary)' }}>
+                  {done && '✓ '}{label}
                   {optional && <span className="ml-2 text-[10px] font-normal text-slate-400">(optional)</span>}
                 </p>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{detail}</p>
               </div>
-              <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+              <ArrowRight size={13} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
             </button>
           ))}
         </div>
+
+        {recentMonths.every(m => m.count === 0) && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#F8FAFC' }}>
+            <Zap size={13} style={{ color: 'var(--text-muted)' }} />
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              No payslips generated yet.{' '}
+              <button onClick={() => navigate('/admin/send')} className="underline font-semibold" style={{ color: G }}>
+                Generate now →
+              </button>
+            </p>
+          </div>
+        )}
       </div>
 
     </div>
