@@ -4,6 +4,7 @@ import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText,
 import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TrialBanner from './TrialBanner';
+import HelpBot from '@/components/HelpBot';
 import { TrialContext } from '@/lib/TrialContext';
 import api from '@/lib/api';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
@@ -492,6 +493,10 @@ export default function MainLayout() {
           </main>
         </div>
       </div>
+
+      {/* ── Leef Help Bot — floats on all admin pages ── */}
+      <HelpBot />
+
     </TrialContext.Provider>
   );
 }
