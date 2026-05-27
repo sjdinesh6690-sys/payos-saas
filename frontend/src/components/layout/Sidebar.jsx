@@ -20,7 +20,7 @@ const RupeeLeaf = ({ size = 20 }) => (
 
 // ── Core monthly workflow — always visible (3 items max, no overwhelm) ────────
 const CORE_NAV = [
-  { to: '/admin/dashboard',  label: 'Dashboard',       icon: LayoutDashboard, permKey: null },
+  { to: '/admin/dashboard',  label: 'Home',            icon: LayoutDashboard, permKey: null },
   { to: '/admin/employees',  label: 'Employees',       icon: Users,           permKey: 'employees' },
   { to: '/admin/send',       label: 'Generate & Send', icon: Send,            permKey: 'send' },
 ];
