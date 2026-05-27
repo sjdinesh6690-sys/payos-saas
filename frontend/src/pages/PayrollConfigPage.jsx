@@ -501,6 +501,7 @@ export default function PayrollConfigPage() {
     company_phone: '', company_email: '', company_website: '',
     company_gstin: '', logo_base64: '', primary_color: '#E85C2F',
     show_employer_contributions: true, show_signature_line: true,
+    pdf_password_enabled: false,
     custom_footer_text: 'This is a computer-generated payslip and does not require a signature.',
   });
   const [savingBranding, setSavingBranding] = useState(false);
@@ -848,6 +849,7 @@ export default function PayrollConfigPage() {
                   {[
                     { key: 'show_employer_contributions', label: 'Show employer contributions (PF, ESI, CTC)' },
                     { key: 'show_signature_line',         label: 'Show signature lines at bottom' },
+                    { key: 'pdf_password_enabled',        label: 'Password-protect payslip PDFs (password = employee DOB in DDMMYYYY)' },
                   ].map(({ key, label }) => (
                     <div key={key} className="flex items-center justify-between py-2 border-t border-slate-100">
                       <span className="text-sm text-slate-700">{label}</span>

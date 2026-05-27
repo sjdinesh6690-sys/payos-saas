@@ -91,12 +91,15 @@ router.post('/send', async (req, res) => {
       }
 
       try {
-        // Fetch DOB for PDF password encryption
-        const dobRow = await pool.query(
-          'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
-          [req.admin_id, slip.employee_id]
-        );
-        const dobPassword = formatDobAsPassword(dobRow.rows[0]?.date_of_birth);
+        // Fetch DOB for PDF password encryption (only if admin has enabled it)
+        let dobPassword = null;
+        if (branding.pdf_password_enabled) {
+          const dobRow = await pool.query(
+            'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+            [req.admin_id, slip.employee_id]
+          );
+          dobPassword = formatDobAsPassword(dobRow.rows[0]?.date_of_birth);
+        }
 
         const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin, dobPassword);
 

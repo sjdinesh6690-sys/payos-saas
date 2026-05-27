@@ -431,12 +431,15 @@ router.get('/:id/download', async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ── DOB password encryption ────────────────────────────────────────────────
-    const empDobRes = await pool.query(
-      'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
-      [req.admin_id, p.employee_id]
-    );
-    const dobPassword = formatDobAsPassword(empDobRes.rows[0]?.date_of_birth);
+    // ── DOB password encryption (only if admin has enabled it) ────────────────
+    let dobPassword = null;
+    if (branding.pdf_password_enabled) {
+      const empDobRes = await pool.query(
+        'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+        [req.admin_id, p.employee_id]
+      );
+      dobPassword = formatDobAsPassword(empDobRes.rows[0]?.date_of_birth);
+    }
 
     const isPremium = (branding.template || 'modern') === 'premium';
     const doc = new PDFDocument({ size: 'A4', margin: isPremium ? 0 : 40 });
@@ -586,12 +589,15 @@ router.post('/:id/send-email', async (req, res) => {
       }
     }
 
-    // Fetch employee DOB for PDF password
-    const dobResend = await pool.query(
-      'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
-      [req.admin_id, slip.employee_id]
-    );
-    const dobPassword = formatDobAsPassword(dobResend.rows[0]?.date_of_birth);
+    // Fetch employee DOB for PDF password (only if admin has enabled it)
+    let dobPassword = null;
+    if (branding.pdf_password_enabled) {
+      const dobResend = await pool.query(
+        'SELECT date_of_birth FROM employees WHERE admin_id = $1 AND employee_id = $2',
+        [req.admin_id, slip.employee_id]
+      );
+      dobPassword = formatDobAsPassword(dobResend.rows[0]?.date_of_birth);
+    }
     const pdfBuffer = await buildPayslipPDFBuffer(slip, branding, admin, dobPassword);
 
     const companyName = admin.company_name || 'Your Company';
