@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users, FileText, Send, Upload, BarChart3,
-  CheckCircle2, Clock, ArrowRight, Zap, TrendingUp,
+  CheckCircle2, Clock, ArrowRight, Zap, TrendingUp, X,
+  UserPlus, Settings2, CalendarCheck, Sparkles,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -20,6 +21,88 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
+// ── Getting Started Banner ───────────────────────────────────────────────────
+const SETUP_STEPS = [
+  { icon: UserPlus,     label: 'Add Employees',      path: '/admin/employees', desc: 'Add at least one employee' },
+  { icon: Settings2,    label: 'Configure Payroll',  path: '/admin/payroll-config', desc: 'Set up earnings & deductions' },
+  { icon: CalendarCheck,label: 'Enter Attendance',   path: '/admin/attendance', desc: 'Mark present/absent for this month' },
+  { icon: Send,         label: 'Generate & Send',    path: '/admin/send', desc: 'Create payslips and email them' },
+];
+
+function GettingStartedBanner({ employees = [], payslips = [], onDismiss }) {
+  const navigate = useNavigate();
+  const hasEmployees = employees.length > 0;
+  const hasPayslips  = payslips.length  > 0;
+
+  // Auto-dismiss if they have employees AND payslips already
+  if (hasEmployees && hasPayslips) return null;
+
+  const doneCount = [hasEmployees, hasEmployees, false, hasPayslips].filter(Boolean).length;
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #0F4C2A 0%, #1A7A4A 100%)',
+      boxShadow: '0 4px 24px rgba(26,122,74,0.25)',
+    }}>
+      {/* Header */}
+      <div className="flex items-start justify-between px-5 pt-5 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <Sparkles size={18} className="text-white" />
+          </div>
+          <div>
+            <p className="text-white font-bold text-sm">Welcome to PayLeef! 🎉</p>
+            <p className="text-white/70 text-xs mt-0.5">Follow these 4 steps to process your first payroll</p>
+          </div>
+        </div>
+        <button onClick={onDismiss} className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-5 pb-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-white/70 text-xs">Setup progress</span>
+          <span className="text-white text-xs font-bold">{doneCount}/4 done</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/20">
+          <div className="h-1.5 rounded-full bg-white transition-all" style={{ width: `${(doneCount / 4) * 100}%` }} />
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 pb-5">
+        {SETUP_STEPS.map(({ icon: Icon, label, path, desc }, i) => {
+          const done = i === 0 ? hasEmployees : i === 1 ? hasEmployees : i === 3 ? hasPayslips : false;
+          return (
+            <button
+              key={i}
+              onClick={() => navigate(path)}
+              className="flex flex-col gap-2 p-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{ background: done ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+                  {done
+                    ? <CheckCircle2 size={14} className="text-white" />
+                    : <Icon size={14} className="text-white/80" />
+                  }
+                </div>
+                <span className="text-white/60 text-[10px] font-bold">Step {i + 1}</span>
+              </div>
+              <div>
+                <p className={`text-xs font-semibold ${done ? 'text-white line-through opacity-70' : 'text-white'}`}>{label}</p>
+                <p className="text-white/60 text-[10px] mt-0.5 leading-tight">{desc}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const now       = new Date();
@@ -28,6 +111,15 @@ export default function DashboardPage() {
   const dayName   = DAY_NAMES[now.getDay()];
   const adminName = localStorage.getItem('employee_name') || 'there';
   const firstName = adminName.split(' ')[0];
+
+  // Getting started banner — dismiss persists in localStorage
+  const [bannerDismissed, setBannerDismissed] = useState(() =>
+    localStorage.getItem('pl_gs_dismissed') === '1'
+  );
+  const dismissBanner = () => {
+    localStorage.setItem('pl_gs_dismissed', '1');
+    setBannerDismissed(true);
+  };
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
@@ -100,6 +192,15 @@ export default function DashboardPage() {
           {dayName}, {now.getDate()} {MONTH_NAMES[now.getMonth()]} {thisYear}
         </p>
       </div>
+
+      {/* ── Getting Started Banner (new users only) ── */}
+      {!bannerDismissed && (
+        <GettingStartedBanner
+          employees={employees}
+          payslips={payslips}
+          onDismiss={dismissBanner}
+        />
+      )}
 
       {/* ── This month's payroll status — the MAIN card ── */}
       <div

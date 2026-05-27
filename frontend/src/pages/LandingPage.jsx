@@ -210,10 +210,19 @@ function PricingCard({ plan, price, period, features, cta, highlight, navigate }
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /*  MAIN COMPONENT                                                            */
 /* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─────────────────────────────────────────────────────────────────────────────
+   DEMO VIDEO CONFIG
+   Set DEMO_VIDEO_ID to a YouTube video ID to show an embedded video.
+   Leave as null to show a "coming soon" placeholder with screenshot.
+   Example: const DEMO_VIDEO_ID = 'dQw4w9WgXcQ';
+─────────────────────────────────────────────────────────────────────────────── */
+const DEMO_VIDEO_ID = null; // ← Replace with your YouTube video ID
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const [emp, empRef] = useCounter(2800);
   const [comp, compRef] = useCounter(150);
   const [time, timeRef] = useCounter(80);
@@ -326,15 +335,24 @@ export default function LandingPage() {
             fontSize: 16, fontWeight: 700, cursor: 'pointer',
             boxShadow: '0 4px 24px rgba(26,122,74,0.5)',
           }}>
-            Start free — 30 days trial →
+            Start Free Trial →
           </button>
-          <button onClick={() => navigate('/login')} style={{
+          <a href="#demo" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 9,
             background: 'rgba(255,255,255,0.08)', color: 'white',
             border: '1px solid rgba(255,255,255,0.2)', borderRadius: 14, padding: '15px 28px',
-            fontSize: 16, fontWeight: 600, cursor: 'pointer',
+            fontSize: 16, fontWeight: 600, cursor: 'pointer', textDecoration: 'none',
           }}>
-            Sign in
-          </button>
+            <span style={{
+              width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <svg viewBox="0 0 12 14" fill="none" style={{ width: 10, height: 10, marginLeft: 2 }}>
+                <path d="M1 1L11 7L1 13V1Z" fill="white" />
+              </svg>
+            </span>
+            Watch demo (60 sec)
+          </a>
         </div>
 
         {/* Floating payslip card + badges */}
@@ -367,6 +385,137 @@ export default function LandingPage() {
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>{s.label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── DEMO VIDEO ───────────────────────────────────────────────────── */}
+      <section id="demo" style={{ padding: '80px 24px 100px', background: 'white' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+
+          {/* Label + heading */}
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: G, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+              See it in action
+            </div>
+            <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 16px' }}>
+              Full payroll done in&nbsp;
+              <span style={{ color: G }}>under 3 minutes.</span>
+            </h2>
+            <p style={{ fontSize: 16, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.6 }}>
+              Watch how a real HR team uploads salaries, generates 47 payslips, and sends them — all in one go.
+            </p>
+          </div>
+
+          {/* Video player */}
+          <div style={{
+            position: 'relative', borderRadius: 20, overflow: 'hidden',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
+            background: '#0F172A',
+            aspectRatio: '16/9',
+          }}>
+            {DEMO_VIDEO_ID && videoPlaying ? (
+              /* ── Real YouTube embed ── */
+              <iframe
+                src={`https://www.youtube.com/embed/${DEMO_VIDEO_ID}?autoplay=1&rel=0&modestbranding=1`}
+                title="PayLeef demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+              />
+            ) : (
+              /* ── Placeholder / thumbnail ── */
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+
+                {/* Fake screenshot — payroll dashboard mockup */}
+                <div style={{
+                  position: 'absolute', inset: 0, opacity: 0.18,
+                  backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 60px), repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 80px)',
+                }} />
+
+                {/* Mock browser chrome */}
+                <div style={{ width: '80%', maxWidth: 640, position: 'relative', zIndex: 2 }}>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px 10px 0 0', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF5F57' }} />
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFBD2E' }} />
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#28C840' }} />
+                    <div style={{ flex: 1, height: 18, background: 'rgba(255,255,255,0.06)', borderRadius: 4, marginLeft: 8 }} />
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '0 0 10px 10px', padding: 16, display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12, minHeight: 200 }}>
+                    {/* Sidebar mock */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {['Dashboard', 'Employees', 'Attendance', 'Generate', 'Reports'].map((l, i) => (
+                        <div key={l} style={{ padding: '6px 10px', borderRadius: 6, background: i === 3 ? 'rgba(26,122,74,0.4)' : 'rgba(255,255,255,0.04)', fontSize: 10, color: i === 3 ? '#4ADE80' : 'rgba(255,255,255,0.4)', fontWeight: i === 3 ? 700 : 400 }}>{l}</div>
+                      ))}
+                    </div>
+                    {/* Content mock */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>GENERATE PAYSLIPS — APRIL 2026</div>
+                      {[
+                        { name: 'Arjun Sharma', sal: '₹70,200', status: 'Ready' },
+                        { name: 'Priya Nair', sal: '₹52,400', status: 'Ready' },
+                        { name: 'Karthik M', sal: '₹88,000', status: 'Ready' },
+                      ].map(r => (
+                        <div key={r.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: 6 }}>
+                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{r.name}</span>
+                          <span style={{ fontSize: 9, color: '#4ADE80', fontWeight: 600 }}>{r.sal}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 4, padding: '6px 12px', background: '#1A7A4A', borderRadius: 6, textAlign: 'center', fontSize: 9, color: 'white', fontWeight: 700 }}>Generate & Send 47 Payslips</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Play button */}
+                <button
+                  onClick={() => DEMO_VIDEO_ID ? setVideoPlaying(true) : null}
+                  style={{
+                    position: 'absolute', zIndex: 3,
+                    width: 72, height: 72, borderRadius: '50%',
+                    background: DEMO_VIDEO_ID ? 'linear-gradient(135deg, #1A7A4A, #15653E)' : 'rgba(255,255,255,0.1)',
+                    border: DEMO_VIDEO_ID ? 'none' : '2px solid rgba(255,255,255,0.2)',
+                    cursor: DEMO_VIDEO_ID ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: DEMO_VIDEO_ID ? '0 8px 32px rgba(26,122,74,0.5)' : 'none',
+                    transition: 'transform 0.2s ease',
+                  }}
+                  onMouseOver={e => { if (DEMO_VIDEO_ID) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                  onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  <svg viewBox="0 0 16 18" fill="none" style={{ width: 22, height: 22, marginLeft: 3 }}>
+                    <path d="M1 1L15 9L1 17V1Z" fill="white" />
+                  </svg>
+                </button>
+
+                {/* Label */}
+                {!DEMO_VIDEO_ID && (
+                  <div style={{
+                    position: 'absolute', bottom: 20, zIndex: 3,
+                    background: 'rgba(0,0,0,0.5)', borderRadius: 8, padding: '6px 16px',
+                    fontSize: 12, color: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}>
+                    🎬 Demo video coming soon — <span style={{ color: '#4ADE80' }}>add your YouTube ID in LandingPage.jsx</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Below video CTA */}
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <p style={{ fontSize: 15, color: '#64748B', marginBottom: 20 }}>
+              Liked what you saw? Get started in 2 minutes — no credit card needed.
+            </p>
+            <button onClick={() => navigate('/register')} style={{
+              background: 'linear-gradient(135deg, #1A7A4A, #15653E)',
+              color: 'white', border: 'none', borderRadius: 12, padding: '14px 32px',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(26,122,74,0.4)',
+            }}>
+              Start Free Trial — 30 Days Free →
+            </button>
+          </div>
         </div>
       </section>
 

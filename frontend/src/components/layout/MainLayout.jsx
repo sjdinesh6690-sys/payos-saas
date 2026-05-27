@@ -6,6 +6,8 @@ import Sidebar from './Sidebar';
 import TrialBanner from './TrialBanner';
 import { TrialContext } from '@/lib/TrialContext';
 import api from '@/lib/api';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import SessionTimeoutModal from '@/components/SessionTimeoutModal';
 
 // ── Theme color system ────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -218,8 +220,19 @@ export default function MainLayout() {
     window.location.href = '/login';
   };
 
+  // ── Session timeout (25-min warn / 30-min auto-logout) ──────────────────────
+  const { showWarning, countdown, fmtTime, keepAlive, doLogout } = useSessionTimeout({ enabled: true });
+
   return (
     <TrialContext.Provider value={trialCtx}>
+      {showWarning && (
+        <SessionTimeoutModal
+          countdown={countdown}
+          fmtTime={fmtTime}
+          onKeepAlive={keepAlive}
+          onLogout={doLogout}
+        />
+      )}
       <div className="flex min-h-screen" style={{ background: 'var(--bg-warm)' }}>
         <Sidebar />
 

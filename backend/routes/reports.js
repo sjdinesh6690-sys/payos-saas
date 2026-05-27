@@ -762,51 +762,65 @@ async function buildExcelSalaryRegister(res, slips, adminInfo, periodLabel, mont
   styleHeader(ws, headerRow, null);
 
   let dataRow = headerRow + 1;
-  const totals = new Array(cols.length).fill(0);
+  // Running totals for numeric columns (indices 4-15 = basic through net)
+  const totals = { basic:0, hra:0, da:0, conv:0, med:0, spl:0, gross:0, pf:0, esi:0, pt:0, tds:0, net:0 };
 
   slips.forEach((p, idx) => {
-    const earn = p.earnings      || {};
-    const ded  = p.deductions    || {};
-    const gross = p.gross_salary || p.salary || 0;
+    const earn  = (typeof p.earnings   === 'string' ? JSON.parse(p.earnings)   : p.earnings)   || {};
+    const ded   = (typeof p.deductions === 'string' ? JSON.parse(p.deductions) : p.deductions) || {};
+    const gross = n(p.gross_salary || p.salary);
     const net   = n(p.net_salary   || p.salary);
 
-    const vals = [
-      idx+1,
-      p.employee_id,
-      p.employee_name,
-      p.department || '',
-      earn.basic       || 0,
-      earn.hra         || 0,
-      earn.da          || 0,
-      earn.conveyance  || 0,
-      earn.medical     || 0,
-      earn.special     || 0,
-      gross,
-      ded.pf_employee  || 0,
-      ded.esi_employee || 0,
-      ded.pt           || 0,
-      ded.tds          || 0,
-      net,
-    ];
-
+    // Use explicit cell setters — avoids ExcelJS 1-based r.values indexing issue
     const r = ws.getRow(dataRow);
-    r.values = vals;
+    r.getCell(1).value  = idx + 1;
+    r.getCell(2).value  = p.employee_id  || '';
+    r.getCell(3).value  = p.employee_name || '';
+    r.getCell(4).value  = p.department   || '';
+    r.getCell(5).value  = n(earn.basic);
+    r.getCell(6).value  = n(earn.hra);
+    r.getCell(7).value  = n(earn.da);
+    r.getCell(8).value  = n(earn.conveyance);
+    r.getCell(9).value  = n(earn.medical);
+    r.getCell(10).value = n(earn.special);
+    r.getCell(11).value = gross;
+    r.getCell(12).value = n(ded.pf_employee);
+    r.getCell(13).value = n(ded.esi_employee);
+    r.getCell(14).value = n(ded.pt);
+    r.getCell(15).value = n(ded.tds);
+    r.getCell(16).value = net;
+
     styleDataRow(ws, dataRow, idx % 2 === 1);
-    // Right-align numeric cols (5 onwards)
-    for (let ci = 5; ci <= cols.length; ci++) {
+    for (let ci = 5; ci <= 16; ci++) {
+      r.getCell(ci).numFmt = '₹#,##0';
       r.getCell(ci).alignment = { horizontal: 'right', vertical: 'middle' };
     }
-    // Accumulate totals for numeric cols
-    vals.forEach((v, i) => { if (typeof v === 'number') totals[i] += v; });
+
+    // Accumulate totals
+    totals.basic  += n(earn.basic);      totals.hra   += n(earn.hra);
+    totals.da     += n(earn.da);         totals.conv  += n(earn.conveyance);
+    totals.med    += n(earn.medical);    totals.spl   += n(earn.special);
+    totals.gross  += gross;              totals.pf    += n(ded.pf_employee);
+    totals.esi    += n(ded.esi_employee);totals.pt    += n(ded.pt);
+    totals.tds    += n(ded.tds);         totals.net   += net;
     dataRow++;
   });
 
-  // Total row
-  const totalVals = ['', 'TOTALS', `${slips.length} employees`, '', ...totals.slice(4)];
+  // Total row — explicit cell setters
   const tr = ws.getRow(dataRow);
-  tr.values = totalVals;
+  tr.getCell(1).value  = '';
+  tr.getCell(2).value  = 'TOTALS';
+  tr.getCell(3).value  = `${slips.length} employees`;
+  tr.getCell(4).value  = '';
+  tr.getCell(5).value  = totals.basic;   tr.getCell(6).value  = totals.hra;
+  tr.getCell(7).value  = totals.da;      tr.getCell(8).value  = totals.conv;
+  tr.getCell(9).value  = totals.med;     tr.getCell(10).value = totals.spl;
+  tr.getCell(11).value = totals.gross;   tr.getCell(12).value = totals.pf;
+  tr.getCell(13).value = totals.esi;     tr.getCell(14).value = totals.pt;
+  tr.getCell(15).value = totals.tds;     tr.getCell(16).value = totals.net;
   styleTotalRow(ws, dataRow, null);
-  for (let ci = 5; ci <= cols.length; ci++) {
+  for (let ci = 5; ci <= 16; ci++) {
+    tr.getCell(ci).numFmt = '₹#,##0';
     tr.getCell(ci).alignment = { horizontal: 'right', vertical: 'middle' };
   }
 
