@@ -46,6 +46,25 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customForm, setCustomForm] = useState({ name: '', company: '', phone: '', email: '', employees: '', industry: '', requirements: '' });
+  const [customSending, setCustomSending] = useState(false);
+  const [customDone, setCustomDone] = useState(false);
+
+  const handleCustomSubmit = async (e) => {
+    e.preventDefault();
+    if (!customForm.name || !customForm.company || !customForm.phone) return;
+    setCustomSending(true);
+    try {
+      await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...customForm, type: 'customisation' }),
+      });
+      setCustomDone(true);
+    } catch {}
+    setCustomSending(false);
+  };
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -819,11 +838,136 @@ export default function LandingPage() {
               );
             })}
           </div>
-          <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: '#94A3B8' }}>
-            Need more than 100 employees? <span style={{ color: G, fontWeight: 600, cursor: 'pointer' }}>Contact us for custom pricing →</span>
+          {/* ── Custom Solution Card ── */}
+          <div style={{
+            marginTop: 32, borderRadius: 20, padding: '32px 36px',
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
+            boxShadow: '0 8px 40px rgba(79,46,175,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32,
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#C4B5FD', textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 10 }}>Custom Solution</div>
+              <h3 style={{ fontSize: 22, fontWeight: 900, color: 'white', margin: '0 0 10px', letterSpacing: '-0.02em' }}>Need something more powerful?</h3>
+              <p style={{ fontSize: 13.5, color: '#C4B5FD', margin: 0, lineHeight: 1.6 }}>
+                More than 100 employees? Need custom integrations, ERP sync, multi-company payroll, or special compliance rules? We build tailored payroll solutions for growing businesses.
+              </p>
+              <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
+                {['500+ employees', 'Multi-company', 'ERP integration', 'Custom reports'].map(tag => (
+                  <span key={tag} style={{ fontSize: 11, color: '#A78BFA', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '4px 12px', fontWeight: 600 }}>{tag}</span>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowCustomModal(true); setCustomDone(false); setCustomForm({ name: '', company: '', phone: '', email: '', employees: '', industry: '', requirements: '' }); }}
+              style={{
+                padding: '14px 28px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                background: 'white', color: '#4C1D95', border: 'none', whiteSpace: 'nowrap',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.2)', transition: 'all 0.2s',
+                flexShrink: 0,
+              }}
+              onMouseOver={e => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              Talk to Us →
+            </button>
           </div>
         </div>
       </section>
+
+      {/* ══ CUSTOM SOLUTION MODAL ══════════════════════════════════════════════ */}
+      {showCustomModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }} onClick={e => { if (e.target === e.currentTarget) setShowCustomModal(false); }}>
+          <div style={{
+            background: 'white', borderRadius: 20, width: '100%', maxWidth: 520,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.18)', overflow: 'hidden',
+            maxHeight: '90vh', overflowY: 'auto',
+          }}>
+            {/* Modal header */}
+            <div style={{ padding: '24px 28px 20px', background: 'linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%)', position: 'relative' }}>
+              <button onClick={() => setShowCustomModal(false)} style={{
+                position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)',
+                border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer',
+                color: 'white', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>×</button>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#C4B5FD', textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 6 }}>Custom Solution</div>
+              <h3 style={{ fontSize: 20, fontWeight: 900, color: 'white', margin: '0 0 6px' }}>Tell us what you need</h3>
+              <p style={{ fontSize: 13, color: '#C4B5FD', margin: 0 }}>We'll get back to you within 24 hours with a custom quote.</p>
+            </div>
+
+            {/* Modal body */}
+            <div style={{ padding: '24px 28px' }}>
+              {customDone ? (
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
+                  <h4 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Request Sent!</h4>
+                  <p style={{ fontSize: 14, color: '#64748B', marginBottom: 24 }}>
+                    Thanks! We received your enquiry and Dinesh will contact you personally within 24 hours.
+                  </p>
+                  <button onClick={() => setShowCustomModal(false)} style={{
+                    padding: '12px 28px', borderRadius: 10, background: '#4C1D95', color: 'white',
+                    border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  }}>Close</button>
+                </div>
+              ) : (
+                <form onSubmit={handleCustomSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Your Name <span style={{ color: '#EF4444' }}>*</span></label>
+                      <input value={customForm.name} onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))} placeholder="Rajesh Kumar" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Company Name <span style={{ color: '#EF4444' }}>*</span></label>
+                      <input value={customForm.company} onChange={e => setCustomForm(f => ({ ...f, company: e.target.value }))} placeholder="Acme Pvt Ltd" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Phone <span style={{ color: '#EF4444' }}>*</span></label>
+                      <input value={customForm.phone} onChange={e => setCustomForm(f => ({ ...f, phone: e.target.value }))} placeholder="9876543210" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Email</label>
+                      <input type="email" value={customForm.email} onChange={e => setCustomForm(f => ({ ...f, email: e.target.value }))} placeholder="rajesh@acme.com"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Number of Employees</label>
+                      <input type="number" value={customForm.employees} onChange={e => setCustomForm(f => ({ ...f, employees: e.target.value }))} placeholder="e.g. 250"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Industry</label>
+                      <input value={customForm.industry} onChange={e => setCustomForm(f => ({ ...f, industry: e.target.value }))} placeholder="e.g. Manufacturing"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>Tell us what you need</label>
+                    <textarea value={customForm.requirements} onChange={e => setCustomForm(f => ({ ...f, requirements: e.target.value }))}
+                      placeholder="e.g. We need payroll for 3 companies, SAP integration, custom salary structure for contract workers..."
+                      rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  </div>
+                  <button type="submit" disabled={customSending || !customForm.name || !customForm.company || !customForm.phone} style={{
+                    width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    background: (!customForm.name || !customForm.company || !customForm.phone) ? '#E2E8F0' : '#4C1D95',
+                    color: (!customForm.name || !customForm.company || !customForm.phone) ? '#94A3B8' : 'white',
+                    border: 'none', transition: 'all 0.2s',
+                  }}>
+                    {customSending ? 'Sending...' : 'Send My Enquiry →'}
+                  </button>
+                  <p style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: 10 }}>We'll respond within 24 hours. No spam, ever.</p>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ FAQ ════════════════════════════════════════════════════════════ */}
       <section id="faq" style={{ padding: '80px 24px', background: 'white', borderTop: '1px solid #F1F5F9' }}>
