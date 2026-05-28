@@ -16,12 +16,12 @@ const INDIAN_STATES = [
 // ─── Full conversation script ─────────────────────────────────────────────
 // Each step: id, stage, consultantMsg, type, key, options?, placeholder?, default?
 const SCRIPT = [
-  // ── Stage 1: Company Info ──────────────────────────────────────────────
+  // ── Stage 1: Company Details ───────────────────────────────────────────
   {
     id: 0,
     stage: 1,
-    stageLabel: 'Company Info',
-    consultantMsg: "Hello! I'm your PayLeef Setup Consultant. 👋\n\nI'll help you configure your payroll in just a few minutes by asking simple questions one at a time.\n\nLet's start! What is your **company name**?",
+    stageLabel: 'Company Details',
+    consultantMsg: "Hi there! 👋 I am your **PayLeef Setup Helper**.\n\nI will ask you simple questions one by one.\nYou just answer — I will set up your full payroll automatically!\n\nFirst, what is your **company name**?",
     type: 'text',
     key: 'companyName',
     placeholder: 'e.g. Acme Technologies Pvt Ltd',
@@ -29,176 +29,212 @@ const SCRIPT = [
   {
     id: 1,
     stage: 1,
-    stageLabel: 'Company Info',
-    consultantMsg: "Great! Now, which **state** is your company registered in? This helps me set the correct Professional Tax slab for your location.",
+    stageLabel: 'Company Details',
+    consultantMsg: "Great! Now tell me your **company address**.\n\nThis will appear on every payslip you send to employees.\n\n(Building name, Street, Area — all in one line is fine)",
+    type: 'text',
+    key: 'address',
+    placeholder: 'e.g. 45, Anna Salai, Nungambakkam',
+  },
+  {
+    id: 2,
+    stage: 1,
+    stageLabel: 'Company Details',
+    consultantMsg: "What is your **city and PIN code**?\n\n(Just type both together — city name and then PIN code)",
+    type: 'text',
+    key: 'cityPin',
+    placeholder: 'e.g. Chennai, 600002',
+  },
+  {
+    id: 3,
+    stage: 1,
+    stageLabel: 'Company Details',
+    consultantMsg: "Which **state** is your company in?\n\nThis is important — I use this to set the correct **Professional Tax** rule for your location.",
     type: 'state-select',
     key: 'state',
     options: INDIAN_STATES,
   },
   {
-    id: 2,
+    id: 4,
     stage: 1,
-    stageLabel: 'Company Info',
-    consultantMsg: "What **industry** are you in? This helps me recommend the right compliance defaults.",
+    stageLabel: 'Company Details',
+    consultantMsg: "What is your **company phone number**?\n\nThis will show on payslips. Employees can call this number for any payslip questions.",
+    type: 'text',
+    key: 'phone',
+    placeholder: 'e.g. +91 98765 43210',
+  },
+  {
+    id: 5,
+    stage: 1,
+    stageLabel: 'Company Details',
+    consultantMsg: "What is your **company email address**?\n\nThis will show at the bottom of every payslip.",
+    type: 'text',
+    key: 'companyEmail',
+    placeholder: 'e.g. hr@yourcompany.com',
+  },
+  {
+    id: 6,
+    stage: 1,
+    stageLabel: 'Company Details',
+    consultantMsg: "What type of **business** do you run?\n\nThis helps me pick the right payroll rules for your industry.",
     type: 'chips',
     key: 'industry',
     options: ['IT / Software', 'Manufacturing', 'Healthcare', 'Retail / Trade', 'Education', 'Construction', 'Logistics', 'Other'],
   },
   {
-    id: 3,
+    id: 7,
     stage: 1,
-    stageLabel: 'Company Info',
-    consultantMsg: "How many **employees** do you currently have? This is important for ESI eligibility (required if you have 10+ employees with gross ≤ ₹21,000).",
+    stageLabel: 'Company Details',
+    consultantMsg: "How many **employees** do you have right now?\n\n💡 *If you have 10 or more employees, ESI (medical insurance) is required by law.*",
     type: 'chips',
     key: 'employeeCount',
     options: ['1–9', '10–19', '20–49', '50–99', '100–499', '500+'],
   },
 
-  // ── Stage 2: Salary Structure ──────────────────────────────────────────
+  // ── Stage 2: Pay Setup ─────────────────────────────────────────────────
   {
-    id: 4,
+    id: 8,
     stage: 2,
-    stageLabel: 'Salary Structure',
-    consultantMsg: "Now let's set up your **salary structure**.\n\nWhat percentage of the Gross Salary should be the **Basic Pay**?\n\n💡 *Standard practice is 40–50% of gross. Basic affects PF calculation.*",
+    stageLabel: 'Pay Setup',
+    consultantMsg: "Now let's set up **how salary is split**.\n\nWhat % of the total salary should be **Basic Pay**?\n\n💡 *Basic pay is the main part. Most companies use 40%. PF is calculated on basic pay.*",
     type: 'chips',
     key: 'basicPct',
     options: ['35%', '40%', '45%', '50%', '60%'],
     default: '40%',
   },
   {
-    id: 5,
+    id: 9,
     stage: 2,
-    stageLabel: 'Salary Structure',
-    consultantMsg: "What percentage of **Basic Pay** should be the **HRA (House Rent Allowance)**?\n\n💡 *40% of Basic is standard for non-metro cities; 50% for metro cities (Delhi, Mumbai, Chennai, Kolkata).*",
+    stageLabel: 'Pay Setup',
+    consultantMsg: "What % of Basic Pay should be **HRA** (House Rent Allowance)?\n\n💡 *HRA helps employees save tax on rent. 40% is standard for most cities. Use 50% for Delhi, Mumbai, Chennai, Kolkata.*",
     type: 'chips',
     key: 'hraPct',
     options: ['30%', '40%', '50%', '60%'],
     default: '40%',
   },
   {
-    id: 6,
+    id: 10,
     stage: 2,
-    stageLabel: 'Salary Structure',
-    consultantMsg: "Do you want to include a fixed **Conveyance Allowance**?\n\n💡 *₹1,600/month is the standard amount (tax-exempt up to this limit).*",
+    stageLabel: 'Pay Setup',
+    consultantMsg: "Do you give **Conveyance Allowance** (travel money) every month?\n\n💡 *₹1,600 per month is the normal amount. It is partly tax-free for employees.*",
     type: 'chips',
     key: 'conveyance',
     options: ['₹1,600 (Standard)', '₹2,000', '₹3,000', 'No Conveyance'],
     default: '₹1,600 (Standard)',
   },
   {
-    id: 7,
+    id: 11,
     stage: 2,
-    stageLabel: 'Salary Structure',
-    consultantMsg: "Do you want to include a fixed **Medical Allowance**?\n\n💡 *₹1,250/month is the standard (partially tax-exempt with bills).*",
+    stageLabel: 'Pay Setup',
+    consultantMsg: "Do you give **Medical Allowance** every month?\n\n💡 *₹1,250 per month is the standard amount. Employees can claim tax benefit on medical bills.*",
     type: 'chips',
     key: 'medical',
     options: ['₹1,250 (Standard)', '₹1,500', '₹2,000', 'No Medical'],
     default: '₹1,250 (Standard)',
   },
 
-  // ── Stage 3: Statutory Deductions ─────────────────────────────────────
-  {
-    id: 8,
-    stage: 3,
-    stageLabel: 'Statutory Compliance',
-    consultantMsg: "Let's configure your **statutory deductions**.\n\nDo you want to enable **PF (Provident Fund)**?\n\n💡 *PF is mandatory for companies with 20+ employees. Employee contributes 12% of Basic (capped at ₹1,800/month).*",
-    type: 'chips',
-    key: 'pfEnabled',
-    options: ['Yes, enable PF', 'No, skip PF'],
-    default: 'Yes, enable PF',
-  },
-  {
-    id: 9,
-    stage: 3,
-    stageLabel: 'Statutory Compliance',
-    consultantMsg: "Do you want to enable **ESI (Employee State Insurance)**?\n\n💡 *ESI is mandatory for companies with 10+ employees. Applies only to employees with gross salary ≤ ₹21,000. Employee contributes 0.75% of gross.*",
-    type: 'chips',
-    key: 'esiEnabled',
-    options: ['Yes, enable ESI', 'No, skip ESI'],
-    default: 'Yes, enable ESI',
-  },
-  {
-    id: 10,
-    stage: 3,
-    stageLabel: 'Statutory Compliance',
-    consultantMsg: "Do you want to enable **Professional Tax (PT)**?\n\n💡 *PT is state-specific. I'll automatically apply the correct slab for your state.*",
-    type: 'chips',
-    key: 'ptEnabled',
-    options: ['Yes, enable PT', 'No, skip PT'],
-    default: 'Yes, enable PT',
-  },
-  {
-    id: 11,
-    stage: 3,
-    stageLabel: 'Statutory Compliance',
-    consultantMsg: "Do you want to enable **TDS (Tax Deducted at Source)**?\n\n💡 *TDS applies to employees earning above the income tax exemption limit. PayLeef calculates TDS automatically based on the employee's tax declaration.*",
-    type: 'chips',
-    key: 'tdsEnabled',
-    options: ['Yes, enable TDS', 'No, skip TDS'],
-    default: 'Yes, enable TDS',
-  },
-
-  // ── Stage 4: Leave Policy ──────────────────────────────────────────────
+  // ── Stage 3: Government Rules ──────────────────────────────────────────
   {
     id: 12,
+    stage: 3,
+    stageLabel: 'Government Rules',
+    consultantMsg: "Now let's set up **government deductions**.\n\nDo you want **PF (Provident Fund)** deducted from salary?\n\n💡 *PF is like a savings account for retirement. If you have 20+ employees, it is compulsory. Employee pays 12% of basic pay (max ₹1,800/month).*",
+    type: 'chips',
+    key: 'pfEnabled',
+    options: ['Yes, deduct PF', 'No, skip PF'],
+    default: 'Yes, deduct PF',
+  },
+  {
+    id: 13,
+    stage: 3,
+    stageLabel: 'Government Rules',
+    consultantMsg: "Do you want **ESI** (Employee State Insurance) deducted?\n\n💡 *ESI gives employees free medical cover. If you have 10+ employees earning ≤ ₹21,000/month, it is compulsory. Employee pays 0.75% of salary.*",
+    type: 'chips',
+    key: 'esiEnabled',
+    options: ['Yes, deduct ESI', 'No, skip ESI'],
+    default: 'Yes, deduct ESI',
+  },
+  {
+    id: 14,
+    stage: 3,
+    stageLabel: 'Government Rules',
+    consultantMsg: "Do you want **Professional Tax (PT)** deducted?\n\n💡 *PT is a small monthly state tax. I already know the exact amount for your state — I will apply it automatically.*",
+    type: 'chips',
+    key: 'ptEnabled',
+    options: ['Yes, deduct PT', 'No, skip PT'],
+    default: 'Yes, deduct PT',
+  },
+  {
+    id: 15,
+    stage: 3,
+    stageLabel: 'Government Rules',
+    consultantMsg: "Do you want **TDS (Income Tax)** deducted from high earners?\n\n💡 *TDS is income tax taken every month. PayLeef calculates it automatically based on each employee\'s salary and tax declarations.*",
+    type: 'chips',
+    key: 'tdsEnabled',
+    options: ['Yes, deduct TDS', 'No, skip TDS'],
+    default: 'Yes, deduct TDS',
+  },
+
+  // ── Stage 4: Leave Rules ───────────────────────────────────────────────
+  {
+    id: 16,
     stage: 4,
-    stageLabel: 'Leave Policy',
-    consultantMsg: "Now let's set your **Leave Policy**.\n\nHow many **working days per month** does your company follow?\n\n💡 *Most Indian companies use 26 days (excluding Sundays). This is used for LOP (Loss of Pay) calculation.*",
+    stageLabel: 'Leave Rules',
+    consultantMsg: "Now let's set up **leave rules** for your employees.\n\nHow many days do your employees work in a month?\n\n💡 *Most companies use 26 days (they take Sundays off). This number is used to calculate salary for absent days.*",
     type: 'chips',
     key: 'workingDays',
     options: ['24 days', '25 days', '26 days', '27 days', '30 days'],
     default: '26 days',
   },
   {
-    id: 13,
+    id: 17,
     stage: 4,
-    stageLabel: 'Leave Policy',
-    consultantMsg: "How many **Casual Leaves (CL)** do employees get per year?\n\n💡 *Standard is 12 CL per year (1 per month). Casual leaves are for personal/emergency use.*",
+    stageLabel: 'Leave Rules',
+    consultantMsg: "How many **Casual Leaves (CL)** does each employee get in a year?\n\n💡 *Casual leave is taken for personal reasons — like running an errand or a family event. Most companies give 12 days (1 per month).*",
     type: 'text',
     key: 'clDays',
     placeholder: 'e.g. 12',
-    inputHint: 'Enter number of days (e.g. 12)',
+    inputHint: 'Type a number — e.g. 12 means 12 days per year',
   },
   {
-    id: 14,
+    id: 18,
     stage: 4,
-    stageLabel: 'Leave Policy',
-    consultantMsg: "How many **Sick Leaves (SL)** do employees get per year?\n\n💡 *Standard is 12 SL per year. Sick leaves are for medical reasons.*",
+    stageLabel: 'Leave Rules',
+    consultantMsg: "How many **Sick Leaves (SL)** does each employee get in a year?\n\n💡 *Sick leave is for when an employee is unwell. Standard is 12 days per year.*",
     type: 'text',
     key: 'slDays',
     placeholder: 'e.g. 12',
-    inputHint: 'Enter number of days (e.g. 12)',
+    inputHint: 'Type a number — e.g. 12 means 12 days per year',
   },
   {
-    id: 15,
+    id: 19,
     stage: 4,
-    stageLabel: 'Leave Policy',
-    consultantMsg: "How many **Earned Leaves / Privilege Leaves (EL/PL)** do employees get per year?\n\n💡 *Standard is 15 EL per year. These are accumulated and can be encashed.*",
+    stageLabel: 'Leave Rules',
+    consultantMsg: "How many **Earned Leaves (EL)** does each employee get in a year?\n\n💡 *Earned leave builds up every month. Employees can save these and use them later, or even get paid for unused EL. Standard is 15 days.*",
     type: 'text',
     key: 'elDays',
     placeholder: 'e.g. 15',
-    inputHint: 'Enter number of days (e.g. 15)',
+    inputHint: 'Type a number — e.g. 15 means 15 days per year',
   },
 
-  // ── Stage 5: Payslip Design ────────────────────────────────────────────
+  // ── Stage 5: Payslip Look ──────────────────────────────────────────────
   {
-    id: 16,
+    id: 20,
     stage: 5,
     stageLabel: 'Payslip Design',
-    consultantMsg: "Almost done! Let's choose your **payslip template**.\n\nClick on a design below to preview it and select the one that fits your company style.",
+    consultantMsg: "Almost done! 🎉\n\nPick the **payslip design** you like.\nClick on any design below to see a preview — then click it to select.",
     type: 'template-select',
     key: 'template',
     default: 'classic',
   },
   {
-    id: 17,
+    id: 21,
     stage: 5,
     stageLabel: 'Payslip Design',
-    consultantMsg: "Should payslip PDFs be **password-protected**?\n\n💡 *When enabled, each employee's payslip PDF is locked with their Employee ID as the password. This keeps salary information confidential.*",
+    consultantMsg: "Should we **lock payslip PDFs with a password**?\n\n💡 *If yes, each employee's payslip PDF will be locked. Only they can open it using their Employee ID as the password. This keeps salary details private.*",
     type: 'chips',
     key: 'pdfPassword',
-    options: ['Yes, password-protect PDFs', 'No, open access'],
-    default: 'Yes, password-protect PDFs',
+    options: ['Yes, lock with password', 'No, keep open'],
+    default: 'Yes, lock with password',
   },
 ];
 
@@ -262,9 +298,13 @@ function buildLeavePolicy(answers) {
 
 function buildBranding(answers) {
   return {
-    company_name: answers.companyName || '',
-    template: answers.template || 'classic',
-    pdf_password_enabled: answers.pdfPassword === 'Yes, password-protect PDFs',
+    company_name:        answers.companyName || '',
+    company_address:     answers.address || '',
+    company_city:        answers.cityPin || '',
+    company_phone:       answers.phone || '',
+    company_email:       answers.companyEmail || '',
+    template:            answers.template || 'classic',
+    pdf_password_enabled: answers.pdfPassword === 'Yes, lock with password',
   };
 }
 
@@ -324,13 +364,17 @@ function ConfigSummary({ answers }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
       {/* Company */}
       <div style={{ background: 'var(--sidebar-bg)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--brand)', marginBottom: 8 }}>Company</p>
-        {row('Name', brand.company_name)}
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--brand)', marginBottom: 8 }}>Company Details</p>
+        {row('Company Name', brand.company_name)}
+        {answers.address && row('Address', answers.address)}
+        {answers.cityPin && row('City & PIN', answers.cityPin)}
         {row('State', answers.state)}
+        {answers.phone && row('Phone', answers.phone)}
+        {answers.companyEmail && row('Email', answers.companyEmail)}
         {row('Industry', answers.industry)}
         {row('Employees', answers.employeeCount)}
         {row('Payslip Template', brand.template.charAt(0).toUpperCase() + brand.template.slice(1))}
-        {row('PDF Password', brand.pdf_password_enabled ? '✅ Enabled' : '❌ Disabled')}
+        {row('PDF Password Lock', brand.pdf_password_enabled ? '✅ Enabled' : '❌ Disabled')}
       </div>
 
       {/* Earnings */}
@@ -634,10 +678,15 @@ export default function PayrollSetupPage() {
       hraPct:        `HRA set to **${val}** of basic. ✅`,
       conveyance:    val === 'No Conveyance' ? `Conveyance allowance skipped.` : `Conveyance set to **${val}**. ✅`,
       medical:       val === 'No Medical' ? `Medical allowance skipped.` : `Medical set to **${val}**. ✅`,
-      pfEnabled:     val.startsWith('Yes') ? `✅ PF enabled.` : `⏭ PF skipped.`,
-      esiEnabled:    val.startsWith('Yes') ? `✅ ESI enabled.` : `⏭ ESI skipped.`,
-      ptEnabled:     val.startsWith('Yes') ? `✅ Professional Tax enabled.` : `⏭ PT skipped.`,
-      tdsEnabled:    val.startsWith('Yes') ? `✅ TDS enabled.` : `⏭ TDS skipped.`,
+      pfEnabled:     val.startsWith('Yes') ? `✅ PF will be deducted.` : `⏭ PF skipped.`,
+      esiEnabled:    val.startsWith('Yes') ? `✅ ESI will be deducted.` : `⏭ ESI skipped.`,
+      ptEnabled:     val.startsWith('Yes') ? `✅ Professional Tax will be deducted.` : `⏭ PT skipped.`,
+      tdsEnabled:    val.startsWith('Yes') ? `✅ TDS will be deducted.` : `⏭ TDS skipped.`,
+      address:       `Address saved. ✅`,
+      cityPin:       `City & PIN saved. ✅`,
+      phone:         `Phone number saved. ✅`,
+      companyEmail:  `Company email saved. ✅`,
+      pdfPassword:   val.startsWith('Yes') ? `🔒 Payslip PDFs will be locked.` : `🔓 PDFs will be open.`,
       workingDays:   `Working days set to **${val}** per month.`,
       clDays:        `Casual Leave: **${val}** per year. ✅`,
       slDays:        `Sick Leave: **${val}** per year. ✅`,

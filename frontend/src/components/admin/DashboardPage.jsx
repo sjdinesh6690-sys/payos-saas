@@ -5,7 +5,7 @@ import {
   Users, FileText, Send, Upload, BarChart3,
   CheckCircle2, Clock, ArrowRight, Zap, TrendingUp,
   ChevronDown, ChevronUp, Settings2, CalendarCheck,
-  UserPlus, Sparkles, Lock,
+  UserPlus, Sparkles, Lock, Bot,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -297,6 +297,87 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+
+      {/* ── 🤖 Setup Consultant Banner ── */}
+      <div
+        onClick={() => navigate('/admin/payroll-setup')}
+        style={{
+          cursor: 'pointer',
+          borderRadius: 16,
+          background: 'linear-gradient(135deg, #0f4c2a 0%, #1A7A4A 60%, #10b981 100%)',
+          padding: '20px 24px',
+          display: 'flex', alignItems: 'center', gap: 20,
+          boxShadow: '0 8px 32px rgba(26,122,74,0.35)',
+          position: 'relative', overflow: 'hidden',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(26,122,74,0.45)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 8px 32px rgba(26,122,74,0.35)'; }}
+      >
+        {/* Decorative circles */}
+        <div style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', right: 40, bottom: -40, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+
+        {/* Robot icon */}
+        <div style={{
+          width: 64, height: 64, borderRadius: 18, flexShrink: 0,
+          background: 'rgba(255,255,255,0.15)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(8px)',
+          border: '1.5px solid rgba(255,255,255,0.25)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          position: 'relative',
+        }}>
+          <Bot size={32} color="white" />
+          {/* Pulse dot */}
+          <div style={{
+            position: 'absolute', top: 6, right: 6,
+            width: 10, height: 10, borderRadius: '50%',
+            background: '#4ade80',
+            boxShadow: '0 0 0 3px rgba(74,222,128,0.3)',
+            animation: 'rpa-pulse 2s ease-in-out infinite',
+          }} />
+        </div>
+
+        {/* Text */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <p style={{ color: '#86efac', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              ✦ Smart Setup — Zero Manual Work
+            </p>
+          </div>
+          <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.2, marginBottom: 4 }}>
+            Set Up Your Payroll in 5 Minutes!
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, lineHeight: 1.5 }}>
+            Just answer simple questions. Our bot will automatically configure your salary structure, PF, ESI, leaves, and payslip design — no manual setup needed.
+          </p>
+        </div>
+
+        {/* CTA button */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{
+            background: 'white',
+            color: '#1A7A4A',
+            fontWeight: 800, fontSize: 13,
+            padding: '10px 20px', borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 6,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}>
+            <Sparkles size={15} />
+            Start Auto Setup
+            <ArrowRight size={14} />
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes rpa-pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); }
+            50% { box-shadow: 0 0 0 6px rgba(74,222,128,0.1); }
+          }
+        `}</style>
+      </div>
 
       {/* ── Greeting ── */}
       <div className="flex items-start justify-between">

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
   Building2, Users, Settings, CheckCircle2, ChevronRight,
   ChevronLeft, Upload, SkipForward, Sparkles, MapPin,
-  Phone, Mail, Globe, Hash,
+  Phone, Mail, Globe, Hash, Bot,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -389,31 +389,85 @@ export default function OnboardingPage() {
 
             {/* Step 5 — Done */}
             {step === 5 && (
-              <div className="text-center space-y-6">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: '#F0FDF4' }}>
-                  <CheckCircle2 size={40} style={{ color: '#1A7A4A' }} />
+              <div className="text-center space-y-5">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: '#F0FDF4' }}>
+                  <CheckCircle2 size={34} style={{ color: '#1A7A4A' }} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">You're all set!</h3>
-                  <p className="text-sm text-slate-500 mt-2">PayLeef is configured and ready. Here's what you can do next:</p>
+                  <h3 className="text-xl font-bold text-slate-900">Welcome to PayLeef! 🎉</h3>
+                  <p className="text-sm text-slate-500 mt-1">Your account is ready. Now let's configure your payroll.</p>
                 </div>
-                <div className="grid grid-cols-1 gap-3 text-left">
+
+                {/* ── Auto-configure CTA (primary) ── */}
+                <div
+                  onClick={() => navigate('/admin/payroll-setup')}
+                  style={{
+                    cursor: 'pointer',
+                    borderRadius: 16,
+                    background: 'linear-gradient(135deg, #0f4c2a 0%, #1A7A4A 60%, #10b981 100%)',
+                    padding: '18px 20px',
+                    textAlign: 'left',
+                    position: 'relative', overflow: 'hidden',
+                    boxShadow: '0 8px 28px rgba(26,122,74,0.35)',
+                    transition: 'transform 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+                >
+                  {/* decorative circle */}
+                  <div style={{ position: 'absolute', right: -20, top: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 50, height: 50, borderRadius: 14, flexShrink: 0,
+                      background: 'rgba(255,255,255,0.18)',
+                      border: '1.5px solid rgba(255,255,255,0.3)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Bot size={26} color="white" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: '#86efac', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>
+                        ✦ Recommended — Smart Setup
+                      </p>
+                      <p style={{ color: 'white', fontWeight: 800, fontSize: 15, lineHeight: 1.2, marginBottom: 3 }}>
+                        Set Up Payroll Automatically 🤖
+                      </p>
+                      <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, lineHeight: 1.4 }}>
+                        Just answer simple questions. Our bot configures everything — salary, PF, ESI, leaves — in 5 minutes. No manual work!
+                      </p>
+                    </div>
+                    <div style={{
+                      background: 'white', color: '#1A7A4A',
+                      fontWeight: 800, fontSize: 12,
+                      padding: '8px 14px', borderRadius: 8,
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      whiteSpace: 'nowrap', flexShrink: 0,
+                    }}>
+                      <Sparkles size={13} /> Start Now
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Or do it manually ── */}
+                <p className="text-xs text-slate-400 text-center">— or set up manually —</p>
+
+                <div className="grid grid-cols-1 gap-2 text-left">
                   {[
                     { icon: '👥', label: 'Add Employees', path: '/admin/employees',  desc: 'Import or add your team' },
                     { icon: '💰', label: 'Generate Payslips', path: '/admin/send',  desc: 'Create & send payslips' },
-                    { icon: '⚙️', label: 'Payroll Config', path: '/admin/payroll-config', desc: 'Customise components' },
-                    { icon: '📊', label: 'View Analytics', path: '/admin/analytics', desc: 'Track salary trends' },
+                    { icon: '⚙️', label: 'Payroll Config', path: '/admin/payroll-config', desc: 'Set up manually' },
                   ].map((item, i) => (
                     <button key={i} onClick={() => navigate(item.path)}
                       className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-all text-left"
                       onMouseEnter={e => { e.currentTarget.style.background = '#F0FDF4'; e.currentTarget.style.borderColor = '#86EFAC'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.borderColor = ''; }}>
-                      <span className="text-lg">{item.icon}</span>
+                      <span className="text-base">{item.icon}</span>
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{item.label}</p>
                         <p className="text-xs text-slate-500">{item.desc}</p>
                       </div>
-                      <ChevronRight size={14} className="text-slate-300 ml-auto" />
+                      <ChevronRight size={13} className="text-slate-300 ml-auto" />
                     </button>
                   ))}
                 </div>
