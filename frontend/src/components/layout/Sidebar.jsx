@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Send, BarChart3,
   LogOut, Settings, ChevronDown, ChevronUp,
   FileText, TrendingUp, Settings2, CalendarCheck,
-  CreditCard, Umbrella, MapPin, UserCog, BookOpen, History, Shield,
+  CreditCard, Umbrella, MapPin, UserCog, BookOpen, History, Shield, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +37,7 @@ const HISTORY_NAV = [
 
 // ── Setup — one-time config, billing, team ────────────────────────────────────
 const CONFIG_NAV = [
+  { to: '/admin/payroll-setup',  label: 'Setup Consultant', icon: Sparkles, permKey: 'payroll_config' },
   { to: '/admin/payroll-config', label: 'Payroll Config', icon: Settings2, permKey: 'payroll_config' },
   { to: '/admin/leave-policy',   label: 'Leave Policy',   icon: Umbrella,  permKey: 'leave_policy' },
   { to: '/admin/locations',      label: 'Locations',      icon: MapPin,    permKey: 'locations' },

@@ -34,6 +34,7 @@ import Form16Page             from '@/pages/Form16Page';
 import PaymentCheckoutPage   from '@/pages/PaymentCheckoutPage';
 import PaymentSuccessPage    from '@/pages/PaymentSuccessPage';
 import AuditLogPage          from '@/pages/AuditLogPage';
+import PayrollSetupPage      from '@/pages/PayrollSetupPage';
 
 // Super Admin
 import SuperAdminLoginPage    from '@/pages/super-admin/SuperAdminLoginPage';
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="settings"       element={<SettingsPage />} />
             <Route path="form16"         element={<Form16Page />} />
             <Route path="audit"          element={<AuditLogPage />} />
+            <Route path="payroll-setup"  element={<PayrollSetupPage />} />
           </Route>
 
           {/* ── Payment pages (standalone, no sidebar) ────────────── */}
