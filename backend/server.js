@@ -33,6 +33,10 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) return callback(null, true);
     // Also allow any *.onrender.com for preview deploys
     if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // Allow any *.dinmind.com or *.dinmind.in subdomains (production + future apps)
+    if (origin.endsWith('.dinmind.com') || origin.endsWith('.dinmind.in')) return callback(null, true);
+    // Allow Google Cloud Run URLs (*.run.app)
+    if (origin.endsWith('.run.app')) return callback(null, true);
     callback(new Error('CORS policy: Origin not allowed'));
   },
   credentials: true,
