@@ -154,30 +154,30 @@ const SCRIPT = [
     stage: 4,
     stageLabel: 'Leave Policy',
     consultantMsg: "How many **Casual Leaves (CL)** do employees get per year?\n\n💡 *Standard is 12 CL per year (1 per month). Casual leaves are for personal/emergency use.*",
-    type: 'chips',
+    type: 'text',
     key: 'clDays',
-    options: ['6 days', '8 days', '10 days', '12 days', '15 days'],
-    default: '12 days',
+    placeholder: 'e.g. 12',
+    inputHint: 'Enter number of days (e.g. 12)',
   },
   {
     id: 14,
     stage: 4,
     stageLabel: 'Leave Policy',
     consultantMsg: "How many **Sick Leaves (SL)** do employees get per year?\n\n💡 *Standard is 12 SL per year. Sick leaves are for medical reasons.*",
-    type: 'chips',
+    type: 'text',
     key: 'slDays',
-    options: ['6 days', '8 days', '10 days', '12 days', '15 days'],
-    default: '12 days',
+    placeholder: 'e.g. 12',
+    inputHint: 'Enter number of days (e.g. 12)',
   },
   {
     id: 15,
     stage: 4,
     stageLabel: 'Leave Policy',
     consultantMsg: "How many **Earned Leaves / Privilege Leaves (EL/PL)** do employees get per year?\n\n💡 *Standard is 15 EL per year. These are accumulated and can be encashed.*",
-    type: 'chips',
+    type: 'text',
     key: 'elDays',
-    options: ['10 days', '12 days', '15 days', '18 days', '21 days'],
-    default: '15 days',
+    placeholder: 'e.g. 15',
+    inputHint: 'Enter number of days (e.g. 15)',
   },
 
   // ── Stage 5: Payslip Design ────────────────────────────────────────────
@@ -185,10 +185,9 @@ const SCRIPT = [
     id: 16,
     stage: 5,
     stageLabel: 'Payslip Design',
-    consultantMsg: "Almost done! Let's choose your **payslip template**.\n\nWhich design would you like for your payslips?",
-    type: 'chips',
+    consultantMsg: "Almost done! Let's choose your **payslip template**.\n\nClick on a design below to preview it and select the one that fits your company style.",
+    type: 'template-select',
     key: 'template',
-    options: ['classic', 'modern', 'minimal'],
     default: 'classic',
   },
   {
@@ -358,6 +357,197 @@ function ConfigSummary({ answers }) {
   );
 }
 
+// ─── Template Preview Cards ───────────────────────────────────────────────
+const TEMPLATES = [
+  {
+    key: 'classic',
+    name: 'Classic',
+    desc: 'Traditional table layout. Clean and formal — best for most Indian companies.',
+    preview: (
+      <div style={{ background: '#fff', borderRadius: 6, overflow: 'hidden', fontSize: 5.5, fontFamily: 'Arial, sans-serif', border: '1px solid #e5e7eb' }}>
+        {/* Header */}
+        <div style={{ background: '#1A7A4A', padding: '6px 8px', color: '#fff' }}>
+          <div style={{ fontWeight: 800, fontSize: 7 }}>ACME TECHNOLOGIES PVT LTD</div>
+          <div style={{ opacity: 0.8, fontSize: 5 }}>123, Anna Salai, Chennai – 600002</div>
+          <div style={{ marginTop: 3, background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '1px 4px', borderRadius: 2, fontSize: 5.5, fontWeight: 700 }}>
+            PAYSLIP — APRIL 2025
+          </div>
+        </div>
+        {/* Employee info row */}
+        <div style={{ display: 'flex', gap: 4, padding: '4px 6px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+          {[['Employee', 'Ramesh Kumar'], ['Dept', 'Engineering'], ['ID', 'EMP001']].map(([l, v]) => (
+            <div key={l} style={{ flex: 1 }}>
+              <div style={{ color: '#6b7280', fontSize: 4.5 }}>{l}</div>
+              <div style={{ fontWeight: 700, fontSize: 5.5 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Earnings/Deductions table */}
+        <div style={{ display: 'flex', gap: 0 }}>
+          <div style={{ flex: 1, padding: '3px 6px', borderRight: '1px solid #e5e7eb' }}>
+            <div style={{ fontWeight: 800, color: '#1A7A4A', fontSize: 5, marginBottom: 2 }}>EARNINGS</div>
+            {[['Basic Pay', '20,000'], ['HRA', '8,000'], ['Conveyance', '1,600'], ['Medical', '1,250'], ['Special Allow.', '4,150']].map(([l, v]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', borderBottom: '0.5px solid #f3f4f6' }}>
+                <span>{l}</span><span style={{ fontWeight: 600 }}>₹{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ flex: 1, padding: '3px 6px' }}>
+            <div style={{ fontWeight: 800, color: '#DC2626', fontSize: 5, marginBottom: 2 }}>DEDUCTIONS</div>
+            {[['PF', '1,800'], ['ESI', '263'], ['Prof. Tax', '200'], ['TDS', '0']].map(([l, v]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', borderBottom: '0.5px solid #f3f4f6' }}>
+                <span>{l}</span><span style={{ fontWeight: 600 }}>₹{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Net pay */}
+        <div style={{ background: '#1A7A4A', color: '#fff', padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 700, fontSize: 6 }}>NET PAY</span>
+          <span style={{ fontWeight: 900, fontSize: 8 }}>₹32,987</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: 'modern',
+    name: 'Modern',
+    desc: 'Sleek two-column design with color accents. Looks premium and contemporary.',
+    preview: (
+      <div style={{ background: '#fff', borderRadius: 6, overflow: 'hidden', fontSize: 5.5, fontFamily: 'Arial, sans-serif', border: '1px solid #e5e7eb' }}>
+        {/* Bold top bar */}
+        <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1A7A4A 100%)', padding: '7px 8px', color: '#fff' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 7.5, letterSpacing: '-0.3px' }}>ACME TECHNOLOGIES</div>
+              <div style={{ fontSize: 4.5, opacity: 0.7, marginTop: 1 }}>Pay Statement · April 2025</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 4.5, opacity: 0.7 }}>Net Pay</div>
+              <div style={{ fontWeight: 900, fontSize: 9, color: '#6ee7b7' }}>₹32,987</div>
+            </div>
+          </div>
+        </div>
+        {/* Employee card */}
+        <div style={{ background: '#f0fdf4', padding: '4px 8px', borderBottom: '1px solid #d1fae5', display: 'flex', gap: 8 }}>
+          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#1A7A4A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 6, flexShrink: 0 }}>RK</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 6 }}>Ramesh Kumar</div>
+            <div style={{ color: '#6b7280', fontSize: 4.5 }}>Engineering · EMP001 · Chennai</div>
+          </div>
+        </div>
+        {/* 2-col earnings */}
+        <div style={{ display: 'flex', gap: 0, padding: '3px 0' }}>
+          <div style={{ flex: 1, padding: '0 6px', borderRight: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 4, fontWeight: 800, color: '#1A7A4A', marginBottom: 2, letterSpacing: '0.04em' }}>EARNINGS</div>
+            {[['Basic', '20,000'], ['HRA', '8,000'], ['Conveyance', '1,600'], ['Special', '5,400']].map(([l, v]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '1.5px 0' }}>
+                <span style={{ color: '#6b7280' }}>{l}</span><span style={{ fontWeight: 700 }}>₹{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ flex: 1, padding: '0 6px' }}>
+            <div style={{ fontSize: 4, fontWeight: 800, color: '#DC2626', marginBottom: 2, letterSpacing: '0.04em' }}>DEDUCTIONS</div>
+            {[['PF', '1,800'], ['ESI', '263'], ['PT', '200'], ['TDS', '750']].map(([l, v]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '1.5px 0' }}>
+                <span style={{ color: '#6b7280' }}>{l}</span><span style={{ fontWeight: 700 }}>₹{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Footer strip */}
+        <div style={{ margin: '0 6px 4px', borderRadius: 4, background: '#f0fdf4', border: '1px solid #d1fae5', padding: '3px 6px', display: 'flex', justifyContent: 'space-between', fontSize: 5 }}>
+          <span style={{ color: '#6b7280' }}>Gross: <strong style={{ color: '#111' }}>₹35,000</strong></span>
+          <span style={{ color: '#6b7280' }}>Deductions: <strong style={{ color: '#DC2626' }}>₹3,013</strong></span>
+          <span style={{ color: '#059669', fontWeight: 800 }}>Net: ₹31,987</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: 'minimal',
+    name: 'Minimal',
+    desc: 'Clean black & white with simple lines. Professional and distraction-free.',
+    preview: (
+      <div style={{ background: '#fff', borderRadius: 6, overflow: 'hidden', fontSize: 5.5, fontFamily: 'Arial, sans-serif', border: '1px solid #e5e7eb', padding: '6px 8px' }}>
+        {/* Header text only */}
+        <div style={{ borderBottom: '1.5px solid #111', paddingBottom: 4, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 7, letterSpacing: '-0.2px' }}>ACME TECHNOLOGIES PVT LTD</div>
+            <div style={{ color: '#6b7280', fontSize: 4.5 }}>PAYSLIP FOR APRIL 2025</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 4.5, color: '#6b7280' }}>Employee ID</div>
+            <div style={{ fontWeight: 700, fontSize: 5.5 }}>EMP001</div>
+          </div>
+        </div>
+        {/* Employee detail line */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 4, paddingBottom: 3, borderBottom: '0.5px solid #e5e7eb' }}>
+          {[['Name', 'Ramesh Kumar'], ['Dept', 'Engineering'], ['DOJ', '01-Jan-2020']].map(([l, v]) => (
+            <div key={l} style={{ flex: 1 }}>
+              <div style={{ color: '#9ca3af', fontSize: 4 }}>{l}</div>
+              <div style={{ fontWeight: 600, fontSize: 5 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Simple list */}
+        {[['Basic Pay', '20,000', false], ['HRA', '8,000', false], ['Conveyance', '1,600', false], ['Special Allow.', '5,400', false], ['PF Deduction', '(1,800)', true], ['Professional Tax', '(200)', true]].map(([l, v, isDed]) => (
+          <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', borderBottom: '0.5px solid #f9fafb' }}>
+            <span style={{ color: isDed ? '#DC2626' : '#374151' }}>{l}</span>
+            <span style={{ fontWeight: 600, color: isDed ? '#DC2626' : '#111' }}>₹{v}</span>
+          </div>
+        ))}
+        {/* Net Pay line */}
+        <div style={{ borderTop: '1.5px solid #111', marginTop: 3, paddingTop: 3, display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 900, fontSize: 6.5 }}>NET PAY</span>
+          <span style={{ fontWeight: 900, fontSize: 6.5 }}>₹ 32,987</span>
+        </div>
+      </div>
+    ),
+  },
+];
+
+function TemplateSelectInput({ onSelect }) {
+  const [hovered, setHovered] = useState(null);
+  return (
+    <div style={{ display: 'flex', gap: 12 }}>
+      {TEMPLATES.map(t => (
+        <div
+          key={t.key}
+          onClick={() => onSelect(t.key)}
+          onMouseEnter={() => setHovered(t.key)}
+          onMouseLeave={() => setHovered(null)}
+          style={{
+            flex: 1, cursor: 'pointer', borderRadius: 12,
+            border: `2px solid ${hovered === t.key ? 'var(--brand)' : 'var(--border)'}`,
+            background: hovered === t.key ? 'var(--brand-light)' : 'var(--card-bg)',
+            padding: '10px 10px 8px',
+            transition: 'all 0.15s',
+            boxShadow: hovered === t.key ? '0 0 0 3px rgba(26,122,74,0.12)' : 'none',
+          }}
+        >
+          {/* Mini payslip preview */}
+          <div style={{ marginBottom: 8 }}>
+            {t.preview}
+          </div>
+          {/* Template label */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontWeight: 800, fontSize: 13,
+              color: hovered === t.key ? 'var(--brand)' : 'var(--text-primary)',
+            }}>
+              {t.name}
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+              {t.desc}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────
 export default function PayrollSetupPage() {
   const [step, setStep]         = useState(0);           // current question index
@@ -452,7 +642,7 @@ export default function PayrollSetupPage() {
       clDays:        `Casual Leave: **${val}** per year. ✅`,
       slDays:        `Sick Leave: **${val}** per year. ✅`,
       elDays:        `Earned Leave: **${val}** per year. ✅`,
-      template:      `Payslip template: **${val.charAt(0).toUpperCase() + val.slice(1)}**. ✅`,
+      template:      `Payslip template set to **${val.charAt(0).toUpperCase() + val.slice(1)}**. ✅ Great choice!`,
       pdfPassword:   val.startsWith('Yes') ? `🔒 PDF password protection enabled.` : `🔓 PDFs will be open access.`,
     };
     return acks[key] || `Got it!`;
@@ -724,32 +914,42 @@ export default function PayrollSetupPage() {
 
               {/* Text input */}
               {currentStep.type === 'text' && (
-                <form onSubmit={e => { e.preventDefault(); handleAnswer(inputVal); }} style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    autoFocus
-                    value={inputVal}
-                    onChange={e => setInputVal(e.target.value)}
-                    placeholder={currentStep.placeholder}
-                    style={{
-                      flex: 1, padding: '10px 14px', borderRadius: 10,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-main)', color: 'var(--text-primary)',
-                      fontSize: 14, outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputVal.trim()}
-                    style={{
-                      padding: '10px 20px', borderRadius: 10, border: 'none',
-                      background: inputVal.trim() ? 'var(--brand)' : '#D1D5DB',
-                      color: 'white', fontWeight: 700, fontSize: 14,
-                      cursor: inputVal.trim() ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    Next →
-                  </button>
-                </form>
+                <div>
+                  {currentStep.inputHint && (
+                    <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6, fontStyle: 'italic' }}>
+                      💡 {currentStep.inputHint}
+                    </p>
+                  )}
+                  <form onSubmit={e => { e.preventDefault(); handleAnswer(inputVal); }} style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      autoFocus
+                      type={currentStep.key === 'clDays' || currentStep.key === 'slDays' || currentStep.key === 'elDays' ? 'number' : 'text'}
+                      min={currentStep.key === 'clDays' || currentStep.key === 'slDays' || currentStep.key === 'elDays' ? '0' : undefined}
+                      max={currentStep.key === 'clDays' || currentStep.key === 'slDays' || currentStep.key === 'elDays' ? '365' : undefined}
+                      value={inputVal}
+                      onChange={e => setInputVal(e.target.value)}
+                      placeholder={currentStep.placeholder}
+                      style={{
+                        flex: 1, padding: '10px 14px', borderRadius: 10,
+                        border: '1.5px solid var(--border)',
+                        background: 'var(--bg-main)', color: 'var(--text-primary)',
+                        fontSize: 14, outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!inputVal.trim()}
+                      style={{
+                        padding: '10px 20px', borderRadius: 10, border: 'none',
+                        background: inputVal.trim() ? 'var(--brand)' : '#D1D5DB',
+                        color: 'white', fontWeight: 700, fontSize: 14,
+                        cursor: inputVal.trim() ? 'pointer' : 'not-allowed',
+                      }}
+                    >
+                      Next →
+                    </button>
+                  </form>
+                </div>
               )}
 
               {/* Chips (multiple choice) */}
@@ -783,6 +983,11 @@ export default function PayrollSetupPage() {
                     </button>
                   ))}
                 </div>
+              )}
+
+              {/* Template visual selector */}
+              {currentStep.type === 'template-select' && (
+                <TemplateSelectInput onSelect={val => handleAnswer(val)} />
               )}
 
               {/* State selector */}
