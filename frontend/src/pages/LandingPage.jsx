@@ -752,7 +752,7 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, margin: '0 0 12px', letterSpacing: '-0.025em', color: '#0F172A' }}>One plan. All features. No surprises.</h2>
             <p style={{ fontSize: 15, color: '#64748B', margin: 0 }}>Start free. Upgrade when you're ready. Cancel anytime.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, maxWidth: 1060, margin: '0 auto' }}>
             {[
               {
                 plan: 'PayLeef Pro — Monthly',
@@ -837,40 +837,54 @@ export default function LandingPage() {
                 </div>
               );
             })}
-          </div>
-          {/* ── Custom Solution Card ── */}
-          <div style={{
-            marginTop: 32, borderRadius: 20, padding: '32px 36px',
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
-            boxShadow: '0 8px 40px rgba(79,46,175,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32,
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#C4B5FD', textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 10 }}>Custom Solution</div>
-              <h3 style={{ fontSize: 22, fontWeight: 900, color: 'white', margin: '0 0 10px', letterSpacing: '-0.02em' }}>Need something more powerful?</h3>
-              <p style={{ fontSize: 13.5, color: '#C4B5FD', margin: 0, lineHeight: 1.6 }}>
-                More than 100 employees? Need custom integrations, ERP sync, multi-company payroll, or special compliance rules? We build tailored payroll solutions for growing businesses.
-              </p>
-              <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-                {['500+ employees', 'Multi-company', 'ERP integration', 'Custom reports'].map(tag => (
-                  <span key={tag} style={{ fontSize: 11, color: '#A78BFA', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '4px 12px', fontWeight: 600 }}>{tag}</span>
+
+            {/* ── Custom Solution — 3rd card ── */}
+            <div style={{
+              padding: '30px 26px', borderRadius: 20, position: 'relative',
+              background: 'linear-gradient(160deg, #1e1b4b 0%, #312e81 55%, #4c1d95 100%)',
+              border: '2px solid #6D28D9',
+              boxShadow: '0 8px 40px rgba(79,46,175,0.3)',
+              display: 'flex', flexDirection: 'column',
+            }}>
+              <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: '#7C3AED', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 16px', borderRadius: 20, whiteSpace: 'nowrap' }}>CUSTOM</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#C4B5FD', marginBottom: 8 }}>Custom Solution</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 28, fontWeight: 900, color: 'white', letterSpacing: '-0.03em' }}>Let's Talk</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#A78BFA', marginBottom: 18 }}>Tailored pricing for your needs</div>
+              <div style={{ height: 1, background: 'rgba(167,139,250,0.3)', marginBottom: 18 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 24, flex: 1 }}>
+                {[
+                  '500+ employees',
+                  'Multi-company payroll',
+                  'ERP / SAP integration',
+                  'Custom salary structures',
+                  'Dedicated account manager',
+                  'On-premise or cloud deploy',
+                  'Custom compliance rules',
+                  'White-label option',
+                ].map((f, fi) => (
+                  <div key={fi} style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+                    <div style={{ width: 17, height: 17, borderRadius: '50%', background: 'rgba(167,139,250,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Check color="#A78BFA" size={7} />
+                    </div>
+                    <span style={{ fontSize: 12.5, color: '#DDD6FE' }}>{f}</span>
+                  </div>
                 ))}
               </div>
+              <button
+                onClick={() => { setShowCustomModal(true); setCustomDone(false); setCustomForm({ name: '', company: '', phone: '', email: '', employees: '', industry: '', requirements: '' }); }}
+                style={{
+                  width: '100%', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  background: 'white', color: '#4C1D95', border: 'none', transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.background = '#EDE9FE'; }}
+                onMouseOut={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                Talk to Us →
+              </button>
             </div>
-            <button
-              onClick={() => { setShowCustomModal(true); setCustomDone(false); setCustomForm({ name: '', company: '', phone: '', email: '', employees: '', industry: '', requirements: '' }); }}
-              style={{
-                padding: '14px 28px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                background: 'white', color: '#4C1D95', border: 'none', whiteSpace: 'nowrap',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.2)', transition: 'all 0.2s',
-                flexShrink: 0,
-              }}
-              onMouseOver={e => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseOut={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              Talk to Us →
-            </button>
+
           </div>
         </div>
       </section>
