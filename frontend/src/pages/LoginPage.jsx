@@ -49,6 +49,8 @@ export default function LoginPage() {
         else localStorage.removeItem('payslip_remember_email');
         localStorage.setItem('payslip_token', data.token);
         localStorage.setItem('payslip_role', 'employer');
+        // Store admin/company name for dashboard welcome message
+        localStorage.setItem('employee_name', data.company_name || data.employee_name || '');
         // Store sub-user info if applicable
         if (data.is_sub_user) {
           localStorage.setItem('payslip_is_sub_user', 'true');

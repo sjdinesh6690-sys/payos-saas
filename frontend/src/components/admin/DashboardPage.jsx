@@ -205,7 +205,7 @@ export default function DashboardPage() {
   const thisMonth = now.getMonth() + 1;
   const thisYear  = now.getFullYear();
   const dayName   = DAY_NAMES[now.getDay()];
-  const adminName = localStorage.getItem('employee_name') || 'there';
+  const adminName = localStorage.getItem('payslip_sub_user_name') || localStorage.getItem('employee_name') || 'there';
   const firstName = adminName.split(' ')[0];
 
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
