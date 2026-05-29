@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -79,6 +79,20 @@ export default function OnboardingPage() {
 
   const upd = (k, v) => setCompany(c => ({ ...c, [k]: v }));
 
+  // Pre-fill company name from profile (already collected at registration)
+  useEffect(() => {
+    const token = localStorage.getItem('payslip_token');
+    if (!token) return;
+    fetch('/api/admin-profile/profile', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.admin?.company_name) {
+          setCompany(c => ({ ...c, company_name: data.admin.company_name }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const saveStep = async (data = {}) => {
     try {
       await api.put('/admin-profile/onboarding/step', { ...company, ...data });
@@ -94,12 +108,9 @@ export default function OnboardingPage() {
 
   const back = () => setStep(s => Math.max(s - 1, 1));
 
+  // Skip always finishes the whole onboarding and goes to dashboard
   const skip = async () => {
-    if (step >= STEPS.length - 1) {
-      await finish();
-    } else {
-      setStep(s => Math.min(s + 1, STEPS.length));
-    }
+    await finish();
   };
 
   const finish = async () => {
