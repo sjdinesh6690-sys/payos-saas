@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings, LogOut } from 'lucide-react';
+import { ChevronRight, HelpCircle, Palette, Check, X, BookOpen, Users, FileText, Upload, Send, BarChart2, Settings, LogOut, Calendar, CreditCard, UserPlus, MapPin, Bot, TrendingUp } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TrialBanner from './TrialBanner';
@@ -102,11 +102,114 @@ const HELP_CONTENT = {
     icon: Settings,
     title: 'Payroll Config — Set Your Rules',
     steps: [
-      { emoji: '💵', heading: 'Earnings components', body: 'Set up how salary is split — Basic Pay (usually 40%), HRA (40% of Basic), Conveyance, Special Allowance, etc.' },
-      { emoji: '➖', heading: 'Deductions', body: 'Configure PF (12% of Basic), ESI (0.75% of Gross if salary ≤ ₹21,000), Professional Tax, and TDS.' },
-      { emoji: '💾', heading: 'Save your settings', body: 'Click "Save Config" when done. All future payslips will use these settings automatically.' },
-      { emoji: '⚠️', heading: 'Important note', body: 'Changing config will only affect NEW payslips. Already generated payslips are not changed.' },
-      { emoji: '🎨', heading: 'Branding', body: 'Add your company logo and choose a payslip template. This appears on every payslip PDF.' },
+      { emoji: '💵', heading: 'Set earnings (how salary is split)', body: 'Basic Pay is usually 40% of CTC. HRA is 40% of Basic. The remaining amount becomes Special Allowance automatically.' },
+      { emoji: '➖', heading: 'Set deductions', body: 'Turn on or off: PF (12% of Basic), ESI (only for salaries ≤ ₹21,000), Professional Tax (~₹200/month), and TDS (income tax).' },
+      { emoji: '💾', heading: 'Always click Save Config', body: 'After making any change, scroll down and click "Save Config". PayLeef will use these settings for all new payslips.' },
+      { emoji: '⚠️', heading: 'Old payslips are not affected', body: 'Changes here only apply to payslips you generate from now on. Already generated payslips stay the same.' },
+      { emoji: '🎨', heading: 'Add your logo and pick a template', body: 'Upload your company logo and choose a payslip design. This will appear on every payslip PDF you send.' },
+    ],
+  },
+
+  '/admin/attendance': {
+    icon: Calendar,
+    title: 'Attendance — Mark Daily Attendance',
+    steps: [
+      { emoji: '📅', heading: 'Select the month first', body: 'Use the month and year selector at the top to choose which month you want to enter attendance for.' },
+      { emoji: '✅', heading: 'Mark each employee', body: 'For each employee, select: P (Present), A (Absent), H (Half Day), CL (Casual Leave), SL (Sick Leave), or EL (Earned Leave).' },
+      { emoji: '💾', heading: 'Click Save when done', body: 'After entering all attendance, click Save. PayLeef will remember this for payslip calculations.' },
+      { emoji: '⚠️', heading: 'Absences affect salary', body: 'If an employee takes more days off than their leave balance, the extra days become LOP (Loss of Pay) and salary is reduced.' },
+      { emoji: '💡', heading: 'Tip — enter attendance before generating payslips', body: 'Always save attendance first, then go to Generate & Send to create payslips. That way LOP is calculated correctly.' },
+    ],
+  },
+
+  '/admin/leave-policy': {
+    icon: Calendar,
+    title: 'Leave Policy — Set Leave Days',
+    steps: [
+      { emoji: '🌴', heading: 'What is leave policy?', body: 'This sets how many paid leave days each employee gets per year. PayLeef tracks their balance automatically.' },
+      { emoji: '📋', heading: 'Three types of leave', body: 'CL (Casual Leave) — for personal work. SL (Sick Leave) — when unwell. EL (Earned Leave) — builds up over time and can be carried forward.' },
+      { emoji: '✏️', heading: 'How to change the numbers', body: 'Type the number of days you want for each leave type and click Save. Most companies use CL:12, SL:12, EL:15 per year.' },
+      { emoji: '💡', heading: 'What happens when leave runs out?', body: 'If an employee uses more days than their balance, the extra absent days become LOP (Loss of Pay) and salary is deducted.' },
+    ],
+  },
+
+  '/admin/form16': {
+    icon: FileText,
+    title: 'Form 16 — Annual Tax Certificate',
+    steps: [
+      { emoji: '📝', heading: 'What is Form 16?', body: 'Form 16 is an official income tax certificate you must give to every employee at the end of the financial year (April–May).' },
+      { emoji: '📅', heading: 'Select the financial year', body: 'Choose the financial year (e.g. 2024–25) from the dropdown at the top.' },
+      { emoji: '⚡', heading: 'Generate for each employee', body: 'Click the "Generate" button next to each employee. PayLeef creates the certificate using their salary and tax data.' },
+      { emoji: '⬇️', heading: 'Download and give to employees', body: 'Click the Download icon to save the PDF. Print it or email it to the employee — they need it to file their taxes.' },
+      { emoji: '💡', heading: 'When to do this', body: 'Generate Form 16 once a year, after the financial year ends (April or May). Employees use it to file their Income Tax Return (ITR).' },
+    ],
+  },
+
+  '/admin/settings': {
+    icon: Settings,
+    title: 'Settings — Company & Account Setup',
+    steps: [
+      { emoji: '🏢', heading: 'Company Profile', body: 'Update your company name, address, phone number and email. This information appears on every payslip you generate.' },
+      { emoji: '🖼️', heading: 'Upload your logo', body: 'Click the logo area and upload your company logo. It will appear at the top of all payslip PDFs.' },
+      { emoji: '🔒', heading: 'PDF password protection', body: 'If you turn this on, every payslip PDF is locked. Employees can only open it using their Employee ID as the password.' },
+      { emoji: '📧', heading: 'Email settings', body: 'Set the "From" name and email address that employees will see when they receive their payslips.' },
+      { emoji: '💾', heading: 'Always click Save', body: 'After making any changes, scroll to the bottom and click Save. Changes do not apply until you save.' },
+    ],
+  },
+
+  '/admin/billing': {
+    icon: CreditCard,
+    title: 'Billing — Your Subscription Plan',
+    steps: [
+      { emoji: '📋', heading: 'See your current plan', body: 'This page shows whether you are on a Free Trial or a paid plan, and how many days are left.' },
+      { emoji: '👥', heading: 'Employee limit', body: 'Your plan allows a certain number of active employees. You can see your current usage here.' },
+      { emoji: '⬆️', heading: 'How to upgrade', body: 'Click the "Upgrade Plan" button. Choose Monthly (₹999/month) or Annual (₹9,990/year — saves 2 months cost).' },
+      { emoji: '💡', heading: 'What happens when trial ends?', body: 'After the free trial, the software goes into read-only mode. You can still view data, but cannot generate new payslips until you upgrade.' },
+    ],
+  },
+
+  '/admin/users': {
+    icon: UserPlus,
+    title: 'Users — Add Team Members',
+    steps: [
+      { emoji: '👤', heading: 'What is this page for?', body: 'Add other people in your team (HR staff, accountants) so they can log in to PayLeef without using your main admin password.' },
+      { emoji: '➕', heading: 'How to add a user', body: 'Click "Add User", enter their name and email, and choose their role. They will get an email to set their own password.' },
+      { emoji: '🎭', heading: 'Three roles available', body: 'Admin — can do everything. HR — can manage employees and payslips. Viewer — can only view, cannot make any changes.' },
+      { emoji: '🗑️', heading: 'Remove a user', body: 'Click the delete icon next to a user to remove their access. They will not be able to log in after this.' },
+    ],
+  },
+
+  '/admin/locations': {
+    icon: MapPin,
+    title: 'Locations — Office Branches',
+    steps: [
+      { emoji: '📍', heading: 'What is this page for?', body: 'If your company has multiple offices or branches, add them here. You can then assign employees to their office location.' },
+      { emoji: '➕', heading: 'How to add a location', body: 'Click "Add Location", type the location name (e.g. "Chennai Office"), and click Save.' },
+      { emoji: '👥', heading: 'Assign employees to a location', body: 'After adding locations, go to the Employees page and edit each employee to assign them to the right location.' },
+      { emoji: '🔍', heading: 'Filter by location', body: 'Once assigned, you can filter the Employees list by location to see only staff from a specific branch.' },
+    ],
+  },
+
+  '/admin/payroll-setup': {
+    icon: Bot,
+    title: 'Payroll Setup — Automatic Config',
+    steps: [
+      { emoji: '🤖', heading: 'How this works', body: 'This is a smart setup wizard. It asks you simple questions one by one and sets up your entire payroll automatically.' },
+      { emoji: '💬', heading: 'Just answer the questions', body: 'Each question has ready-made options to click. You do not need to type anything — just click the answer that fits your company.' },
+      { emoji: '✅', heading: 'Click Apply at the end', body: 'After answering all 9 questions, you will see a full summary. Review it, then click "Apply This Configuration".' },
+      { emoji: '🔄', heading: 'Picks up where you left off', body: 'If you close the page in the middle, the bot will remember your answers and continue from where you stopped.' },
+      { emoji: '💡', heading: 'Can I change settings later?', body: 'Yes! After setup, go to Payroll Config to adjust any settings. You can also run this wizard again from the start.' },
+    ],
+  },
+
+  '/admin/salary-revisions': {
+    icon: TrendingUp,
+    title: 'Salary Revisions — Update Salaries',
+    steps: [
+      { emoji: '💰', heading: 'What is this page for?', body: 'Use this page to give salary increments to one or more employees. You can update salaries in bulk.' },
+      { emoji: '✏️', heading: 'How to revise a salary', body: 'Find the employee, enter the new salary amount, and select the effective date (which month the new salary starts from).' },
+      { emoji: '✅', heading: 'Confirm and save', body: 'Click Save after entering the new salary. The change will apply to all payslips generated from that month onwards.' },
+      { emoji: '💡', heading: 'Tip — bulk update', body: 'You can update multiple employees at once. Make all your changes first, then click Save All at the bottom.' },
     ],
   },
 };
