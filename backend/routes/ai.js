@@ -293,6 +293,26 @@ If no anomalies found, return empty array: []`;
   }
 });
 
+// ── Page-context guidance (matches frontend PAGE_GUIDES) ─────────────────────
+const PAGE_GUIDES_BACKEND = {
+  '/admin/dashboard':      'Dashboard — shows overview, total employees, payslips sent this month, quick links.',
+  '/admin/employees':      'Employees page — add, edit, search employees. Add Employee button top right. Pencil icon to edit.',
+  '/admin/upload':         'Import Data — bulk upload employees via CSV. Download template first, fill it, then upload.',
+  '/admin/send':           'Generate & Send — select month+year, click Generate, tick employees, click Send Email.',
+  '/admin/payslips':       'Payslip History — view all past payslips, download PDF, resend email using icons on each row.',
+  '/admin/reports':        'Reports — download PF Report, ESI Report, Bank Advice, Salary Register as Excel files.',
+  '/admin/attendance':     'Attendance — mark P/A/H/CL/SL/EL for each employee per month. Affects LOP in payslips.',
+  '/admin/payroll-config': 'Payroll Config — set Basic%, HRA%, allowances, and deductions (PF/ESI/PT/TDS). Save once.',
+  '/admin/payroll-setup':  'Payroll Setup wizard — answer 9 questions, bot configures payroll automatically.',
+  '/admin/leave-policy':   'Leave Policy — set CL/SL/EL days per year. Extra absences beyond balance = LOP.',
+  '/admin/analytics':      'Analytics — payroll cost charts, department breakdown, headcount trends.',
+  '/admin/form16':         'Form 16 — generate annual income tax certificate for employees, needed for their ITR filing.',
+  '/admin/settings':       'Settings — update company name, logo, address, email settings, PDF password lock.',
+  '/admin/billing':        'Billing — see current plan, upgrade to Monthly ₹999 or Annual ₹9,990.',
+  '/admin/users':          'Users — add team members (HR, Accountant) with role-based access.',
+  '/admin/locations':      'Locations — add office branches and assign employees to them.',
+};
+
 // ── Leef: built-in keyword FAQ (works with zero API calls, zero quota) ────────
 const LEEF_FAQ = [
   {
@@ -407,7 +427,7 @@ Payroll: CTC=annual cost÷12=monthly. Gross=Basic+HRA+allowances. Net=Gross−de
 // POST /api/ai/help-bot
 router.post('/help-bot', async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message, history = [], currentPage = '', pageTitle = '' } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ answer: 'Please type your question!' });
     }
@@ -423,15 +443,22 @@ router.post('/help-bot', async (req, res) => {
     // ── Step 2: Try Gemini for complex/custom questions ───────────────────────
     if (!process.env.GEMINI_API_KEY) {
       return res.json({
-        answer: `I can answer many common PayLeef questions without AI! 😊\n\nTry asking things like:\n• "How do I add employees?"\n• "What is PF deduction?"\n• "How do I generate payslips?"\n• "What is LOP?"\n\nFor other questions, click the ❓ Help button in the top menu. 🌿`,
+        answer: `I can answer many common PayLeef questions! 😊\n\nTry asking:\n• "How do I add employees?"\n• "What is PF deduction?"\n• "How do I generate payslips?"\n• "What is LOP?" 🌿`,
       });
     }
+
+    // Build system instruction — include current page context if available
+    const pageContext = PAGE_GUIDES_BACKEND[currentPage]
+      ? `\n\nUSER IS CURRENTLY ON: ${PAGE_GUIDES_BACKEND[currentPage]}`
+      : '';
+
+    const systemWithContext = LEEF_SYSTEM + pageContext;
 
     try {
       const genAI = new (require('@google/generative-ai').GoogleGenerativeAI)(process.env.GEMINI_API_KEY);
       const leefModel = genAI.getGenerativeModel({
         model: GEMINI_MODEL,
-        systemInstruction: LEEF_SYSTEM,
+        systemInstruction: systemWithContext,
       });
 
       // Keep only last 4 messages to minimise tokens
@@ -448,9 +475,8 @@ router.post('/help-bot', async (req, res) => {
 
     } catch (aiErr) {
       console.error('[HelpBot] Gemini error:', aiErr.message);
-      // Graceful fallback — still give a useful response
       return res.json({
-        answer: `I couldn't reach my AI brain right now 😅, but I can still help!\n\nTry asking me common questions like:\n• "How do I add employees?"\n• "What is PF?"\n• "How to generate payslips?"\n• "What is LOP?"\n\nOr click the ❓ Help button in the top menu for step-by-step guides. 🌿`,
+        answer: `I couldn't reach my AI brain right now 😅 but I can still help!\n\nTry asking:\n• "How do I add employees?"\n• "What is PF?"\n• "How to generate payslips?"\n• "What is LOP?" 🌿`,
       });
     }
 
